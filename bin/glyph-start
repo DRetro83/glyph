@@ -350,10 +350,22 @@ class Start(Gtk.Window):
         return True
 
     def launch(self, a):
+        cmd = a["app"].get_commandline() or ""
         try:
-            a["app"].launch([], None)
+            if "flatpak" in cmd and " run " in cmd:
+                # Flatpak apps get the Glyph look only when started from Glyph
+                import shlex
+                args = [x for x in shlex.split(cmd) if not (len(x) == 2 and x.startswith("%"))]
+                i = args.index("run") + 1
+                args[i:i] = ["--env=GTK_THEME=Glyph"]
+                self.spawn(args)
+            else:
+                a["app"].launch([], None)
         except Exception:
-            pass
+            try:
+                a["app"].launch([], None)
+            except Exception:
+                pass
         self.quit()
 
     def launch_first(self):
