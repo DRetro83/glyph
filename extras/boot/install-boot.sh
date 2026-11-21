@@ -29,7 +29,7 @@ want() { case " $PARTS " in *" $1 "*) return 0 ;; esac; return 1; }
 
 if [ $REMOVE = 1 ]; then
   echo "Glyph start-up look: removing$PARTS"
-  if want sddm; then run sudo rm -f /etc/sddm.conf.d/glyph.conf; run sudo rm -rf /usr/share/sddm/themes/glyph; fi
+  if want sddm; then run sudo rm -f /etc/sddm.conf.d/glyph.conf /etc/sddm.conf.d/zz-glyph.conf; run sudo rm -rf /usr/share/sddm/themes/glyph; fi
   if want plymouth && has plymouth-set-default-theme; then
     prev=$(cat $STATE/plymouth-before 2>/dev/null || echo bgrt)
     run sudo plymouth-set-default-theme -R "$prev" || true
@@ -56,7 +56,19 @@ want plymouth && pkgs="$pkgs plymouth plymouth-label"   # label draws the text; 
 [ -n "$pkgs" ] && run sudo apt-get install -y $pkgs
 [ $DRY = 1 ] || sudo mkdir -p $STATE
 
-python3 "$HERE/make-images.py" "$PAL" "$TMP/grub" "$TMP/plymouth"
+# GRUB in the screen's own resolution, with a font size that fits it
+RES=""
+for c in /sys/class/drm/card*-*; do
+  [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
+  m=$(head -n1 "$c/modes" 2>/dev/null)
+  [ -n "$m" ] && { RES=$m; break; }
+done
+RES=${RES:-1920x1080}
+SW=${RES%x*}; SH=${RES#*x}
+FS=$((SH / 54)); [ $FS -lt 16 ] && FS=16; [ $FS -gt 40 ] && FS=40
+BW=$((SW * 46 / 100)); BH=$((FS * 2)); IH=$((FS * 2)); PAD=$((FS * 3 / 4)); LT=$(((BH - FS) / 2 - 2))
+echo "  screen $RES, GRUB letters $FS px"
+python3 "$HERE/make-images.py" "$PAL" "$TMP/grub" "$TMP/plymouth" "$BW" "$BH"
 chmod 755 "$TMP"/*   # SDDM and GRUB must be able to read the copies
 
 if want sddm; then
@@ -70,7 +82,7 @@ if want sddm; then
   run sudo rm -rf /usr/share/sddm/themes/glyph
   run sudo cp -r "$TMP/sddm" /usr/share/sddm/themes/glyph
   run sudo mkdir -p /etc/sddm.conf.d
-  if [ $DRY = 0 ]; then printf '[Theme]\nCurrent=glyph\n' | sudo tee /etc/sddm.conf.d/glyph.conf >/dev/null; fi
+  if [ $DRY = 0 ]; then printf '[Theme]\nCurrent=glyph\n' | sudo tee /etc/sddm.conf.d/zz-glyph.conf >/dev/null; sudo rm -f /etc/sddm.conf.d/glyph.conf; fi
 fi
 
 if want plymouth; then
@@ -86,10 +98,11 @@ fi
 
 if want grub; then
   cp "$HERE/grub/glyph/theme.txt" "$TMP/grub/"
-  sed -i "s/@VIEW@/$GLYPH_VIEW/g; s/@DIM@/$GLYPH_DIM/g; s/@TEXT@/$GLYPH_TEXT/g; s/@TINK@/$GLYPH_TINK/g" "$TMP/grub/theme.txt"
+  sed -i "s/@VIEW@/$GLYPH_VIEW/g; s/@DIM@/$GLYPH_DIM/g; s/@TEXT@/$GLYPH_TEXT/g; s/@TINK@/$GLYPH_TINK/g;
+          s/@FS@/$FS/g; s/@BW@/$BW/g; s/@BH@/$BH/g; s/@IH@/$IH/g; s/@PAD@/$PAD/g; s/@LT@/$LT/g" "$TMP/grub/theme.txt"
   F=/usr/share/fonts/truetype/ibm-plex
-  grub-mkfont -s 16 -o "$TMP/grub/plex16.pf2" "$F/IBMPlexMono-Regular.ttf" 2>/dev/null
-  grub-mkfont -s 16 -o "$TMP/grub/plex16b.pf2" "$F/IBMPlexMono-Bold.ttf" 2>/dev/null
+  grub-mkfont -s "$FS" -o "$TMP/grub/plex.pf2" "$F/IBMPlexMono-Regular.ttf" 2>/dev/null
+  grub-mkfont -s "$FS" -o "$TMP/grub/plexb.pf2" "$F/IBMPlexMono-Bold.ttf" 2>/dev/null
   echo "- GRUB menu"
   run sudo rm -rf /boot/grub/themes/glyph
   run sudo mkdir -p /boot/grub/themes
@@ -98,7 +111,8 @@ if want grub; then
   if [ $DRY = 0 ]; then
     { echo '# Glyph start-up look - remove with: extras/boot/install-boot.sh --remove'
       echo 'GRUB_THEME=/boot/grub/themes/glyph/theme.txt'
-      echo 'GRUB_GFXMODE=auto'
+      echo "GRUB_GFXMODE=$RES,auto"
+      echo 'GRUB_GFXPAYLOAD_LINUX=keep'
       want plymouth && echo 'GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT splash"'
     } | sudo tee /etc/default/grub.d/glyph.cfg >/dev/null
   fi

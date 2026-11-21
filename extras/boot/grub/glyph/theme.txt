@@ -1,27 +1,27 @@
-# Glyph GRUB theme - colours are filled in by install-boot.sh
+# Glyph GRUB theme - colours, sizes and the font size are filled in by install-boot.sh
 title-text: ""
 desktop-color: "@VIEW@"
-terminal-font: "IBM Plex Mono Regular 16"
+terminal-font: "IBM Plex Mono Regular @FS@"
 terminal-box: "term_*.png"
 
-+ label { left = 24 top = 18 text = "DEBIAN · GLYPH" color = "@DIM@" font = "IBM Plex Mono Regular 16" }
++ label { left = 2% top = 2% text = "DEBIAN · GLYPH" color = "@DIM@" font = "IBM Plex Mono Regular @FS@" }
 
-+ image { left = 50%-300 top = 30%-46 width = 600 height = 30 file = "bar.png" }
-+ label { left = 50%-288 top = 30%-41 width = 300 height = 20 text = "■ START UP" color = "@TINK@" font = "IBM Plex Mono Bold 16" }
++ image { left = 27% top = 25% width = @BW@ height = @BH@ file = "bar.png" }
++ label { left = 27%+@PAD@ top = 25%+@LT@ width = 40% height = @FS@ text = "■ START UP" color = "@TINK@" font = "IBM Plex Mono Bold @FS@" }
 
 + boot_menu {
-    left = 50%-300
-    top = 30%-16
-    width = 600
+    left = 27%
+    top = 25%+@BH@
+    width = @BW@
     height = 40%
     menu_pixmap_style = "menu_*.png"
-    item_font = "IBM Plex Mono Regular 16"
+    item_font = "IBM Plex Mono Regular @FS@"
     item_color = "@TEXT@"
-    selected_item_font = "IBM Plex Mono Bold 16"
+    selected_item_font = "IBM Plex Mono Bold @FS@"
     selected_item_color = "@TINK@"
     selected_item_pixmap_style = "sel_*.png"
-    item_height = 32
-    item_padding = 14
+    item_height = @IH@
+    item_padding = @PAD@
     item_spacing = 2
     icon_width = 0
     icon_height = 0
@@ -29,6 +29,6 @@ terminal-box: "term_*.png"
 }
 
 + label {
-    left = 50%-300 top = 72% width = 600 align = "center"
-    id = "__timeout__" text = "Starts in %d s  ·  ↑ ↓ choose  ·  Enter start" color = "@DIM@" font = "IBM Plex Mono Regular 16"
+    left = 27% top = 70% width = @BW@ align = "center"
+    id = "__timeout__" text = "Starts in %d s  ·  ↑ ↓ choose  ·  Enter start" color = "@DIM@" font = "IBM Plex Mono Regular @FS@"
 }

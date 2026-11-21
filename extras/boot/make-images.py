@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Make the small PNG pieces for the GRUB and Plymouth themes in your Glyph colours.
-Usage: make-images.py palette.env grub_dir plymouth_dir   (no extra Python packages needed)"""
+Usage: make-images.py palette.env grub_dir plymouth_dir [bar_width bar_height]   (no extra Python packages needed)"""
 import struct
 import sys
 import zlib
@@ -33,7 +33,8 @@ title, tink, view, win, hi, lo, amber = (pal[k] for k in ("title", "tink", "view
 stripe = mix(title, tink, 0.3)
 
 # GRUB: striped title bar, menu box (9 pieces), selected row (9 pieces), terminal box
-png(g / "bar.png", 600, 30, lambda x, y: stripe if y % 3 == 1 else title)
+bw, bh = (int(sys.argv[4]), int(sys.argv[5])) if len(sys.argv) > 5 else (600, 30)
+png(g / "bar.png", bw, bh, lambda x, y: stripe if y % 3 == 1 else title)
 for name, centre, edge in (("menu", win, title), ("sel", title, title), ("term", view, hi)):
     for part, (w, h) in {"nw": (1, 1), "n": (1, 1), "ne": (1, 1), "w": (1, 1), "e": (1, 1),
                          "sw": (1, 1), "s": (1, 1), "se": (1, 1), "c": (8, 8)}.items():
