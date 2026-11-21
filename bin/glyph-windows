@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""glyph-windows - the "■ N" box on the taskbar: how many windows are open.
+"""glyph-windows - the "▦ N" button on the taskbar: how many windows are open.
 
 Prints one line of JSON for waybar. Uses lswt (lists Wayland windows); when lswt
 is not installed it prints an empty box, so waybar hides it.
@@ -35,7 +35,7 @@ w = windows()
 if len(sys.argv) > 1 and sys.argv[1] == "count":
     print("" if w is None else len(w))
 elif w is None:
-    print(json.dumps({"text": ""}))
+    print(json.dumps({"text": "▦", "tooltip": "open windows (install lswt)", "class": "none"}))
 else:
-    print(json.dumps({"text": f"■ {len(w)}", "tooltip": "\n".join(w) or "no windows open",
+    print(json.dumps({"text": f"▦ {len(w)}", "tooltip": "\n".join(w) or "no windows open",
                       "class": "some" if w else "none"}))

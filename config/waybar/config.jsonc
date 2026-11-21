@@ -41,8 +41,8 @@
 
   // quick settings: Wi-Fi, Bluetooth, volume, brightness, power, drives
   "custom/windows": {
-    "exec": "glyph-windows", "return-type": "json", "interval": 5,
-    "on-click": "glyph-menu"
+    "exec": "glyph-windows", "return-type": "json", "interval": 3,
+    "on-click": "glyph-panel windows"
   },
   "custom/settings": {
     "exec": "glyph-panel status",

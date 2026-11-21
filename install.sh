@@ -72,7 +72,7 @@ say "Installing packages (asks for your password)"
 run sudo apt-get update
 run sudo apt-get install -y "${PACKAGES[@]}"
 # optional helpers that not every Debian has: window count on the taskbar, monitor brightness
-for extra in lswt ddcutil upower; do
+for extra in lswt wlrctl ddcutil upower; do
   run sudo apt-get install -y "$extra" >/dev/null 2>&1 || say "($extra not available, skipped)"
 done
 if command -v ddcutil >/dev/null 2>&1 && (( ! CHECK )); then
