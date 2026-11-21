@@ -418,6 +418,11 @@ text-wrong-color={rgba(p['rosehi'])}
 """
 
 
+def stripes_css(p):
+    return (f"repeating-linear-gradient(to bottom, {p['title']} 0px, {p['title']} 2px, "
+            f"shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 3px)")
+
+
 def panel_css(p):
     stripes = f"repeating-linear-gradient(to bottom, {p['title']} 0px, {p['title']} 2px, shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 4px)"
     return f"""/* Glyph quick settings and calendar - made by glyph-theme */
@@ -520,6 +525,12 @@ paned > separator {{ background: {p['hi']}; min-width: 1px; }}
 .music row.mrow.cur {{ background: {p['hov']}; }}
 .music row.mrow.cur .mname {{ color: {p['amber']}; font-weight: bold; }}
 .music .mfoot {{ padding: 8px 12px; border-top: 1px solid {p['hi']}; background: {p['panel']}; }}
+/* on-screen bar (volume, brightness) */
+#glyph-osd {{ background: transparent; }}
+.osd .osdrow {{ padding: 12px 16px; }}
+.osd .seg {{ background: {p['hov']}; border: 1px solid {p['hi']}; }}
+.osd .seg.on {{ background-image: {stripes_css(p)}; border-color: {p['title']}; }}
+.osd .seg.muted {{ background: {p['hov']}; border-color: {p['hi']}; }}
 /* Wi-Fi and Bluetooth windows */
 .netapp {{ background: {p['win']}; }}
 .netapp .ntop {{ padding: 10px; border-bottom: 1px solid {p['hi']}; background: {p['panel']}; }}

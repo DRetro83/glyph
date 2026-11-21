@@ -1,0 +1,25 @@
+#!/bin/sh
+# glyph-bright up|down|set N - screen brightness (laptop backlight, or a monitor over
+# its cable with ddcutil) and show the bar.
+STEP=${GLYPH_BRIGHT_STEP:-5}
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/glyph-ddc"
+if command -v brightnessctl >/dev/null 2>&1 && brightnessctl -l -c backlight 2>/dev/null | grep -q Device; then
+  case "$1" in
+    up) brightnessctl -q -c backlight set "$STEP%+" ;;
+    down) brightnessctl -q -c backlight set "$STEP%-" ;;
+    set) brightnessctl -q -c backlight set "$2%" ;;
+  esac
+  v=$(brightnessctl -m -c backlight | cut -d, -f4 | tr -d %)
+  exec glyph-osd brightness "$v"
+fi
+command -v ddcutil >/dev/null 2>&1 || exit 0
+cur=$(cat "$CACHE" 2>/dev/null); cur=${cur:-100}
+case "$1" in
+  up) v=$((cur + STEP)) ;; down) v=$((cur - STEP)) ;; set) v=$2 ;; *) v=$cur ;;
+esac
+[ "$v" -gt 100 ] && v=100; [ "$v" -lt 0 ] && v=0
+echo "$v" > "$CACHE"
+glyph-osd brightness "$v"
+# the monitor is slow to answer: set it in the background, newest value wins
+pkill -f "ddcutil setvcp 10" 2>/dev/null
+setsid ddcutil setvcp 10 "$v" --noverify >/dev/null 2>&1 &

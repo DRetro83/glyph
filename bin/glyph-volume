@@ -1,0 +1,18 @@
+#!/bin/sh
+# glyph-volume up|down|mute|mic-mute|set N - change the volume and show the bar.
+STEP=${GLYPH_VOLUME_STEP:-2}
+case "$1" in
+  up)       wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "$STEP%+" ;;
+  down)     wpctl set-volume @DEFAULT_AUDIO_SINK@ "$STEP%-" ;;
+  mute)     wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+  set)      wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "$2%" ;;
+  mic-mute)
+    wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+    out=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@)
+    v=$(echo "$out" | awk '{printf "%d", $2*100+0.5}')
+    case "$out" in *MUTED*) exec glyph-osd mic "$v" muted ;; *) exec glyph-osd mic "$v" ;; esac ;;
+  *) echo "usage: glyph-volume up|down|mute|mic-mute|set N" >&2; exit 1 ;;
+esac
+out=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
+v=$(echo "$out" | awk '{printf "%d", $2*100+0.5}')
+case "$out" in *MUTED*) exec glyph-osd volume "$v" muted ;; *) exec glyph-osd volume "$v" ;; esac

@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""glyph-osd-bar - the on-screen bar for volume and brightness, as a Glyph panel.
+
+Started by glyph-osd; shows the value from $XDG_RUNTIME_DIR/glyph-osd, again on SIGUSR1,
+hides after 1.5 s and quits after a minute without use.
+"""
+import os
+import signal
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
+
+GLib.set_prgname("glyph-osd-bar")
+RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
+DATA, PID = RUN / "glyph-osd", RUN / "glyph-osd.pid"
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+NAMES = {"volume": "VOLUME", "brightness": "BRIGHTNESS", "mic": "MICROPHONE"}
+N = 20
+
+
+class Bar(Gtk.Window):
+    def __init__(self):
+        super().__init__()
+        self.set_name("glyph-osd")
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_namespace(self, "glyph-osd")
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 60)
+        try:
+            GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
+        except Exception:
+            pass
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        outer.get_style_context().add_class("panel")
+        outer.get_style_context().add_class("osd")
+        self.add(outer)
+        title = Gtk.Box()
+        title.get_style_context().add_class("ptitle")
+        self.t = Gtk.Label(label="■ VOLUME")
+        self.t.get_style_context().add_class("pt")
+        title.pack_start(self.t, False, False, 0)
+        outer.pack_start(title, False, False, 0)
+        row = Gtk.Box(spacing=12)
+        row.get_style_context().add_class("osdrow")
+        self.blocks = Gtk.Box(spacing=2)
+        self.cells = []
+        for _ in range(N):
+            c = Gtk.Box()
+            c.set_size_request(12, 14)
+            c.get_style_context().add_class("seg")
+            self.blocks.pack_start(c, False, False, 0)
+            self.cells.append(c)
+        row.pack_start(self.blocks, False, False, 0)
+        self.v = Gtk.Label(label="0%")
+        self.v.set_width_chars(6)
+        self.v.get_style_context().add_class("tn")
+        row.pack_start(self.v, False, False, 0)
+        outer.pack_start(row, False, False, 0)
+        self.hide_id = self.quit_id = 0
+        self.realize()
+        # clicks go through the bar
+        self.connect("realize", lambda *_: None)
+
+    def show_value(self):
+        try:
+            kind, val, *rest = (DATA.read_text().split() + ["", ""])[:3]
+            v = max(0, min(100, int(float(val))))
+        except Exception:
+            return False
+        muted = bool(rest and rest[0] == "muted")
+        self.t.set_text("■ " + NAMES.get(kind, kind.upper()) + (" · MUTED" if muted else ""))
+        self.v.set_text("muted" if muted else f"{v}%")
+        lit = round(v * N / 100)
+        for i, c in enumerate(self.cells):
+            ctx = c.get_style_context()
+            (ctx.add_class if i < lit else ctx.remove_class)("on")
+            (ctx.add_class if muted else ctx.remove_class)("muted")
+        self.show_all()
+        for attr in ("hide_id", "quit_id"):
+            if getattr(self, attr):
+                GLib.source_remove(getattr(self, attr))
+        self.hide_id = GLib.timeout_add(1500, self.fade)
+        self.quit_id = GLib.timeout_add_seconds(60, self.leave)
+        return False
+
+    def fade(self):
+        self.hide_id = 0
+        self.hide()
+        return False
+
+    def leave(self):
+        PID.unlink(missing_ok=True)
+        Gtk.main_quit()
+        return False
+
+
+def main():
+    if Gdk.Screen.get_default() is None:
+        return
+    css = Gtk.CssProvider()
+    try:
+        css.load_from_path(str(CONF / "panel" / "panel.css"))
+    except Exception:
+        pass
+    Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 10)
+    PID.write_text(str(os.getpid()))
+    b = Bar()
+    signal.signal(signal.SIGUSR1, lambda *a: GLib.idle_add(b.show_value))
+    signal.signal(signal.SIGTERM, lambda *a: GLib.idle_add(b.leave))
+    b.show_value()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

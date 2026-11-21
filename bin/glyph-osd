@@ -1,0 +1,10 @@
+#!/bin/sh
+# glyph-osd KIND VALUE [muted] - show the on-screen bar (volume, brightness, mic ...).
+# Fast: it writes the value and wakes the bar; the bar itself starts only once.
+F="${XDG_RUNTIME_DIR:-/tmp}/glyph-osd"
+printf '%s %s %s\n' "$1" "$2" "${3:-}" > "$F"
+pid=$(cat "$F.pid" 2>/dev/null)
+if [ -n "$pid" ] && grep -q glyph-osd-bar "/proc/$pid/cmdline" 2>/dev/null; then
+  kill -USR1 "$pid" 2>/dev/null && exit 0
+fi
+setsid glyph-osd-bar >/dev/null 2>&1 &
