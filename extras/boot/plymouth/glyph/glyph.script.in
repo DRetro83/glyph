@@ -1,0 +1,47 @@
+// Glyph start-up screen. Colours are filled in by install-boot.sh.
+Window.SetBackgroundTopColor(@VIEW_RGB@);
+Window.SetBackgroundBottomColor(@VIEW_RGB@);
+W = Window.GetWidth(); H = Window.GetHeight();
+
+logo.image = Image.Text("GLYPH", @TAN_RGB@, 1, "IBM Plex Mono Bold 40");
+logo.sprite = Sprite(logo.image);
+logo.sprite.SetPosition(W / 2 - logo.image.GetWidth() / 2, H / 2 - 70, 1);
+
+sub.image = Image.Text("a light, text-first desktop", @DIM_RGB@, 1, "IBM Plex Mono 13");
+sub.sprite = Sprite(sub.image);
+sub.sprite.SetPosition(W / 2 - sub.image.GetWidth() / 2, H / 2 - 10, 1);
+
+frame.image = Image("frame.png");
+frame.sprite = Sprite(frame.image);
+frame.sprite.SetPosition(W / 2 - frame.image.GetWidth() / 2, H / 2 + 30, 1);
+
+fill.original = Image("fill.png");
+fill.sprite = Sprite();
+fill.sprite.SetPosition(W / 2 - frame.image.GetWidth() / 2 + 3, H / 2 + 33, 2);
+t = 0;
+
+fun progress_cb(duration, progress) {
+  w = Math.Int((frame.image.GetWidth() - 6) * progress);
+  if (w < 1) w = 1;
+  fill.sprite.SetImage(fill.original.Scale(w, fill.original.GetHeight()));
+}
+Plymouth.SetBootProgressFunction(progress_cb);
+
+// password prompt (encrypted disk)
+fun display_password_cb(prompt, bullets) {
+  s = "";
+  for (i = 0; i < bullets; i++) s += "•";
+  pw.image = Image.Text(prompt + "  " + s, @TEXT_RGB@, 1, "IBM Plex Mono 14");
+  pw.sprite = Sprite(pw.image);
+  pw.sprite.SetPosition(W / 2 - pw.image.GetWidth() / 2, H / 2 + 80, 3);
+}
+fun display_normal_cb() { pw.sprite = NULL; }
+Plymouth.SetDisplayPasswordFunction(display_password_cb);
+Plymouth.SetDisplayNormalFunction(display_normal_cb);
+
+fun message_cb(text) {
+  msg.image = Image.Text(text, @DIM_RGB@, 1, "IBM Plex Mono 12");
+  msg.sprite = Sprite(msg.image);
+  msg.sprite.SetPosition(W / 2 - msg.image.GetWidth() / 2, H - 60, 3);
+}
+Plymouth.SetMessageFunction(message_cb);

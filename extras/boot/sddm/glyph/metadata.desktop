@@ -1,0 +1,12 @@
+[SddmGreeterTheme]
+Name=Glyph
+Description=Glyph sign-in screen: text first, one box, your colours
+Author=Glyph
+License=GPL-3.0
+Type=sddm-theme
+Version=1.0
+Website=https://github.com/DRetro83/glyph
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=glyph
+Theme-API=2.0

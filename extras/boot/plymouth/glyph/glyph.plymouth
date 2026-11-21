@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Glyph
+Description=Glyph start-up screen: the name and a striped bar
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/glyph
+ScriptFile=/usr/share/plymouth/themes/glyph/glyph.script

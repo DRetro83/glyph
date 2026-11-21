@@ -38,7 +38,7 @@ Glyph is a complete desktop for Debian, put together from small open-source part
 | Part | What it does |
 |---|---|
 | **Windows** | Square windows with a coloured title bar and **_ □ ×** buttons. Drag a window to an edge for half the screen, or to the top to maximize it. Four workspaces. |
-| **Taskbar** | At the bottom: ▸ START, workspaces, your open windows, volume, network, battery, the clock and POWER. |
+| **Taskbar** | At the bottom: ▸ START, workspaces, your open windows, SETTINGS ▴ (network, volume, battery), the clock and POWER. |
 | **Start menu** | Categories on the left, apps on the right. One search box finds apps, settings and files. |
 | **Quick settings** | Wi-Fi, Bluetooth, mobile data, volume, brightness, power profile, night light, do not disturb and USB drives. |
 | **Settings** | Appearance, display, sound, keyboard, mouse, printers, power, disks, users, date, language, privacy, default apps, accessibility and updates. |
@@ -67,11 +67,31 @@ Then log out. At the login screen, pick **Glyph** in the session list (in SDDM i
 
 ![Glyph running for real: taskbar, start menu and a notification](docs/img/glyph-desktop.png)
 
-<sub>Glyph running for real on labwc: the taskbar, the start menu (fuzzel) and a notification (mako). Thunar gets the Glyph look in step 6.</sub>
+<sub>Glyph running for real on labwc: the taskbar, the start menu (fuzzel) and a notification (mako).</sub>
 
 | Power menu | Lock screen |
 |---|---|
 | ![Power menu: Lock, Log out, Restart, Shut down, Suspend](docs/img/glyph-power.png) | ![Lock screen in the Glyph colours](docs/img/glyph-lock.png) |
+
+| Quick settings and calendar | Settings |
+|---|---|
+| Click **SETTINGS ▴** or the clock on the taskbar | ![The Glyph Settings window](docs/img/settings.png) |
+
+| Your apps in the Glyph look (Files, text editor) | Sign-in screen (optional) |
+|---|---|
+| ![Thunar and Mousepad in the Glyph colours](docs/img/apps-themed.png) | ![The Glyph sign-in screen for SDDM](docs/img/sddm.png) |
+
+### Start-up look (optional)
+
+The boot menu, the start-up screen and the sign-in screen are a separate step, because they change system files and also the sign-in screen that KDE uses:
+
+```sh
+extras/boot/install-boot.sh --check   # only shows what it would do
+extras/boot/install-boot.sh           # GRUB + Plymouth + SDDM, or name only some: sddm grub plymouth
+extras/boot/install-boot.sh --remove  # back to how it was
+```
+
+They take your Glyph colours at the moment you run it; run it again after you change the colour.
 
 ### Keys
 
@@ -94,22 +114,22 @@ Then log out. At the login screen, pick **Glyph** in the session list (in SDDM i
 
 ## 🗺 Roadmap
 
-Glyph is built in six steps. Each step is tested before the next one starts.
+Glyph is built in six steps. Each step is tested before the next one starts. All six are built; the next thing is **your test on a real PC**.
 
 | Step | What | Built with | Status |
 |---|---|---|---|
 | 1 | **Windows**: title bars, buttons, snapping, workspaces, right-click menu, the Glyph colours | labwc, glyph-theme | ✅ done |
 | 2 | **Taskbar** at the bottom: START, workspaces, windows, volume, network, battery, clock, POWER | waybar | ✅ done |
 | 3 | **Start menu, power menu, notifications, lock screen, screenshots** | fuzzel, mako, swaylock + swayidle, grim + slurp | ✅ done |
-| 4 | **Quick settings and panels** | eww, NetworkManager, BlueZ, PipeWire, udisks2 | ⏳ next |
-| 5 | **Start-up and sign-in** | GRUB theme, Plymouth, greetd + tuigreet | |
-| 6 | **Your apps in the Glyph look** | gtk.css, Kvantum, Firefox and Vivaldi themes | |
+| 4 | **Quick settings, calendar and the Settings window** | GTK3 + gtk-layer-shell, NetworkManager, BlueZ, PipeWire, udisks2 | ✅ done |
+| 5 | **Start-up and sign-in** (optional extra) | GRUB theme, Plymouth, SDDM theme | ✅ done |
+| 6 | **Your apps in the Glyph look** | GTK 3/4 theme, qt6ct, foot, editor colours, Firefox and Vivaldi CSS | ✅ done |
 
 After that: a **Glyph ISO** to try it from a USB stick, and a clean install without another desktop. Details in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## 🎨 Change the look
 
-Right-click the desktop → **Look**, or from the terminal:
+**Settings → Appearance** (also: Background), right-click the desktop → **Look**, or from the terminal:
 
 ```sh
 glyph-theme --mode dark      # dark | oled | light
@@ -117,7 +137,9 @@ glyph-theme --colour amber   # tan, light-tan, cream, amber, olive, green, rose,
 glyph-theme --print          # show the whole palette
 ```
 
-The change shows at once. Your choice is kept in `~/.config/glyph/theme.conf`.
+Windows, taskbar, menus and panels change at once; apps such as Files change when you open them again, and Firefox after a restart. Your choice is kept in `~/.config/glyph/theme.conf`.
+
+Firefox gets the Glyph colours by itself. For **Vivaldi**: open `vivaldi://experiments`, turn on *Allow CSS modifications*, then in Vivaldi's Settings → Appearance → *Custom UI modifications* choose the folder `~/.config/glyph/vivaldi`. Don't want the browsers coloured? Turn it off in Settings → Appearance.
 
 ## ⟳ Update and remove
 
@@ -134,9 +156,12 @@ glyph-update               # newest Glyph from GitHub; your look and settings ar
 |---|---|
 | `~/.config/glyph/labwc/` | the window manager settings, only used in the Glyph session |
 | `~/.config/glyph/theme.conf` | your mode and colour |
-| `~/.local/share/themes/Glyph/` | the theme that glyph-theme makes |
+| `~/.local/share/themes/Glyph/` | the window and GTK theme that glyph-theme makes (used only in the Glyph session) |
+| `~/.config/qt6ct/`, `~/.config/qt5ct/` | Qt colours, only read in the Glyph session |
+| `~/.config/glyph/foot/glyph.ini`, `vivaldi/glyph.css` | terminal and Vivaldi colours; Firefox gets `chrome/userChrome.css` in its profile |
+| `~/.config/glyph/glyph.conf` | lock time and screen scale from Settings |
 | `~/.config/glyph/waybar/`, `fuzzel/`, `mako/`, `swaylock/` | taskbar, menus, notifications and lock screen; the colours are made by glyph-theme |
-| `/usr/local/bin/glyph-*` | glyph-session, glyph-theme, glyph-update, glyph-menu, glyph-power, glyph-lock, glyph-shot, glyph-ws |
+| `/usr/local/bin/glyph-*` | glyph-session, glyph-theme, glyph-settings, glyph-panel, glyph-bg, glyph-idle, glyph-update, glyph-menu, glyph-power, glyph-lock, glyph-shot, glyph-ws |
 | `/usr/share/wayland-sessions/glyph.desktop` | the entry on the login screen |
 
 </details>
