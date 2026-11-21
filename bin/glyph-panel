@@ -302,6 +302,49 @@ def drives():
 
 
 # ---------------------------------------------------------------- taskbar status
+# ---- quick settings ask many tools (nmcli, bluetoothctl, upower ...). They are asked in a
+# background thread and kept here, so the panel draws instantly and Show/Hide never waits.
+_SLOW = ["wifi_on", "wifi_current", "wired_up", "wifi_list", "bt_present", "bt_on", "bt_devices",
+         "modem_present", "wwan_on", "dnd_on", "night_on", "airplane_on", "volume", "brightness",
+         "power_profile", "battery", "device_batteries", "drives"]
+_RAW, _CACHE = {}, {}
+_LOCK = threading.Lock()
+
+
+def _cached(name):
+    def w():
+        with _LOCK:
+            if name in _CACHE:
+                return _CACHE[name]
+        v = _RAW[name]()
+        with _LOCK:
+            _CACHE[name] = v
+        return v
+    return w
+
+
+def use_cache():
+    g = globals()
+    for n in _SLOW:
+        if n not in _RAW:
+            _RAW[n] = g[n]
+            g[n] = _cached(n)
+
+
+def refresh_cache():
+    """Ask all the tools again; returns True when something changed."""
+    new = {}
+    for n in _SLOW:
+        try:
+            new[n] = _RAW[n]()
+        except Exception:
+            new[n] = None
+    with _LOCK:
+        changed = any(_CACHE.get(k) != v for k, v in new.items())
+        _CACHE.update(new)
+    return changed
+
+
 def status():
     txt = "SETTINGS ▴"
     tips = []
@@ -809,8 +852,31 @@ def run_panel(kind):
         foot.pack_start(button("Lock", lambda: (bg(["glyph-lock"]), quit_())), True, True, 0)
         foot.pack_start(button("Power", lambda: (bg(["glyph-power"]), quit_()), "amber"), True, True, 0)
         body.pack_start(label("…", "dim"), False, False, 0)
-        GLib.timeout_add(30, lambda: (draw(), False)[1])
-        GLib.timeout_add_seconds(5, lambda: (draw() if not state["join"] else None, True)[1])
+        use_cache()
+        busy = {"v": False}
+
+        def refresh_async(force=False):
+            """Ask the tools in the background, redraw when the answers changed."""
+            if busy["v"]:
+                return True
+            busy["v"] = True
+
+            def work():
+                changed = refresh_cache()
+
+                def done():
+                    busy["v"] = False
+                    if (changed or force) and not state["join"]:
+                        draw()
+                    return False
+                GLib.idle_add(done)
+            threading.Thread(target=work, daemon=True).start()
+            return True
+
+        def later(fn, ms=600):          # after a click: ask again, then redraw
+            GLib.timeout_add(ms, lambda: (refresh_async(force=True), False)[1])
+        refresh_async(force=True)
+        GLib.timeout_add_seconds(5, lambda: (refresh_async(), True)[1])
 
     # ------------------------------------------------------------ power
     elif kind == "power":
