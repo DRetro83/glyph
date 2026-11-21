@@ -32,7 +32,7 @@ COLOURS = [("Tan", "tan", "#a8957c"), ("Light tan", "light-tan", "#cdbb9f"), ("C
            ("Dark tan", "dark-tan", "#6e5f4c")]
 LAYOUTS = [("us", "English (US)"), ("gb", "English (UK)"), ("be", "Belgian (AZERTY)"), ("fr", "French (AZERTY)"),
            ("de", "German (QWERTZ)"), ("nl", "Dutch"), ("es", "Spanish"), ("it", "Italian"), ("pt", "Portuguese")]
-SECTIONS = [("PERSONAL", ["Appearance", "Background"]),
+SECTIONS = [("PERSONAL", ["Appearance", "Background", "Notifications"]),
             ("DEVICES", ["Display", "Sound", "Keyboard", "Mouse & touchpad", "Power & lock"]),
             ("CONNECTIONS", ["Network", "Bluetooth"]),
             ("SYSTEM", ["Date & time", "Updates", "About"])]
@@ -301,6 +301,69 @@ class Settings(Gtk.Window):
         row.pack_start(cb, False, False, 0)
         row.pack_start(self.btn("Use the Glyph colour", lambda: (write_kv(THEME, "bgcolour", None), bg(["glyph-bg"]), self.refresh()), "small"), False, False, 0)
         p.pack_start(row, False, False, 0)
+
+    def page_notifications(self, p):
+        t = read_kv(THEME)
+        dnd = "do-not-disturb" in sh(["makoctl", "mode"])
+        running = bool(sh(["pgrep", "-x", "mako"]).strip())
+        if not running:
+            p.pack_start(self.note("The notification program (mako) is not running, so no pop-ups appear. "
+                                   "Press the button to start it."), False, False, 0)
+            p.pack_start(self.btn("Start notifications", lambda: (bg(["glyph-notifyd"]), self.refresh()), "amber"), False, False, 0)
+        p.pack_start(self.toggle("Do not disturb", "Hide pop-ups. They still go to the list under the clock.", dnd,
+                                 lambda on: (sh(["makoctl", "mode", "-a" if on else "-r", "do-not-disturb"]), self.refresh())), False, False, 0)
+        p.pack_start(self.toggle("Play a sound", "A short beep when a message arrives.", t.get("notif_sound", "yes") == "yes",
+                                 lambda on: (write_kv(THEME, "notif_sound", "yes" if on else "no"), self.theme())), False, False, 0)
+        pos = t.get("notif_pos", "tr")
+        p.pack_start(self.lab("WHERE POP-UPS APPEAR", "lab"), False, False, 0)
+        p.pack_start(self.opts([("tr", "Top right"), ("tc", "Top middle"), ("tl", "Top left"),
+                                ("br", "Bottom right"), ("bc", "Bottom middle"), ("bl", "Bottom left")], pos,
+                               lambda v: (write_kv(THEME, "notif_pos", v), self.theme())), False, False, 0)
+        pv = Gtk.DrawingArea()
+        pv.set_size_request(200, 120)
+        pv.set_halign(Gtk.Align.START)
+
+        def hexrgb(h):
+            h = h.lstrip("#")
+            return [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+
+        pal = dict(l.split()[:2] for l in sh(["glyph-theme", "--print"]).splitlines() if len(l.split()) >= 2)
+
+        def draw_pv(w, cr):
+            W, H = 200, 120
+            col = lambda k, d: hexrgb(pal.get(k, d))
+            hi, view, panel, title = col("hi", "#5c544a"), col("view", "#1a1714"), col("panel", "#29251f"), col("title", "#a8957c")
+            cr.set_source_rgb(*view); cr.rectangle(0, 0, W, H); cr.fill()
+            cr.set_source_rgb(*panel); cr.rectangle(0, H - 12, W, 12); cr.fill()
+            cr.set_source_rgb(*hi); cr.set_line_width(1)
+            cr.rectangle(0.5, 0.5, W - 1, H - 1); cr.stroke()
+            cr.move_to(0, H - 12.5); cr.line_to(W, H - 12.5); cr.stroke()
+            x = {"r": W - 62, "l": 6, "c": 72}[pos[1]]
+            y = 6 if pos[0] == "t" else H - 34
+            cr.set_source_rgb(*title); cr.rectangle(x, y, 56, 16); cr.fill()
+            return False
+        pv.connect("draw", draw_pv)
+        p.pack_start(pv, False, False, 0)
+        p.pack_start(self.lab("KEEP POP-UPS ON SCREEN FOR", "lab"), False, False, 0)
+        p.pack_start(self.opts([("3", "3 s"), ("5", "5 s"), ("10", "10 s")], t.get("notif_time", "5"),
+                               lambda v: (write_kv(THEME, "notif_time", v), self.theme())), False, False, 0)
+        row = Gtk.Box(spacing=8)
+        row.pack_start(self.btn("Show a test notification",
+                                lambda: bg(["notify-send", "-a", "Glyph", "Test", "This is where your notifications appear."])), False, False, 0)
+        row.pack_start(self.btn("Clear notification history", self.clear_notifs), False, False, 0)
+        p.pack_start(row, False, False, 0)
+        p.pack_start(self.note("Urgent messages stay until you click them. Earlier messages are in the list under the clock."), False, False, 0)
+
+    def clear_notifs(self):
+        sh(["makoctl", "dismiss", "--all"])
+        try:
+            out = sh(["makoctl", "history"])
+            ids = set(re.findall(r'"id":\s*\{[^}]*"data":\s*(\d+)', out)) | set(re.findall(r"^Notification (\d+):", out, re.M))
+            f = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-notif-cleared"
+            old = set(f.read_text().split()) if f.exists() else set()
+            f.write_text(" ".join(sorted(old | ids)[-500:]))
+        except Exception:
+            pass
 
     def page_display(self, p):
         out = sh(["wlr-randr"]) if has("wlr-randr") else ""

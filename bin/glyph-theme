@@ -359,7 +359,17 @@ radius=0
 
 
 def mako_conf(p):
+    c = read_conf()
+    pos = c.get("notif_pos", "tr")
+    anchor = {"t": "top", "b": "bottom"}.get(pos[:1], "top") + "-" + {"r": "right", "l": "left", "c": "center"}.get(pos[1:], "right")
+    margin = "10,10,56,10" if pos.startswith("b") else "10"
+    try:
+        secs = int(c.get("notif_time", "5"))
+    except ValueError:
+        secs = 5
+    sound = "on-notify=exec glyph-sound notify\n" if c.get("notif_sound", "yes") == "yes" else "on-notify=none\n"
     return f"""# Glyph notifications (mako) - made by glyph-theme, do not edit by hand.
+# Where and how long: Settings -> Notifications.
 font=IBM Plex Mono 11
 background-color={p['panel']}
 text-color={p['text']}
@@ -368,14 +378,14 @@ progress-color=over {p['hov']}
 border-size=1
 border-radius=0
 padding=10,12
-margin=10
+margin={margin}
 width=380
 max-visible=4
-anchor=top-right
-default-timeout=5000
+anchor={anchor}
+default-timeout={secs * 1000}
 icons=0
 format=<b>%s</b>\\n%b
-
+{sound}
 [urgency=high]
 border-color={p['rose']}
 border-size=2
@@ -383,6 +393,7 @@ default-timeout=0
 
 [mode=do-not-disturb]
 invisible=1
+on-notify=none
 """
 
 

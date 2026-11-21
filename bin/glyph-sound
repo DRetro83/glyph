@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""glyph-sound - short Glyph beeps, like the prototype.
+
+  glyph-sound notify | error | plug | unplug | shot | login | logout
+Plays with pw-play (PipeWire) or paplay. Turn the message sound off in
+Settings -> Notifications."""
+import math
+import os
+import shutil
+import struct
+import subprocess
+import sys
+import wave
+from pathlib import Path
+
+SNDS = {"notify": [(880, .06), (1320, .09)], "login": [(440, .09), (660, .09), (880, .09), (1320, .18)],
+        "logout": [(1320, .09), (880, .09), (660, .09), (440, .18)], "error": [(220, .12), (165, .2)],
+        "plug": [(660, .06), (990, .09)], "unplug": [(990, .06), (660, .09)], "shot": [(1760, .04), (1320, .05)]}
+kind = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in SNDS else "notify"
+cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph" / f"snd-{kind}.wav"
+if not cache.exists():
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    rate, frames = 44100, bytearray()
+    for f, d in SNDS[kind]:
+        n = int(rate * d)
+        for i in range(n):
+            env = min(1, i / 200) * min(1, (n - i) / 400)
+            v = 0.18 * env * (1 if math.sin(2 * math.pi * f * i / rate) > 0 else -1)   # square wave, soft
+            frames += struct.pack("<h", int(v * 32767))
+    with wave.open(str(cache), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(bytes(frames))
+for player in ("pw-play", "paplay", "aplay"):
+    if shutil.which(player):
+        subprocess.run([player, str(cache)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        break

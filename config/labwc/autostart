@@ -11,8 +11,8 @@ command -v wlr-randr >/dev/null && sed -n 's/^scale_\(.*\)=\(.*\)$/\1 \2/p' "$G/
 # taskbar at the bottom
 waybar -c "$G/waybar/config.jsonc" -s "$G/waybar/style.css" >/dev/null 2>&1 &
 
-# notifications (top right)
-mako -c "$G/mako/config" >/dev/null 2>&1 &
+# notifications (where: Settings -> Notifications)
+glyph-notifyd >/dev/null 2>&1 &
 
 # lock after the time in Settings -> Power & lock, and always before sleep
 glyph-idle &

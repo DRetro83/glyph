@@ -1,0 +1,40 @@
+#!/bin/sh
+# glyph-notifyd - start mako, Glyph's notification pop-ups, with the Glyph look.
+# Another notification program (KDE, xfce4-notifyd, dunst), an old mako from an
+# earlier login, or a mako that D-Bus started by itself (without the Glyph
+# settings) can hold the notification name; then our mako cannot start and you
+# see no pop-ups, or plain ones in the wrong place. This clears the way first.
+G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+U=$(id -u)
+[ -f "$G/mako/config" ] || glyph-theme >/dev/null 2>&1
+
+owner() {   # pid that holds org.freedesktop.Notifications (asking does not start anything)
+  busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus \
+    GetConnectionUnixProcessID s org.freedesktop.Notifications 2>/dev/null | sed -n 's/^u //p'
+}
+
+clear_way() {
+  pkill -u "$U" -x mako 2>/dev/null
+  for p in xfce4-notifyd dunst notification-daemon notify-osd plasma_waitforname swaync; do
+    pkill -u "$U" -x "$p" 2>/dev/null
+  done
+  o=$(owner)
+  if [ -n "$o" ] && [ "$(cat /proc/"$o"/comm 2>/dev/null)" != plasmashell ]; then
+    echo "glyph-notifyd: stopping $(cat /proc/"$o"/comm 2>/dev/null) ($o), it holds the notification name" >&2
+    kill "$o" 2>/dev/null
+  fi
+  sleep 0.3
+}
+
+for try in 1 2 3 4 5; do
+  clear_way
+  mako -c "$G/mako/config" &
+  pid=$!
+  sleep 1
+  if kill -0 "$pid" 2>/dev/null; then
+    wait "$pid"          # mako runs; stay with it
+    exit $?
+  fi
+  echo "glyph-notifyd: mako did not start (try $try)" >&2
+done
+exit 1
