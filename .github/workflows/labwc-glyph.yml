@@ -32,9 +32,13 @@ jobs:
           apt-get source labwc
           ls
       - name: Apply the Glyph patch and build
+        shell: bash
         run: |
-          set -o pipefail
+          set -eo pipefail
+          exec > >(tee "$GITHUB_WORKSPACE/build.log") 2>&1
           cd build/labwc-*/
+          pwd; ls debian
+          mkdir -p debian/patches
           cp "$GITHUB_WORKSPACE/extras/labwc/glyph-titlebar.patch" debian/patches/
           echo glyph-titlebar.patch >> debian/patches/series
           export QUILT_PATCHES=debian/patches
@@ -43,11 +47,12 @@ jobs:
           DEBEMAIL="glyph@users.noreply.github.com" DEBFULLNAME="Glyph" \
             dch -v "$(dpkg-parsechangelog -S Version)+glyph1" --distribution trixie --force-distribution \
             "Glyph: fine titlebar stripes and a boxed window title."
-          dpkg-buildpackage -b -uc -us 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+          dpkg-buildpackage -b -uc -us
       - name: Collect
         if: always()
         run: |
           mkdir -p out
+          echo "built $(date -u)" > out/status.txt
           cp build/labwc_*.deb out/ 2>/dev/null || true
           cp build.log out/ 2>/dev/null || true
           ls -la out
