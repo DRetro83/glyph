@@ -71,6 +71,15 @@ say "Glyph - installing next to your current desktop"
 say "Installing packages (asks for your password)"
 run sudo apt-get update
 run sudo apt-get install -y "${PACKAGES[@]}"
+# optional helpers that not every Debian has: window count on the taskbar, monitor brightness
+for extra in lswt ddcutil upower; do
+  run sudo apt-get install -y "$extra" >/dev/null 2>&1 || say "($extra not available, skipped)"
+done
+if command -v ddcutil >/dev/null 2>&1 && (( ! CHECK )); then
+  # monitor brightness over the cable needs the i2c-dev module
+  echo i2c-dev | sudo tee /etc/modules-load.d/glyph-i2c.conf >/dev/null
+  sudo modprobe i2c-dev 2>/dev/null || true
+fi
 ok "packages"
 
 # 1b. labwc-glyph: Debian's labwc with Glyph's small titlebar patch (stripes and

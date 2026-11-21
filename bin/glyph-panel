@@ -3,6 +3,7 @@
 
   glyph-panel quick     Quick settings (click SETTINGS on the taskbar)
   glyph-panel cal       Calendar and notifications (click the clock)
+  glyph-panel power     Lock, log out, sleep, restart, off (click the power button)
   glyph-panel status    one line of JSON for the taskbar button
 
 Running the same panel again closes it. Esc closes it too.
@@ -12,6 +13,7 @@ powerprofilesctl, udisksctl, makoctl, wlsunset.
 import calendar
 import datetime
 import json
+import threading
 import os
 import re
 import shutil
@@ -188,6 +190,54 @@ def battery():
     return None
 
 
+def device_batteries():
+    """Batteries of mice, keyboards, controllers, headsets ... via UPower."""
+    if not has("upower"):
+        return []
+    out = []
+    for path in sh(["upower", "-e"]).split():
+        if "DisplayDevice" in path or "line_power" in path:
+            continue
+        info = sh(["upower", "-i", path])
+        pct = re.search(r"percentage:\s+([\d.]+)%", info)
+        if not pct:
+            continue
+        name = (re.search(r"model:\s+(.+)", info) or re.search(r"native-path:\s+(.+)", info))
+        state = re.search(r"state:\s+(\S+)", info)
+        kind = re.search(r"^\s{2}(\S[\w-]*)\n", info, re.M)
+        nm = name.group(1).strip() if name else path.rsplit("/", 1)[-1]
+        if "battery_BAT" in path:
+            nm = "This computer"
+        st = state.group(1) if state else ""
+        st = {"fully-charged": "full", "pending-charge": "waiting", "discharging": ""}.get(st, st)
+        out.append({"name": nm, "pct": int(float(pct.group(1))), "state": st, "kind": kind.group(1) if kind else ""})
+    return out
+
+
+DDC_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-ddc"
+
+
+def ddc_brightness_cached():
+    """Last known brightness of an external monitor (DDC/CI is slow, so cached)."""
+    try:
+        return int(DDC_CACHE.read_text().strip())
+    except Exception:
+        return None
+
+
+def ddc_read():
+    out = sh(["ddcutil", "getvcp", "10", "--brief", "--sleep-multiplier", "0.4"], timeout=8)
+    m = re.search(r"VCP 10 C (\d+) (\d+)", out)
+    if m:
+        v = round(int(m.group(1)) * 100 / max(1, int(m.group(2))))
+        try:
+            DDC_CACHE.write_text(str(v))
+        except Exception:
+            pass
+        return v
+    return None
+
+
 def drives():
     try:
         data = json.loads(sh(["lsblk", "-J", "-o", "NAME,PATH,LABEL,SIZE,MOUNTPOINT,RM,HOTPLUG,TYPE,FSTYPE,PKNAME"]))
@@ -238,7 +288,7 @@ def run_panel(kind):
     GLib.set_prgname("glyph-panel")
 
     pidfile = RUN / f"glyph-panel-{kind}.pid"
-    other = RUN / f"glyph-panel-{'cal' if kind == 'quick' else 'quick'}.pid"
+    others = [RUN / f"glyph-panel-{k}.pid" for k in ("quick", "cal", "power") if k != kind]
     def panel_pid(f):
         """The pid in f, but only if that process really is a glyph-panel."""
         try:
@@ -250,7 +300,7 @@ def run_panel(kind):
         f.unlink(missing_ok=True)
         return None
 
-    for f, toggle in ((pidfile, True), (other, False)):
+    for f, toggle in [(pidfile, True)] + [(o, False) for o in others]:
         pid = panel_pid(f)
         if pid:
             try:
@@ -310,7 +360,7 @@ def run_panel(kind):
     win.add(outer)
     title = Gtk.Box()
     title.get_style_context().add_class("ptitle")
-    lab = Gtk.Label(label="■ QUICK SETTINGS" if kind == "quick" else "■ CALENDAR")
+    lab = Gtk.Label(label={"quick": "■ QUICK SETTINGS", "power": "■ POWER"}.get(kind, "■ CALENDAR"))
     lab.get_style_context().add_class("pt")
     lab.set_valign(Gtk.Align.CENTER)
     title.pack_start(lab, False, False, 0)
@@ -467,6 +517,7 @@ def run_panel(kind):
             tiles.append(toggle_tile("Airplane", a_on, "on" if a_on else "off", airplane))
             for i, t in enumerate(tiles):
                 grid.attach(t, i % 3, i // 3, 1, 1)
+            grid.get_style_context().add_class("tiles")
             body.pack_start(grid, False, False, 0)
 
             # Wi-Fi networks
@@ -598,6 +649,26 @@ def run_panel(kind):
 
             # power profile + battery
             prof = power_profile()
+            # batteries: this computer and devices (mouse, controller, headset ...)
+            bats = device_batteries()
+            if bats:
+                def bsum(b):
+                    return f"{b['name'].split()[0]} {b['pct']}%" + (" ⚡" if b["state"] == "charging" else "")
+                if section("BATTERIES", "bat", " · ".join(bsum(b) for b in bats[:3])):
+                    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    box.get_style_context().add_class("plist")
+                    for b in bats:
+                        r = Gtk.Box(spacing=10)
+                        r.get_style_context().add_class("prow")
+                        r.pack_start(tile_label((b["name"][:1] or "?").upper()), False, False, 0)
+                        nm = label(b["name"])
+                        nm.set_ellipsize(3)
+                        r.pack_start(nm, True, True, 0)
+                        st = f"{b['pct']}%" + (f" · {b['state']}" if b["state"] else "")
+                        r.pack_end(label(st, "amber" if b["state"] == "charging" else ("rose" if b["pct"] <= 15 else "dim")), False, False, 0)
+                        box.pack_start(r, False, False, 0)
+                    body.pack_start(box, False, False, 0)
+
             names = {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}
             if prof and section("POWER PROFILE", "pow", names.get(prof, prof)):
                 row = Gtk.Box(spacing=4, homogeneous=True)
@@ -638,6 +709,47 @@ def run_panel(kind):
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
                 body.pack_start(row, False, False, 0)
+            elif has("ddcutil"):
+                # a desktop monitor: brightness over the cable (DDC/CI); slow, so in the background
+                cur_b = ddc_brightness_cached()
+                row = Gtk.Box(spacing=8)
+                row.pack_start(label("BRI", "lab"), False, False, 0)
+                sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 5)
+                sc.set_draw_value(False)
+                sc.set_value(cur_b if cur_b is not None else 100)
+                val = label(f"{cur_b}%" if cur_b is not None else "…", "dim")
+                val.set_width_chars(6)
+                pend = {"id": 0}
+
+                def set_ddc(s, val=val, pend=pend):
+                    v = int(s.get_value())
+                    val.set_text(f"{v}%")
+                    if pend["id"]:
+                        GLib.source_remove(pend["id"])
+
+                    def go():
+                        pend["id"] = 0
+                        bg(["ddcutil", "setvcp", "10", str(v), "--noverify"])
+                        try:
+                            DDC_CACHE.write_text(str(v))
+                        except Exception:
+                            pass
+                        return False
+                    pend["id"] = GLib.timeout_add(350, go)
+                sc.connect("value-changed", set_ddc)
+                row.pack_start(sc, True, True, 0)
+                row.pack_start(val, False, False, 0)
+                body.pack_start(row, False, False, 0)
+
+                def read_real(sc=sc, val=val):
+                    v = ddc_read()
+                    if v is not None:
+                        GLib.idle_add(lambda: (sc.handler_block_by_func(set_ddc), sc.set_value(v), sc.handler_unblock_by_func(set_ddc), val.set_text(f"{v}%"), False)[-1])
+                    else:
+                        GLib.idle_add(lambda: (val.set_text("n/a") if cur_b is None else None, False)[-1])
+                if not state.get("ddc_read"):
+                    state["ddc_read"] = True
+                    threading.Thread(target=read_real, daemon=True).start()
             body.show_all()
             GLib.idle_add(fit_height)
 
@@ -647,6 +759,49 @@ def run_panel(kind):
         foot.pack_start(button("Power", lambda: (bg(["glyph-power"]), quit_()), "amber"), True, True, 0)
         draw()
         GLib.timeout_add_seconds(5, lambda: (draw() if not state["join"] else None, True)[1])
+
+    # ------------------------------------------------------------ power
+    elif kind == "power":
+        win.set_size_request(300, -1)
+        foot.set_no_show_all(True)
+        body.get_style_context().add_class("powerbody")
+        armed = {"what": None, "id": 0}
+        rows = [("lock", "Lock", "Ctrl+Alt+L", ["glyph-lock"], False),
+                ("logout", "Log out", "back to sign in", ["labwc", "--exit"], True),
+                ("sleep", "Sleep", "wake with a key", ["systemctl", "suspend"], False),
+                ("restart", "Restart", "start again", ["systemctl", "reboot"], True),
+                ("off", "⏻  Off", "shut down", ["systemctl", "poweroff"], True)]
+
+        def draw():
+            clear(body)
+            for key, name, hint, cmd, ask in rows:
+                b = Gtk.Button()
+                b.get_style_context().add_class("prow2")
+                if key == "off":
+                    b.get_style_context().add_class("off")
+                h = Gtk.Box(spacing=10)
+                is_armed = armed["what"] == key
+                h.pack_start(label(name if not is_armed else name + " ?", "tn" + (" amber" if key == "off" or is_armed else "")), False, False, 0)
+                h.pack_end(label("click again" if is_armed else hint, "amber" if is_armed else "dim"), False, False, 0)
+                b.add(h)
+                if is_armed:
+                    b.get_style_context().add_class("armed")
+
+                def act(key=key, cmd=cmd, ask=ask):
+                    if ask and armed["what"] != key:
+                        armed["what"] = key
+                        if armed["id"]:
+                            GLib.source_remove(armed["id"])
+                        armed["id"] = GLib.timeout_add(3000, lambda: (armed.update(what=None, id=0), draw(), False)[2])
+                        draw()
+                        return
+                    quit_()
+                    bg(cmd)
+                b.connect("clicked", lambda *_, f=act: f())
+                body.pack_start(b, False, False, 0)
+            body.show_all()
+            GLib.idle_add(fit_height)
+        draw()
 
     # ------------------------------------------------------------ calendar
     else:
@@ -724,7 +879,7 @@ if __name__ == "__main__":
     what = sys.argv[1] if len(sys.argv) > 1 else "quick"
     if what == "status":
         status()
-    elif what in ("quick", "cal"):
+    elif what in ("quick", "cal", "power"):
         run_panel(what)
     else:
         print(__doc__)

@@ -39,6 +39,10 @@ COLOURS = {  # the system colours offered in Settings -> Appearance
     "rose": "#b8405c", "blue": "#8fb0c8", "dark-blue": "#4a6a8a",
     "dark-tan": "#6e5f4c",
 }
+ACCENTS = {  # the second colour: focus, START, the power button, warnings ...
+    "amber": "#ffb340", "orange": "#ff8a3d", "rose": "#e8708c", "green": "#a8c060",
+    "blue": "#7fb0e0", "violet": "#b590d8", "cream": "#e6dac4",
+}
 DEFAULTS = {"mode": "dark", "colour": "#a8957c"}
 
 
@@ -255,7 +259,7 @@ tooltip {{ background: {p['panel']}; border: 1px solid {p['title']}; }}
 tooltip label {{ color: {p['text']}; }}
 button {{ border: none; }}
 
-#custom-start {{ color: {p['amber']}; background: {p['view']}; border: 1px solid {p['amber']}; font-weight: bold; letter-spacing: 1px; padding: 0 16px; margin: 4px 6px 4px 8px; }}
+#custom-start {{ color: {p['title']}; background: {p['view']}; border: 1px solid {p['title']}; font-weight: bold; letter-spacing: 1px; padding: 0 16px; margin: 4px 6px 4px 8px; }}
 #custom-start:hover {{ background: {p['hov']}; }}
 
 #custom-ws1, #custom-ws2, #custom-ws3, #custom-ws4 {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; min-width: 40px; padding: 0; margin: 4px 2px; font-weight: bold; }}
@@ -269,7 +273,7 @@ button {{ border: none; }}
 #taskbar button.active {{ background: {p['hov']}; border-bottom-color: {p['title']}; }}
 #taskbar button.minimized {{ color: {p['dim']}; }}
 
-#tray, #custom-settings, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 14px; margin: 4px 0 4px -1px; }}
+#tray, #custom-windows, #custom-settings, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 14px; margin: 4px 0 4px -1px; }}
 #tray {{ margin-right: 8px; }}
 #custom-settings {{ font-weight: bold; letter-spacing: 1px; }}
 #custom-settings.low {{ color: {p['amber']}; }}
@@ -410,9 +414,9 @@ def panel_css(p):
 #glyph-panel {{ background: transparent; }}
 .panel, .panel * {{ font-family: "IBM Plex Mono", monospace; }}
 .panel {{ font-size: 13px; background: {p['panel']}; color: {p['text']}; border: 1px solid {p['title']}; box-shadow: 6px 6px 0 0 {p['lo']}; }}
-.ptitle {{ background-image: {stripes}; min-height: 28px; padding-left: 8px; }}
-.ptitle .pt {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; padding: 1px 8px; border: 1px solid shade({p['title']}, 0.7); margin: 4px 0; letter-spacing: 1px; }}
-.ptitle .px {{ background: {p['title']}; color: {p['tink']}; border: none; border-left: 1px solid shade({p['title']}, 0.7); border-radius: 0; min-width: 30px; padding: 0; font-weight: bold; box-shadow: none; }}
+.ptitle {{ background-image: {stripes}; min-height: 24px; padding-left: 8px; }}
+.ptitle .pt {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; padding: 0 8px; border: 1px solid shade({p['title']}, 0.7); margin: 3px 0; letter-spacing: 1px; }}
+.ptitle .px {{ background: {p['title']}; color: {p['tink']}; border: none; border-left: 1px solid shade({p['title']}, 0.7); border-radius: 0; min-width: 28px; min-height: 0; padding: 0; margin: 0; font-weight: bold; box-shadow: none; }}
 .pbody {{ padding: 12px; }}
 .pfoot {{ padding: 8px 12px 12px 12px; border-top: 1px solid {p['hi']}; }}
 button {{ background: {p['view']}; color: {p['text']}; border: 1px solid {p['hi']}; border-radius: 0; box-shadow: none; text-shadow: none; padding: 6px 10px; min-height: 0; background-image: none; }}
@@ -420,7 +424,16 @@ button:hover {{ background: {p['hov']}; }}
 button.amber {{ color: {p['amber']}; border-color: {p['amber']}; }}
 button.small {{ padding: 2px 10px; }}
 button.on, button.seg.on {{ border-color: {p['amber']}; color: {p['amber']}; background: {p['hov']}; }}
-.tog {{ padding: 8px 10px; min-height: 52px; }}
+.tog {{ padding: 5px 8px; min-height: 36px; }}
+.tiles .tog .tn {{ font-size: 12px; }}
+.tiles .tog .ts {{ font-size: 10px; }}
+/* power menu */
+.powerbody {{ padding: 4px 0; }}
+button.prow2 {{ border: none; border-bottom: 1px solid {p['hov']}; background: transparent; padding: 14px 16px; }}
+button.prow2:hover {{ background: {p['hov']}; }}
+button.prow2.armed {{ background: {p['hov']}; box-shadow: inset 3px 0 0 {p['amber']}; }}
+.amber, label.amber {{ color: {p['amber']}; }}
+.rose, label.rose {{ color: {p['rosehi']}; }}
 .tog.on {{ background: {p['title']}; border-color: {p['title']}; }}
 .tog.on label, .tog.on label:backdrop {{ color: {p['tink']}; opacity: 1; }}
 .tog .tn, .tn {{ font-weight: bold; }}
@@ -471,6 +484,8 @@ scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
 .files iconview.fgrid:selected {{ background: {p['title']}; color: {p['tink']}; }}
 .files .fstatus {{ padding: 6px 10px; background: {p['panel']}; border-top: 1px solid {p['hi']}; color: {p['dim']}; font-size: 11px; }}
 .files .fstatus label {{ color: {p['dim']}; }}
+paned > separator {{ background: {p['hi']}; min-width: 1px; }}
+.activepane .ftool {{ box-shadow: inset 0 -2px 0 {p['amber']}; }}
 /* Music player */
 .music {{ background: {p['win']}; }}
 .music .mtop {{ padding: 12px; }}
@@ -495,6 +510,9 @@ scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
 .music row.mrow.cur .mname {{ color: {p['amber']}; font-weight: bold; }}
 .music .mfoot {{ padding: 8px 12px; border-top: 1px solid {p['hi']}; background: {p['panel']}; }}
 /* Start menu */
+.start .ptitle {{ min-height: 22px; }}
+.start .ptitle .pt {{ margin: 2px 0; padding: 0 8px; font-size: 12px; }}
+.start .ptitle .px {{ min-height: 0; min-width: 26px; }}
 #glyph-start {{ background: transparent; }}
 .start .sside {{ background: {p['panel']}; border-right: 1px solid {p['hi']}; padding: 4px 0; }}
 .start button.scat {{ border: none; border-left: 3px solid transparent; background: transparent; padding: 7px 12px 7px 13px; }}
@@ -562,7 +580,13 @@ def gtk_css(p, mode, gtk4=False):
 
 * {{ border-radius: 0; font-family: "IBM Plex Mono", monospace; -gtk-outline-radius: 0; }}
 window, .background, dialog {{ background-color: {p['view']}; color: {p['text']}; }}
-toolbar, .toolbar, actionbar {{ background: {p['panel']}; color: {p['text']}; border-color: {p['hi']}; box-shadow: none; }}
+toolbar, .toolbar, actionbar, .inline-toolbar, searchbar > revealer > box {{ background: {p['win']}; color: {p['text']}; border-color: {p['hi']}; box-shadow: none; }}
+menu, .menu, .context-menu {{ padding: 0; min-width: 220px; }}
+menu menuitem, .menu menuitem {{ padding: 9px 14px; min-height: 0; }}
+menu separator, .menu separator {{ margin: 0; min-height: 1px; background: {p['hi']}; }}
+menu menuitem .mkey {{ color: {p['dim']}; font-size: 11px; }}
+menu menuitem:hover .mkey {{ color: {p['tink']}; }}
+menu menuitem:disabled label {{ color: {p['hi']}; }}
 /* Apps that draw their own title bar (Lutris, file dialogs ...): made to look like Glyph's title bars */
 headerbar, .titlebar:not(headerbar), window.csd > .titlebar {{
   background-color: {p['title']};
@@ -840,6 +864,22 @@ def write_apps(p, conf):
             r = subprocess.run(["flatpak", "override", "--user", "--filesystem=~/.themes:ro"], capture_output=True)
             if r.returncode == 0:
                 mark.write_text("flatpak override --user --filesystem=~/.themes:ro\n")
+    # LibreOffice draws its toolbars and documents itself and becomes hard to use with
+    # the Glyph GTK theme: give it plain Adwaita (dark or light, like Glyph).
+    lo_theme = "Adwaita" if mode == "light" else "Adwaita:dark"
+    apps_dir = DATA_DIR / "applications"
+    apps_dir.mkdir(parents=True, exist_ok=True)
+    for src in Path("/usr/share/applications").glob("libreoffice*.desktop"):
+        dst = apps_dir / src.name
+        if dst.exists() and "X-Glyph-LibreOffice" not in dst.read_text(errors="ignore"):
+            continue   # the user's own copy: leave it
+        out = []
+        for line in src.read_text(errors="ignore").splitlines():
+            if line.startswith("Exec=") and "GTK_THEME=" not in line:
+                line = "Exec=env GTK_THEME=" + lo_theme + " " + line[5:]
+            out.append(line)
+        out.insert(1, "X-Glyph-LibreOffice=yes")
+        dst.write_text("\n".join(out) + "\n")
     # Qt: only read when QT_QPA_PLATFORMTHEME=qt6ct / qt5ct (set in the Glyph session only)
     for qt in ("qt6ct", "qt5ct"):
         qd = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / qt
@@ -926,6 +966,7 @@ def main():
     ap = argparse.ArgumentParser(description="Build the Glyph look.")
     ap.add_argument("--mode", choices=["dark", "light", "oled"])
     ap.add_argument("--colour", "--color", help="#rrggbb or a name: " + ", ".join(COLOURS))
+    ap.add_argument("--accent", help="second colour, #rrggbb or a name: " + ", ".join(ACCENTS))
     ap.add_argument("--print", action="store_true", help="show the palette and exit")
     a = ap.parse_args()
 
@@ -939,7 +980,18 @@ def main():
         if not (c.startswith("#") and len(c) == 7):
             sys.exit("glyph-theme: colour must look like #a8957c or be one of: " + ", ".join(COLOURS))
         conf["colour"] = c
+    if a.accent:
+        c = ACCENTS.get(a.accent.lower(), a.accent.lower())
+        if not (c.startswith("#") and len(c) == 7):
+            sys.exit("glyph-theme: accent must look like #ffb340 or be one of: " + ", ".join(ACCENTS))
+        conf["accent"] = c
+    if a.mode or a.colour:
+        # a new system colour: the background follows it again (Settings -> Background)
+        conf.pop("bgcolour", None)
     p = make_palette(conf["colour"], conf["mode"])
+    acc2 = conf.get("accent")
+    if acc2:
+        p["amber"] = shade(acc2, 0.6) if conf["mode"] == "light" else acc2
     if a.print:
         for k, v in p.items():
             print(f"{k:8} {v}")

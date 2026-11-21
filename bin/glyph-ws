@@ -15,7 +15,8 @@ case "$1" in
       *) exit 1 ;;
     esac
     echo "$n" > "$F"
-    pkill -RTMIN+8 -x waybar 2>/dev/null; exit 0 ;;
+    pkill -RTMIN+8 -x waybar 2>/dev/null
+    pkill -HUP -f "bin/glyph-desk" 2>/dev/null; exit 0 ;;
   state)
     if [ "$2" = "$cur" ]; then cls=active; else cls=idle; fi
     printf '{"text":"%s","class":"%s","tooltip":"Workspace %s (Ctrl+Alt+%s)"}\n' "$2" "$cls" "$2" "$2" ;;

@@ -218,14 +218,27 @@ class Settings(Gtk.Window):
         GLib.timeout_add(250, lambda: (self.show_page(self.current), False)[1])
 
     def theme(self, *args):
-        subprocess.run(["glyph-theme", *args], capture_output=True)
-        css = Gtk.CssProvider()
+        """Run glyph-theme in the background, so this window stays responsive."""
         try:
-            css.load_from_path(str(CONF / "panel" / "panel.css"))
-            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1)
+            proc = subprocess.Popen(["glyph-theme", *args], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                    start_new_session=True)
         except Exception:
-            pass
-        self.refresh()
+            return
+
+        def done():
+            if proc.poll() is None:
+                return True
+            try:
+                if getattr(self, "css2", None):
+                    Gtk.StyleContext.remove_provider_for_screen(Gdk.Screen.get_default(), self.css2)
+                self.css2 = Gtk.CssProvider()
+                self.css2.load_from_path(str(CONF / "panel" / "panel.css"))
+                Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), self.css2, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1)
+            except Exception:
+                pass
+            self.refresh()
+            return False
+        GLib.timeout_add(200, done)
 
     def page_appearance(self, p):
         t = read_kv(THEME)
@@ -236,10 +249,19 @@ class Settings(Gtk.Window):
         cur = t.get("colour", "#a8957c").lower()
         p.pack_start(self.opts([(c[1], f'<span foreground="{c[2]}">■</span> {c[0]}') for c in COLOURS], next((c[1] for c in COLOURS if c[2] == cur), ""),
                                lambda v: self.theme("--colour", v)), False, False, 0)
+        p.pack_start(self.lab("SECOND COLOUR · focus, START, power, warnings", "lab"), False, False, 0)
+        accents = [("amber", "#ffb340", "Amber"), ("orange", "#ff8a3d", "Orange"), ("rose", "#e8708c", "Rose"),
+                   ("green", "#a8c060", "Green"), ("blue", "#7fb0e0", "Blue"), ("violet", "#b590d8", "Violet"),
+                   ("cream", "#e6dac4", "Cream")]
+        cur2 = t.get("accent", "#ffb340").lower()
+        p.pack_start(self.opts([(k, f'<span foreground="{h}">■</span> {n}') for k, h, n in accents],
+                               next((k for k, h, n in accents if h == cur2), ""),
+                               lambda v: self.theme("--accent", v)), False, False, 0)
         p.pack_start(self.toggle("Colour Firefox and Vivaldi too", "They follow your mode and colour after a restart of the browser.",
                                  t.get("browsers", "yes") == "yes",
                                  lambda on: (write_kv(THEME, "browsers", "yes" if on else "no", "# Glyph look\n"), self.theme())), False, False, 0)
-        p.pack_start(self.note("Windows, the taskbar, menus and panels change at once. Apps such as Files and the text editor "
+        p.pack_start(self.note("Choosing a mode or system colour also gives the background the Glyph colour again. "
+                               "Windows, the taskbar, menus and panels change at once. Apps such as Files and the text editor "
                                "change when you open them again."), False, False, 0)
 
     def page_background(self, p):

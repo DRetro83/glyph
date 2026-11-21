@@ -76,6 +76,12 @@ class Info:
                 break
             except Exception:
                 pass
+        try:
+            ws = (Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "glyph-ws").read_text().strip() or "1"
+        except Exception:
+            ws = "1"
+        n = sh(["glyph-windows", "count"])
+        L.append(("WORKSPACE", f"{ws}/4" + (f" · WINDOWS {n}" if n else "")))
         prof = sh(["powerprofilesctl", "get"])
         if prof:
             L.append(("POWER", {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}.get(prof, prof)))
@@ -114,6 +120,7 @@ class Desk(Gtk.Window):
         if e.button != 3:
             return False
         m = Gtk.Menu()
+        m.set_reserve_toggle_size(False)
         m.get_style_context().add_class("deskmenu")
 
         def item(menu, text, cmd=None, sub=None):
@@ -278,6 +285,7 @@ def main():
         return True
 
     def reload_(*_):
+        info.refresh()
         for d in wins:
             d.load()
             d.queue_draw()

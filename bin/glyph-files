@@ -108,12 +108,12 @@ class Tiles:
         return pb
 
 
-class Files(Gtk.Window):
+class Pane(Gtk.Box):
     # columns: tile, name, size text, type, modified text, gfile, is_dir, sort size, sort time, hidden
     def __init__(self, app, start):
-        super().__init__(title="Files", application=app)
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.app = app
-        self.set_default_size(900, 580)
+        self.win = None          # the FilesWindow, set when added
         self.pal = kv(CONF / "palette.env")
         self.tiles = Tiles(self.pal)
         self.hist, self.fwd = [], []
@@ -124,7 +124,7 @@ class Files(Gtk.Window):
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         root.get_style_context().add_class("files")
-        self.add(root)
+        self.pack_start(root, True, True, 0)
 
         # toolbar
         tb = Gtk.Box(spacing=4)
@@ -162,8 +162,10 @@ class Files(Gtk.Window):
         self.b_grid = self.btn("GRID", lambda: self.set_view("grid"))
         tb.pack_start(self.b_list, False, False, 0)
         tb.pack_start(self.b_grid, False, False, 0)
-        more = Gtk.MenuButton(label="···")
-        more.set_popup(self.more_menu())
+        self.b_split = self.btn("SPLIT", lambda: self.win and self.win.flip_split(self))
+        tb.pack_start(self.b_split, False, False, 0)
+        more = Gtk.Button(label="···")
+        more.connect("clicked", lambda b: self.popup(self.more_items(), widget=b))
         tb.pack_start(more, False, False, 0)
         root.pack_start(tb, False, False, 0)
 
@@ -245,7 +247,8 @@ class Files(Gtk.Window):
         self.vm = Gio.VolumeMonitor.get()
         for sig in ("mount-added", "mount-removed", "volume-added", "volume-removed", "mount-changed"):
             self.vm.connect(sig, lambda *_: GLib.idle_add(self.build_side))
-        self.connect("key-press-event", self.on_key)
+        for w in (self.tree, self.icons, self.search, self.path_entry):
+            w.connect("focus-in-event", lambda *_: self.win and self.win.set_active(self))
         self.build_side()
         self.go(start, remember=False)
         self.tree.grab_focus()
@@ -261,21 +264,119 @@ class Files(Gtk.Window):
     def lit(self, b, on):
         (b.get_style_context().add_class if on else b.get_style_context().remove_class)("on")
 
-    def more_menu(self):
+    # ---------- menus, as in the design: name on the left, key on the right
+    def popup(self, items, event=None, widget=None):
         m = Gtk.Menu()
-        for text, cb in (("New folder        Ctrl+Shift+N", self.new_folder), ("New empty file", self.new_file),
-                         ("Paste             Ctrl+V", self.paste), (None, None),
-                         ("Show hidden files Ctrl+H", self.flip_hidden), ("Open terminal here  F4", self.terminal),
-                         ("Open in Thunar", lambda: self.spawn(["thunar", self.cwd.get_path() or self.cwd.get_uri()])),
-                         (None, None), ("Empty the trash", self.empty_trash)):
-            if text is None:
+        m.set_reserve_toggle_size(False)
+        m.get_style_context().add_class("gmenu")
+        for it in items:
+            if it is None:
                 m.append(Gtk.SeparatorMenuItem())
                 continue
-            it = Gtk.MenuItem(label=text)
-            it.connect("activate", lambda _i, f=cb: f())
-            m.append(it)
+            text, key, cb = it[0], it[1], it[2]
+            enabled = it[3] if len(it) > 3 else True
+            mi = Gtk.MenuItem()
+            box = Gtk.Box(spacing=24)
+            l1 = Gtk.Label(label=text, xalign=0)
+            box.pack_start(l1, True, True, 0)
+            if key:
+                l2 = Gtk.Label(label=key, xalign=1)
+                l2.get_style_context().add_class("mkey")
+                box.pack_end(l2, False, False, 0)
+            mi.add(box)
+            mi.set_sensitive(enabled)
+            mi.connect("activate", lambda _i, f=cb: GLib.idle_add(lambda: (f(), False)[1]))
+            m.append(mi)
         m.show_all()
-        return m
+        m.attach_to_widget(widget or self, None)
+        if widget is not None:
+            m.popup_at_widget(widget, Gdk.Gravity.SOUTH_EAST, Gdk.Gravity.NORTH_EAST, None)
+        else:
+            m.popup_at_pointer(event)
+        self.menu = m
+
+    def clip_has_files(self):
+        try:
+            return bool(self.clipboard_files()[1])
+        except Exception:
+            return False
+
+    def more_items(self):
+        split = bool(self.win and len(self.win.panes) > 1)
+        return [("New folder", "Ctrl+Shift+N", self.new_folder), ("New empty file", "", self.new_file),
+                ("Paste", "Ctrl+V", self.paste, self.clip_has_files()), None,
+                ("Open terminal here", "F4", self.terminal),
+                ("New window", "Ctrl+N", lambda: FilesWindow(self.get_toplevel().get_application(), self.cwd).show_all()),
+                ("Select all", "Ctrl+A", self.select_all), None,
+                (("✓ " if self.show_hidden else "") + "Show hidden files", "Ctrl+H", self.flip_hidden),
+                (("✓ " if self.side_sw.get_visible() else "") + "Side panel", "F9", self.flip_side),
+                (("✓ " if split else "") + "Split view", "F3", lambda: self.win and self.win.flip_split(self)),
+                ("View as list" if self.view_mode == "grid" else "View as grid", "",
+                 lambda: self.set_view("list" if self.view_mode == "grid" else "grid")), None,
+                ("Properties…", "Alt+Enter", self.properties),
+                ("Open in Thunar", "", lambda: self.spawn(["thunar", self.cwd.get_path() or self.cwd.get_uri()])),
+                ("Empty the trash", "", self.empty_trash)]
+
+    def select_all(self):
+        (self.tree.get_selection().select_all() if self.view_mode == "list" else self.icons.select_all())
+
+    def properties(self):
+        files = self.selected_files() or [self.cwd]
+        rows = []
+        if len(files) == 1:
+            f = files[0]
+            try:
+                info = f.query_info(ATTRS + ",standard::size,unix::mode,owner::user", Gio.FileQueryInfoFlags.NONE, None)
+            except GLib.Error:
+                info = None
+            rows.append(("Name", f.get_basename() or self.title_of(f)))
+            if info:
+                rows.append(("Type", kind(info)))
+                if info.get_file_type() == Gio.FileType.DIRECTORY and f.get_path():
+                    total, count = 0, 0
+                    for dp, dn, fn in os.walk(f.get_path()):
+                        for x in fn:
+                            try:
+                                total += os.lstat(os.path.join(dp, x)).st_size
+                                count += 1
+                            except OSError:
+                                pass
+                        if count > 200000:
+                            break
+                    rows.append(("Contents", f"{count} files · {human(total)}"))
+                else:
+                    rows.append(("Size", human(info.get_size())))
+                mt = info.get_modification_date_time()
+                rows.append(("Modified", when(mt.to_unix()) if mt else ""))
+                owner = info.get_attribute_string("owner::user")
+                if owner:
+                    rows.append(("Owner", owner))
+            rows.append(("Location", (f.get_parent().get_path() if f.get_parent() else "") or f.get_uri()))
+        else:
+            total = 0
+            for f in files:
+                try:
+                    total += f.query_info("standard::size", Gio.FileQueryInfoFlags.NONE, None).get_size()
+                except GLib.Error:
+                    pass
+            rows += [("Selected", f"{len(files)} items"), ("Size", human(total) + " (files only)")]
+        d = Gtk.Dialog(title="Properties", transient_for=self.get_toplevel(), modal=True)
+        d.add_buttons("Close", Gtk.ResponseType.CLOSE)
+        g = Gtk.Grid(column_spacing=18, row_spacing=6)
+        g.set_border_width(16)
+        for i, (k, v) in enumerate(rows):
+            kl = Gtk.Label(label=k, xalign=0)
+            kl.get_style_context().add_class("fdim")
+            vl = Gtk.Label(label=v, xalign=0)
+            vl.set_selectable(True)
+            vl.set_line_wrap(True)
+            vl.set_max_width_chars(48)
+            g.attach(kl, 0, i, 1, 1)
+            g.attach(vl, 1, i, 1, 1)
+        d.get_content_area().add(g)
+        d.show_all()
+        d.run()
+        d.destroy()
 
     def spawn(self, cmd):
         try:
@@ -389,7 +490,7 @@ class Files(Gtk.Window):
             except Exception as e:
                 self.say(f"Could not open {v.get_name()}: {e}")
             self.build_side()
-        vol.mount(Gio.MountMountFlags.NONE, Gtk.MountOperation.new(self), None, done)
+        vol.mount(Gio.MountMountFlags.NONE, Gtk.MountOperation.new(self.get_toplevel()), None, done)
         return self.cwd
 
     def eject(self, m):
@@ -405,9 +506,9 @@ class Files(Gtk.Window):
                 self.say(f"{name} is still in use: {e}")
             self.build_side()
         if m.can_eject():
-            m.eject_with_operation(Gio.MountUnmountFlags.NONE, Gtk.MountOperation.new(self), None, done)
+            m.eject_with_operation(Gio.MountUnmountFlags.NONE, Gtk.MountOperation.new(self.get_toplevel()), None, done)
         else:
-            m.unmount_with_operation(Gio.MountUnmountFlags.NONE, Gtk.MountOperation.new(self), None, done)
+            m.unmount_with_operation(Gio.MountUnmountFlags.NONE, Gtk.MountOperation.new(self.get_toplevel()), None, done)
 
     def flip_side(self):
         vis = not self.side_sw.get_visible()
@@ -486,7 +587,9 @@ class Files(Gtk.Window):
         name = self.title_of(self.cwd)
         self.path_lab.set_text(name.upper())
         self.path_lab.set_tooltip_text(self.cwd.get_path() or self.cwd.get_uri())
-        self.set_title(f"{name} - Files")
+        self.title_name = name
+        if self.win:
+            self.win.update_title()
         if self.monitor:
             self.monitor.cancel()
         try:
@@ -662,7 +765,7 @@ class Files(Gtk.Window):
             return
         for p in paths:
             if self.sorted[p][6]:
-                Files(self.app, self.sorted[p][5]).show_all()
+                FilesWindow(self.app, self.sorted[p][5]).show_all()
             else:
                 self.launch(self.sorted[p][5])
 
@@ -676,7 +779,7 @@ class Files(Gtk.Window):
         files = files or self.selected_files()
         if not files:
             return
-        d = Gtk.AppChooserDialog.new(self, Gtk.DialogFlags.MODAL, files[0])
+        d = Gtk.AppChooserDialog.new(self.get_toplevel(), Gtk.DialogFlags.MODAL, files[0])
         if why:
             d.set_heading(why + "Choose one:")
         if d.run() == Gtk.ResponseType.OK:
@@ -820,14 +923,14 @@ class Files(Gtk.Window):
         GLib.timeout_add(800, lambda: (self.refresh() if self.cwd.get_uri_scheme() == "trash" else None, False)[1])
 
     def confirm(self, text):
-        d = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.WARNING,
+        d = Gtk.MessageDialog(transient_for=self.get_toplevel(), modal=True, message_type=Gtk.MessageType.WARNING,
                               buttons=Gtk.ButtonsType.OK_CANCEL, text=text)
         ok = d.run() == Gtk.ResponseType.OK
         d.destroy()
         return ok
 
     def ask(self, title, value=""):
-        d = Gtk.Dialog(title=title, transient_for=self, modal=True)
+        d = Gtk.Dialog(title=title, transient_for=self.get_toplevel(), modal=True)
         d.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "OK", Gtk.ResponseType.OK)
         d.set_default_response(Gtk.ResponseType.OK)
         e = Gtk.Entry()
@@ -907,26 +1010,20 @@ class Files(Gtk.Window):
         else:
             (w.get_selection().unselect_all() if isinstance(w, Gtk.TreeView) else w.unselect_all())
         has = bool(self.selected_paths())
-        m = Gtk.Menu()
+        one = len(self.selected_paths()) == 1
         items = []
         if has:
-            items += [("Open", self.open_selected), ("Open with…", self.open_with), None,
-                      ("Cut          Ctrl+X", lambda: self.copy(True)), ("Copy         Ctrl+C", self.copy)]
-        items += [("Paste        Ctrl+V", self.paste)]
+            items += [("Open", "Enter", self.open_selected), ("Open with…", "", self.open_with), None,
+                      ("Cut", "Ctrl+X", lambda: self.copy(True)), ("Copy", "Ctrl+C", self.copy)]
+        items += [("Paste", "Ctrl+V", self.paste, self.clip_has_files())]
         if has:
-            items += [None, ("Rename…      F2", self.rename), ("Move to trash  Delete", self.trash)]
-        items += [None, ("New folder…", self.new_folder), ("New empty file…", self.new_file),
-                  ("Open terminal here", self.terminal)]
-        for it in items:
-            if it is None:
-                m.append(Gtk.SeparatorMenuItem())
-                continue
-            mi = Gtk.MenuItem(label=it[0])
-            mi.connect("activate", lambda _i, f=it[1]: f())
-            m.append(mi)
-        m.show_all()
-        m.attach_to_widget(w, None)
-        m.popup_at_pointer(e)
+            items += [("Rename…", "F2", self.rename, one), ("Move to trash", "Delete", self.trash), None,
+                      ("Properties…", "Alt+Enter", self.properties)]
+        else:
+            items += [None, ("New folder", "Ctrl+Shift+N", self.new_folder), ("New empty file", "", self.new_file),
+                      ("Open terminal here", "F4", self.terminal), ("Select all", "Ctrl+A", self.select_all), None,
+                      ("Properties…", "Alt+Enter", self.properties)]
+        self.popup(items, event=e, widget=None)
         return True
 
     def on_key(self, w, e):
@@ -934,7 +1031,7 @@ class Files(Gtk.Window):
         ctrl = bool(e.state & Gdk.ModifierType.CONTROL_MASK)
         shift = bool(e.state & Gdk.ModifierType.SHIFT_MASK)
         alt = bool(e.state & Gdk.ModifierType.MOD1_MASK)
-        typing = isinstance(self.get_focus(), Gtk.Entry)
+        typing = isinstance(self.get_toplevel().get_focus(), Gtk.Entry)
         if alt and k == Gdk.KEY_Left or (k == Gdk.KEY_BackSpace and not typing):
             self.back()
         elif alt and k == Gdk.KEY_Right:
@@ -952,11 +1049,18 @@ class Files(Gtk.Window):
         elif ctrl and shift and k in (Gdk.KEY_n, Gdk.KEY_N):
             self.new_folder()
         elif ctrl and k in (Gdk.KEY_n, Gdk.KEY_N):
-            Files(self.app, self.cwd).show_all()
+            FilesWindow(self.app, self.cwd).show_all()
         elif ctrl and k in (Gdk.KEY_w, Gdk.KEY_W, Gdk.KEY_q, Gdk.KEY_Q):
-            self.close()
+            self.get_toplevel().close()
         elif k == Gdk.KEY_F4:
             self.terminal()
+        elif k == Gdk.KEY_F3:
+            if self.win:
+                self.win.flip_split(self)
+        elif k == Gdk.KEY_F9:
+            self.flip_side()
+        elif alt and k in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            self.properties()
         elif k == Gdk.KEY_F5:
             self.refresh()
         elif typing:
@@ -988,6 +1092,56 @@ class Files(Gtk.Window):
         return True
 
 
+class FilesWindow(Gtk.ApplicationWindow):
+    """One Files window: one pane, or two side by side (SPLIT)."""
+    def __init__(self, app, start):
+        super().__init__(title="Files", application=app)
+        self.set_default_size(900, 580)
+        self.box = Gtk.Paned()
+        self.add(self.box)
+        self.panes = [Pane(app, start)]
+        self.panes[0].win = self
+        self.box.pack1(self.panes[0], True, False)
+        self.active = self.panes[0]
+        self.connect("key-press-event", lambda w, e: self.active.on_key(w, e))
+        self.update_title()
+
+    def set_active(self, pane):
+        self.active = pane
+        for p in self.panes:
+            (p.get_style_context().add_class if (p is pane and len(self.panes) > 1) else p.get_style_context().remove_class)("activepane")
+        self.update_title()
+        return False
+
+    def update_title(self):
+        name = getattr(self.active, "title_name", "Files")
+        self.set_title(f"{name} - Files")
+
+    def flip_split(self, pane):
+        if len(self.panes) == 1:
+            w = self.get_allocated_width()
+            if w < 1100:
+                self.resize(min(1500, max(w, 1200)), self.get_allocated_height())
+            second = Pane(self.get_application(), pane.cwd)
+            second.win = self
+            second.side_sw.set_visible(False)
+            second.lit(second.b_side, False)
+            self.panes.append(second)
+            self.box.pack2(second, True, False)
+            second.show_all()
+            second.side_sw.hide()
+            self.box.set_position(self.get_allocated_width() // 2)
+            for p in self.panes:
+                p.lit(p.b_split, True)
+            self.set_active(second)
+        else:
+            gone = self.panes.pop()
+            self.box.remove(gone)
+            gone.destroy()
+            self.panes[0].lit(self.panes[0].b_split, False)
+            self.set_active(self.panes[0])
+
+
 class App(Gtk.Application):
     def __init__(self):
         super().__init__(application_id="org.glyph.Files", flags=Gio.ApplicationFlags.HANDLES_OPEN | Gio.ApplicationFlags.NON_UNIQUE)
@@ -1002,11 +1156,11 @@ class App(Gtk.Application):
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
     def do_activate(self):
-        Files(self, Gio.File.new_for_path(str(HOME))).show_all()
+        FilesWindow(self, Gio.File.new_for_path(str(HOME))).show_all()
 
     def do_open(self, files, n, hint):
         for f in files:
-            Files(self, f).show_all()
+            FilesWindow(self, f).show_all()
 
 
 if __name__ == "__main__":

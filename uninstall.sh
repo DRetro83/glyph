@@ -17,6 +17,7 @@ rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf" "$DATA"/applications/glyph-*
 rm -f "$DATA"/gtksourceview-*/styles/glyph.xml "$CONF/qt5ct/colors/Glyph.conf" "$CONF/qt6ct/colors/Glyph.conf"
 for f in "$CONF/qt5ct/qt5ct.conf" "$CONF/qt6ct/qt6ct.conf"; do grep -qs "Glyph.conf" "$f" && rm -f "$f"; done
 grep -qs "Glyph colours come from" "$CONF/foot/foot.ini" && rm -f "$CONF/foot/foot.ini"
+grep -ls "X-Glyph-LibreOffice" "$DATA"/applications/libreoffice*.desktop 2>/dev/null | xargs -r rm -f
 for css in "$HOME"/.mozilla/firefox/*/chrome/userChrome.css; do head -c 8 "$css" 2>/dev/null | grep -q "glyph" && rm -f "$css"; done
 
 # labwc-glyph back to Debian's own labwc

@@ -1,10 +1,12 @@
 #!/bin/sh
-# glyph-power - Lock, Log out, Restart, Shut down, as a text menu.
+# glyph-power - the power menu (Lock, Log out, Sleep, Restart, Off), as in the design.
+# Falls back to a text menu when the Glyph panel cannot run.
+if python3 -c 'import gi; gi.require_version("GtkLayerShell", "0.1")' 2>/dev/null; then
+  exec glyph-panel power
+fi
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/fuzzel/fuzzel.ini"
 pkill -x fuzzel 2>/dev/null
-
 pick() { fuzzel --config="$CONF" --dmenu --lines="$1" --width=26 --prompt="$2"; }
-
 choice=$(printf 'Lock\nLog out\nRestart\nShut down\nSuspend\n' | pick 5 "POWER ▸ ")
 case "$choice" in
   Lock)      exec glyph-lock ;;
