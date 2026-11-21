@@ -75,10 +75,6 @@ run sudo apt-get install -y "${PACKAGES[@]}"
 for extra in ddcutil upower; do
   run sudo apt-get install -y "$extra" >/dev/null 2>&1 || say "($extra not available, skipped)"
 done
-# LibreOffice in its standard look needs its GTK3 part (KDE installs the Qt one)
-if dpkg -s libreoffice-core >/dev/null 2>&1; then
-  run sudo apt-get install -y libreoffice-gtk3 >/dev/null 2>&1 || say "(libreoffice-gtk3 not available, skipped)"
-fi
 if command -v ddcutil >/dev/null 2>&1 && (( ! CHECK )); then
   # monitor brightness over the cable needs the i2c-dev module
   echo i2c-dev | sudo tee /etc/modules-load.d/glyph-i2c.conf >/dev/null

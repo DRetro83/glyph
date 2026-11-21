@@ -177,6 +177,15 @@ class Desk(Gtk.Window):
             except Exception:
                 self.pix = None
 
+    def wsc(self, key, a=1.0):
+        """The colour of the workspace you are on (Settings -> Taskbar), else the usual colour."""
+        try:
+            n = (Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "glyph-ws").read_text().strip() or "1"
+        except Exception:
+            n = "1"
+        col = self.pal.get("GLYPH_WS" + n)
+        return rgb(col, a) if col else self.c(key, a)
+
     def c(self, key, a=1.0):
         col = rgb(self.pal.get("GLYPH_" + key.upper()), a)
         if key == "tan" and self.theme.get("mode") == "light":
@@ -212,8 +221,8 @@ class Desk(Gtk.Window):
                 cr.rectangle(0, y, w, 1)
             cr.fill()
         if self.theme.get("desk", "info") != "clean":
-            # corner marks
-            cr.set_source_rgba(*self.c("hi"))
+            # corner marks (in the workspace colour when workspaces have their own)
+            cr.set_source_rgba(*self.wsc("hi"))
             cr.set_line_width(2)
             m, L = 40, 40
             # three corners here; the bottom-right mark is drawn next to the clock
@@ -255,14 +264,14 @@ class Desk(Gtk.Window):
         lh = 23
         y -= lh * len(rows)
         big = max(64, min(120, W // 13))
-        _, th = self.text(cr, time.strftime("%H:%M"), f"IBM Plex Mono Bold {big}px", self.c("tan"), x + 4, y - big * 1.25, spacing=-2)
+        _, th = self.text(cr, time.strftime("%H:%M"), f"IBM Plex Mono Bold {big}px", self.wsc("tan"), x + 4, y - big * 1.25, spacing=-2)
         for lab, val in rows:
             vw, _ = self.text(cr, val, "IBM Plex Mono 14px", self.c("tan"), x, y)
             if lab:
                 self.text(cr, lab + " ", "IBM Plex Mono 14px", self.c("dim"), x - vw, y, spacing=1)
             y += lh
         # bracket next to the info
-        cr.set_source_rgba(*self.c("hi"))
+        cr.set_source_rgba(*self.wsc("hi"))
         cr.set_line_width(2)
         bx, by = W - 40, H - BAR - 40
         cr.move_to(bx - 40, by)

@@ -264,6 +264,35 @@ def is_light(p):
     return (0.299 * r + 0.587 * g + 0.114 * b) > 140
 
 
+WS_DEFAULT = {"1": "system", "2": "green", "3": "blue", "4": "rose"}
+
+
+def ws_colours(p):
+    """{n: (colour, ink)} for workspaces 1-4 when each has its own colour (Settings -> Taskbar),
+    else None (all use the system colour)."""
+    c = read_conf()
+    if c.get("ws_colours", "same") != "own":
+        return None
+    out = {}
+    for n in "1234":
+        v = c.get("ws" + n, WS_DEFAULT[n]).lower()
+        col = p["title"] if v == "system" else COLOURS.get(v, v if v.startswith("#") and len(v) == 7 else p["title"])
+        out[n] = (col, "#111111" if lum(col) > 0.28 else "#ffffff")
+    return out
+
+
+def ws_own_css(p):
+    own = ws_colours(p)
+    if not own:
+        return ""
+    css = ""
+    for n, (col, ink) in own.items():
+        # a colour line under every button, the full colour on the one you are on
+        css += (f"#custom-ws{n} {{ border-bottom: 3px solid {col}; }}\n"
+                f"#custom-ws{n}.active {{ background: {col}; color: {ink}; border-color: {col}; border-bottom: 3px solid {shade(col, 0.6)}; }}\n")
+    return css
+
+
 def waybar_css(p):
     light = is_light(p)
     bar = p['panel'] if light else p['lo']                 # the bar itself: light in light mode
@@ -283,7 +312,7 @@ button {{ border: none; }}
 #custom-ws1.active, #custom-ws2.active, #custom-ws3.active, #custom-ws4.active {{ background: {ws_on}; color: {p['tink']}; border-color: {ws_on}; border-bottom: 3px solid {shade(p['title'], 0.6)}; }}
 #custom-ws1:hover, #custom-ws2:hover, #custom-ws3:hover, #custom-ws4:hover {{ border-color: {p['title']}; }}
 #custom-ws4 {{ margin-right: 8px; }}
-
+{ws_own_css(p)}
 #taskbar {{ border-left: 1px solid {p['hi']}; padding-left: 6px; }}
 #taskbar button {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; border-bottom: 3px solid {p['hi']}; padding: 0 14px 0 8px; margin: 4px 2px; min-width: 100px; }}
 #taskbar button:hover {{ background: {p['hov']}; }}
@@ -1080,65 +1109,20 @@ def letter_icons(p):
                 f'font-size="14" fill="{p['tink']}">{ch}</text></svg>\n')
 
 
-LO_ID = "glyph.LibreOfficeTheme"
-
-
-def lo_theme_oxt(p, mode):
-    """A LibreOffice 25.2 theme extension ("Glyph") in the Glyph colours."""
-    import zipfile
-    n = lambda h: str(int(h.lstrip("#"), 16))
-    cols = {"WindowColor": p["win"], "WindowTextColor": p["text"], "BaseColor": p["view"],
-            "ButtonColor": p["view"], "ButtonTextColor": p["text"], "FaceColor": p["panel"],
-            "AccentColor": p["amber"], "ActiveColor": p["title"], "ActiveTextColor": p["tink"],
-            "ActiveBorderColor": p["title"], "InactiveColor": p["panel"], "InactiveTextColor": p["dim"],
-            "InactiveBorderColor": p["hi"], "ShadowColor": p["lo"], "SeparatorColor": p["hi"],
-            "DisabledColor": p["hov"], "DisabledTextColor": p["dim"], "FieldColor": p["view"],
-            "MenuBarColor": p["panel"], "MenuBarTextColor": p["text"], "MenuBarHighlightColor": p["title"],
-            "MenuBarHighlightTextColor": p["tink"], "MenuColor": p["panel"], "MenuTextColor": p["text"],
-            "MenuHighlightColor": p["title"], "MenuHighlightTextColor": p["tink"], "MenuBorderColor": p["title"],
-            "AppBackground": p["lo"] if mode != "light" else shade(p["view"], 0.85),
-            "FontColor": "#000000", "DocColor": "#ffffff"}
-    nodes = "".join(f'<node oor:name="{k}"><prop oor:name="Color" oor:op="fuse"><value>{n(v)}</value></prop>'
-                    + ('<prop oor:name="BackgroundType" oor:op="fuse"><value>false</value></prop>' if k == "AppBackground" else "")
-                    + "</node>\n" for k, v in cols.items())
-    xcu = ('<?xml version="1.0" encoding="UTF-8"?>\n<oor:component-data xmlns:oor="http://openoffice.org/2001/registry" '
-           'xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-           'oor:name="UI" oor:package="org.openoffice.Office"><node oor:name="ColorScheme"><node oor:name="ColorSchemes">'
-           f'<node oor:name="Glyph" oor:op="replace">\n{nodes}</node></node>'
-           '<prop oor:name="CurrentColorScheme"><value>Glyph</value></prop></node></oor:component-data>\n')
-    desc = ('<?xml version="1.0" encoding="UTF-8"?>\n<description xmlns="http://openoffice.org/extensions/description/2006" '
-            'xmlns:xlink="http://www.w3.org/1999/xlink"><identifier value="' + LO_ID + '"/><version value="1.0"/>'
-            '<display-name><name>Glyph</name></display-name></description>\n')
-    man = ('<?xml version="1.0" encoding="UTF-8"?>\n<manifest:manifest xmlns:manifest="http://openoffice.org/2001/manifest">'
-           '<manifest:file-entry manifest:full-path="Theme.xcu" manifest:media-type="application/vnd.sun.star.configuration-data"/>'
-           '</manifest:manifest>\n')
-    out = DATA_DIR / "glyph" / "Glyph-LibreOffice.oxt"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(out, "w") as z:
-        z.writestr("description.xml", desc)
-        z.writestr("Theme.xcu", xcu)
-        z.writestr("META-INF/manifest.xml", man)
-    return out
-
-
-def apply_lo_theme(p, conf):
-    """Settings -> Appearance -> Colour LibreOffice: install or remove the Glyph theme."""
-    if not shutil.which("unopkg"):
-        return
+def remove_libreoffice_changes():
+    """Glyph no longer changes LibreOffice: take away what earlier versions added."""
+    for f in (DATA_DIR / "applications").glob("libreoffice*.desktop"):
+        try:
+            if "X-Glyph-LibreOffice" in f.read_text(errors="ignore"):
+                f.unlink()
+        except Exception:
+            pass
     mark = CONF_DIR / ".libreoffice-theme"
-    want = conf.get("libreoffice", "standard") == "glyph"
-    if want:
-        oxt = lo_theme_oxt(p, conf["mode"])
-        cmd = ["unopkg", "add", "-f", "--suppress-license", str(oxt)]
-        mark.write_text(LO_ID + "\n")
-    elif mark.exists():
-        cmd = ["unopkg", "remove", LO_ID]
+    if mark.exists():
         mark.unlink()
-    else:
-        return
-    # unopkg waits while LibreOffice is open, so run it apart
-    subprocess.Popen(["sh", "-c", 'while pgrep -x soffice.bin >/dev/null; do sleep 5; done; "$@"', "lo", *cmd],
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        if shutil.which("unopkg"):
+            subprocess.Popen(["sh", "-c", 'while pgrep -x soffice.bin >/dev/null; do sleep 5; done; unopkg remove glyph.LibreOfficeTheme'],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 
 def write_apps(p, conf):
@@ -1162,32 +1146,6 @@ def write_apps(p, conf):
             r = subprocess.run(["flatpak", "override", "--user", "--filesystem=~/.themes:ro"], capture_output=True)
             if r.returncode == 0:
                 mark.write_text("flatpak override --user --filesystem=~/.themes:ro\n")
-    # LibreOffice draws its toolbars and documents itself and becomes hard to use with
-    # the Glyph GTK theme: give it its standard light look (plain Adwaita).
-    lo_theme = "Adwaita"   # LibreOffice's own standard colours, for now
-    # Use the GTK3 look when it is installed (libreoffice-gtk3); never let the KDE/Qt
-    # plug-in pick up half of the Glyph Qt colours (light bars, dark page area).
-    gtk3_plug = any(Path(d, "libvclplug_gtk3lo.so").exists() for d in ("/usr/lib/libreoffice/program", "/opt/libreoffice/program"))
-    lo_env = ("env -u QT_QPA_PLATFORMTHEME GTK_THEME=" + lo_theme +
-              (" SAL_USE_VCLPLUGIN=gtk3" if gtk3_plug else " QT_QPA_PLATFORMTHEME="))
-    apps_dir = DATA_DIR / "applications"
-    apps_dir.mkdir(parents=True, exist_ok=True)
-    for src in Path("/usr/share/applications").glob("libreoffice*.desktop"):
-        dst = apps_dir / src.name
-        if dst.exists() and "X-Glyph-LibreOffice" not in dst.read_text(errors="ignore"):
-            continue   # the user's own copy: leave it
-        out = []
-        for line in src.read_text(errors="ignore").splitlines():
-            if line.startswith("Exec=") and "GTK_THEME=" not in line:
-                line = "Exec=" + lo_env + " " + line[5:]
-            out.append(line)
-        # the marker goes right under [Desktop Entry] (Debian's files start with comments)
-        try:
-            i = out.index("[Desktop Entry]") + 1
-        except ValueError:
-            continue
-        out.insert(i, "X-Glyph-LibreOffice=yes")
-        dst.write_text("\n".join(out) + "\n")
     # Qt: only read when QT_QPA_PLATFORMTHEME=qt6ct / qt5ct (set in the Glyph session only)
     for qt in ("qt6ct", "qt5ct"):
         qd = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / qt
@@ -1294,7 +1252,6 @@ def main():
     ap.add_argument("--colour", "--color", help="#rrggbb or a name: " + ", ".join(COLOURS))
     ap.add_argument("--accent", help="second colour, #rrggbb or a name: " + ", ".join(ACCENTS))
     ap.add_argument("--shadows", choices=["yes", "no"], help="shadows under windows and menus")
-    ap.add_argument("--libreoffice", choices=["glyph", "standard"], help="LibreOffice in the Glyph colours or standard")
     ap.add_argument("--print", action="store_true", help="show the palette and exit")
     a = ap.parse_args()
 
@@ -1315,8 +1272,6 @@ def main():
         conf["accent"] = c
     if a.shadows:
         conf["shadows"] = a.shadows
-    if a.libreoffice:
-        conf["libreoffice"] = a.libreoffice
     if a.mode or a.colour:
         # a new system colour: the background follows it again (Settings -> Background)
         conf.pop("bgcolour", None)
@@ -1334,7 +1289,7 @@ def main():
     write_buttons(p)
     write_outputs(p)
     write_apps(p, conf)
-    apply_lo_theme(p, conf)
+    remove_libreoffice_changes()
     letter_icons(p)
     # labwc 0.7 looks in openbox-3/, newer versions in labwc/: offer both
     ob = LABWC_THEME.parent / "openbox-3"
@@ -1342,7 +1297,8 @@ def main():
         ob.symlink_to("labwc")
     (CONF_DIR / "palette.env").write_text(
         "# Glyph palette for scripts - made by glyph-theme\n" +
-        "".join(f"GLYPH_{k.upper()}={v}\n" for k, v in p.items()))
+        "".join(f"GLYPH_{k.upper()}={v}\n" for k, v in p.items()) +
+        "".join(f"GLYPH_WS{n}={col}\n" for n, (col, _ink) in (ws_colours(p) or {}).items()))
     set_drop_shadows()
     reload_labwc(p)
     print(f"Glyph: {conf['mode']} mode, colour {conf['colour']}")

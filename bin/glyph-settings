@@ -275,11 +275,6 @@ class Settings(Gtk.Window):
         p.pack_start(self.toggle("Shadows", "A shadow under windows, the start menu and the panels, like the prototype.",
                                  t.get("shadows", "yes") != "no",
                                  lambda on: self.theme("--shadows", "yes" if on else "no")), False, False, 0)
-        p.pack_start(self.toggle("Colour LibreOffice too",
-                                 "Installs a Glyph theme in LibreOffice (25.2). Close LibreOffice first; then in LibreOffice: "
-                                 "Tools → Options → Appearance → theme Glyph, and tick Enable application theming.",
-                                 t.get("libreoffice", "standard") == "glyph",
-                                 lambda on: self.theme("--libreoffice", "glyph" if on else "standard")), False, False, 0)
         p.pack_start(self.toggle("Colour Firefox and Vivaldi too", "They follow your mode and colour after a restart of the browser.",
                                  t.get("browsers", "yes") == "yes",
                                  lambda on: (write_kv(THEME, "browsers", "yes" if on else "no", "# Glyph look\n"), self.theme())), False, False, 0)
@@ -337,6 +332,23 @@ class Settings(Gtk.Window):
                            ("windows", "Open windows ▦", "The window count; click it for the list of open windows."),
                            ("tray", "Tray icons", "Small icons of apps that run in the background.")):
             p.pack_start(self.toggle(t, desc, on(k), lambda v, k=k: setb(k, v)), False, False, 0)
+        # workspace colours
+        t = read_kv(THEME)
+        own = t.get("ws_colours", "same") == "own"
+
+        def ws_apply():
+            self.theme()
+            bg(["pkill", "-HUP", "-f", "bin/glyph-desk"])
+        p.pack_start(self.toggle("Workspace colours", "Give every workspace its own colour: its button on the taskbar, "
+                                 "and the clock and corner marks on the desktop, so you see where you are.", own,
+                                 lambda v: (write_kv(THEME, "ws_colours", "own" if v else "same"), ws_apply())), False, False, 0)
+        if own:
+            defaults = {"1": "system", "2": "green", "3": "blue", "4": "rose"}
+            items = [("system", "System colour")] + [(c[1], f'<span foreground="{c[2]}">■</span> {c[0]}') for c in COLOURS]
+            for n in "1234":
+                p.pack_start(self.lab(f"WORKSPACE {n}", "lab"), False, False, 0)
+                p.pack_start(self.opts(items, t.get("ws" + n, defaults[n]),
+                                       lambda v, n=n: (write_kv(THEME, "ws" + n, v), ws_apply())), False, False, 0)
 
     def page_notifications(self, p):
         t = read_kv(THEME)
