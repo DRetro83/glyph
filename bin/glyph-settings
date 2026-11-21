@@ -424,7 +424,8 @@ class Settings(Gtk.Window):
             if len(f) >= 4 and f[1] in ("wifi", "ethernet", "gsm"):
                 rows.append((f"{f[0]} ({f[1]})", f[2] + (" · " + f[3] if f[3] else "")))
         p.pack_start(self.info(rows or [("Network", "NetworkManager is not running")]), False, False, 0)
-        p.pack_start(self.btn("Wi-Fi and networks…", lambda: bg(["nm-connection-editor"] if has("nm-connection-editor") else ["foot", "-T", "Network", "nmtui"])), False, False, 0)
+        p.pack_start(self.btn("All Wi-Fi networks…", lambda: bg(["glyph-wifi"])), False, False, 0)
+        p.pack_start(self.btn("Advanced (VPN, wired, fixed IP)…", lambda: bg(["nm-connection-editor"] if has("nm-connection-editor") else ["foot", "-T", "Network", "nmtui"])), False, False, 0)
         p.pack_start(self.note("Choose a Wi-Fi network quickly from SETTINGS ▴ on the taskbar."), False, False, 0)
 
     def page_bluetooth(self, p):
@@ -434,7 +435,7 @@ class Settings(Gtk.Window):
             return
         on = "Powered: yes" in show
         p.pack_start(self.toggle("Bluetooth", "", on, lambda v: (sh(["bluetoothctl", "power", "on" if v else "off"]), self.refresh())), False, False, 0)
-        p.pack_start(self.btn("Pair a new device…", lambda: bg(["blueman-manager"] if has("blueman-manager") else ["foot", "-T", "Bluetooth", "bluetoothctl"])), False, False, 0)
+        p.pack_start(self.btn("All devices · search and pair…", lambda: bg(["glyph-bluetooth"])), False, False, 0)
 
     def page_date_time(self, p):
         td = sh(["timedatectl"])

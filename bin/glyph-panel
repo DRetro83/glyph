@@ -583,7 +583,7 @@ def run_panel(kind):
             b.connect("clicked", lambda *_: cb())
             return b
 
-        def section(title, key, summary=""):
+        def section(title, key, summary="", extra=None):
             """A header with Show/Hide; returns True when the section is open."""
             is_open = key in state["open"]
             hdr = Gtk.Box(spacing=6)
@@ -600,6 +600,10 @@ def run_panel(kind):
                 (state["open"].discard if is_open else state["open"].add)(key)
                 save_open(state["open"])
                 draw()
+            if extra:
+                eb = button(extra[0], lambda: (bg(extra[1]), quit_()), "small endbtn")
+                eb.set_valign(Gtk.Align.CENTER)
+                hdr.pack_start(eb, False, False, 0)
             sb = button("Hide ▴" if is_open else "Show ▾", flip, "small endbtn")
             sb.set_size_request(ENDW, -1)
             sb.set_valign(Gtk.Align.CENTER)
@@ -652,7 +656,7 @@ def run_panel(kind):
             body.pack_start(grid, False, False, 0)
 
             # Wi-Fi networks
-            if section("WI-FI NETWORKS", "net", cur if w_on and cur else ("off" if not w_on else "")):
+            if section("WI-FI NETWORKS", "net", cur if w_on and cur else ("off" if not w_on else ""), ("All…", ["glyph-wifi"])):
                 if not w_on:
                     body.pack_start(label("Wi-Fi is off.", "dim"), False, False, 0)
                 else:
@@ -717,7 +721,7 @@ def run_panel(kind):
             if bt_present() and bt_on():
                 devs = bt_devices()
                 nconn = len([d for d in devs if d["on"]])
-                if section("BLUETOOTH · PAIRED DEVICES", "bt", f"{nconn} connected" if nconn else f"{len(devs)} paired"):
+                if section("BLUETOOTH · PAIRED", "bt", f"{nconn} connected" if nconn else f"{len(devs)} paired", ("All…", ["glyph-bluetooth"])):
                     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                     box.get_style_context().add_class("list")
                     if not devs:
@@ -739,8 +743,7 @@ def run_panel(kind):
                             r.pack_end(button(act.capitalize(), bt_act, "small"), False, False, 0)
                         box.pack_start(r, False, False, 0)
                     body.pack_start(box, False, False, 0)
-                    bm = "blueman-manager" if has("blueman-manager") else None
-                    body.pack_start(button("Pair a new device…", lambda: (bg([bm] if bm else ["foot", "-T", "Bluetooth", "bluetoothctl"]), quit_()), "small"), False, False, 0)
+                    body.pack_start(button("Search and pair a new device…", lambda: (bg(["glyph-bluetooth"]), quit_()), "small"), False, False, 0)
 
             # drives
             dl = drives()

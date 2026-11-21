@@ -520,6 +520,20 @@ paned > separator {{ background: {p['hi']}; min-width: 1px; }}
 .music row.mrow.cur {{ background: {p['hov']}; }}
 .music row.mrow.cur .mname {{ color: {p['amber']}; font-weight: bold; }}
 .music .mfoot {{ padding: 8px 12px; border-top: 1px solid {p['hi']}; background: {p['panel']}; }}
+/* Wi-Fi and Bluetooth windows */
+.netapp {{ background: {p['win']}; }}
+.netapp .ntop {{ padding: 10px; border-bottom: 1px solid {p['hi']}; background: {p['panel']}; }}
+.netapp .ntop entry:focus {{ border-color: {p['amber']}; }}
+.netapp .ntop button.on {{ border-color: {p['title']}; color: {p['title']}; }}
+.netapp .ncount {{ padding: 8px 12px; color: {p['dim']}; font-size: 11px; border-bottom: 1px solid {p['hi']}; }}
+.netapp .nhead {{ padding: 14px 12px 4px 12px; }}
+.netapp .nnote {{ padding: 4px 12px 10px 12px; }}
+.netapp .nrow {{ padding: 10px 12px; border-bottom: 1px solid {p['hov']}; }}
+.netapp .npw {{ padding: 0 12px 10px 54px; }}
+.netapp button.nbtn {{ min-width: 92px; padding: 6px 10px; font-weight: bold; }}
+.netapp button.nbtn.amber {{ border-color: {p['amber']}; color: {p['amber']}; }}
+.netapp .ok {{ color: {p['greenhi'] if is_light(p) else p['green']}; font-size: 11px; }}
+.netapp .amber {{ font-size: 11px; }}
 /* Start menu */
 .start .ptitle {{ min-height: 22px; }}
 .start .ptitle .pt {{ margin: 2px 0; padding: 0 8px; font-size: 12px; }}

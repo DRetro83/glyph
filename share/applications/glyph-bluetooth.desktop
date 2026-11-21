@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Bluetooth
+Comment=all devices, search and pair
+Exec=glyph-bluetooth
+Icon=bluetooth
+Terminal=false
+Categories=Settings;
+Keywords=bluetooth;pair;headphones;mouse;keyboard;controller;
+StartupWMClass=glyph-bluetooth

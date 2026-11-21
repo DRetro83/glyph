@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""glyph-wifi - all Wi-Fi networks: search, connect, disconnect, forget.
+
+Uses NetworkManager (nmcli). Refresh asks the Wi-Fi card to look again.
+"""
+import os
+import subprocess
+import threading
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+GLib.set_prgname("glyph-wifi")
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+
+
+def sh(cmd, timeout=20):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, r.stdout, r.stderr
+    except Exception as e:
+        return 1, "", str(e)
+
+
+def split(line):
+    out, cur, esc = [], "", False
+    for ch in line:
+        if esc:
+            cur += ch
+            esc = False
+        elif ch == "\\":
+            esc = True
+        elif ch == ":":
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    out.append(cur)
+    return out
+
+
+def networks(rescan=False):
+    _, out, _ = sh(["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "dev", "wifi", "list",
+                    "--rescan", "yes" if rescan else "no"], timeout=30)
+    nets = {}
+    for l in out.splitlines():
+        f = split(l)
+        if len(f) < 4 or not f[1]:
+            continue
+        ssid, sig, cur = f[1], int(f[2] or 0), f[0].strip() == "*"
+        if ssid not in nets or sig > nets[ssid]["sig"] or cur:
+            nets[ssid] = {"ssid": ssid, "sig": sig, "lock": f[3] not in ("", "--"),
+                          "cur": cur or nets.get(ssid, {}).get("cur", False)}
+    _, known, _ = sh(["nmcli", "-t", "-f", "NAME,TYPE", "con", "show"])
+    saved = {split(l)[0] for l in known.splitlines() if l.endswith("wireless")}
+    for n in nets.values():
+        n["known"] = n["ssid"] in saved
+    return sorted(nets.values(), key=lambda n: (not n["cur"], not n["known"], -n["sig"]))
+
+
+class Bars(Gtk.DrawingArea):
+    """Four steps, lit by signal strength, like the design."""
+    def __init__(self, sig, pal):
+        super().__init__()
+        self.sig, self.pal = sig, pal
+        self.set_size_request(30, 18)
+        self.connect("draw", self.draw)
+
+    def draw(self, w, cr):
+        lit = 1 + (self.sig >= 30) + (self.sig >= 55) + (self.sig >= 75)
+        c = lambda h: tuple(int(h.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        for i in range(4):
+            cr.set_source_rgb(*c(self.pal.get("GLYPH_TEXT" if i < lit else "GLYPH_HI", "#888888")))
+            h = 5 + i * 4
+            cr.rectangle(i * 7, 18 - h, 6, h)
+            cr.fill()
+        return False
+
+
+class Wifi(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="Wi-Fi")
+        self.set_default_size(480, 560)
+        self.pal = {}
+        try:
+            for l in (CONF / "palette.env").read_text().splitlines():
+                if "=" in l:
+                    k, v = l.split("=", 1)
+                    self.pal[k] = v.strip()
+        except Exception:
+            pass
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        root.get_style_context().add_class("panel")
+        root.get_style_context().add_class("netapp")
+        self.add(root)
+        top = Gtk.Box(spacing=6)
+        top.get_style_context().add_class("ntop")
+        self.search = Gtk.Entry()
+        self.search.set_placeholder_text("Search networks…")
+        self.search.connect("changed", lambda *_: self.fill())
+        top.pack_start(self.search, True, True, 0)
+        self.b_ref = Gtk.Button(label="Refresh")
+        self.b_ref.connect("clicked", lambda *_: self.load(True))
+        top.pack_start(self.b_ref, False, False, 0)
+        root.pack_start(top, False, False, 0)
+        self.count = Gtk.Label(xalign=0)
+        self.count.get_style_context().add_class("ncount")
+        root.pack_start(self.count, False, False, 0)
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        sw.add(self.list)
+        root.pack_start(sw, True, True, 0)
+        self.nets, self.open_pw, self.busy, self.msg = [], None, None, {}
+        self.connect("key-press-event", lambda w, e: self.close() if e.keyval == Gdk.KEY_Escape else False)
+        self.load(False)
+        GLib.timeout_add_seconds(10, lambda: (self.load(False) if not self.busy and not self.open_pw else None, True)[1])
+
+    def load(self, rescan):
+        self.b_ref.set_sensitive(False)
+        self.b_ref.set_label("Looking…" if rescan else "Refresh")
+
+        def work():
+            nets = networks(rescan)
+            GLib.idle_add(self.loaded, nets)
+        threading.Thread(target=work, daemon=True).start()
+
+    def loaded(self, nets):
+        self.nets = nets
+        self.b_ref.set_sensitive(True)
+        self.b_ref.set_label("Refresh")
+        self.fill()
+        return False
+
+    def fill(self):
+        for c in self.list.get_children():
+            self.list.remove(c)
+        q = self.search.get_text().strip().lower()
+        shown = [n for n in self.nets if q in n["ssid"].lower()]
+        self.count.set_text(f"{len(shown)} of {len(self.nets)} networks found" if self.nets else "Looking for networks… (is Wi-Fi on?)")
+        for n in shown:
+            self.list.pack_start(self.row(n), False, False, 0)
+        self.list.show_all()
+
+    def row(self, n):
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        outer.get_style_context().add_class("nrow")
+        r = Gtk.Box(spacing=12)
+        r.pack_start(Bars(n["sig"], self.pal), False, False, 0)
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        name = Gtk.Label(label=n["ssid"], xalign=0)
+        name.get_style_context().add_class("tn")
+        name.set_ellipsize(3)
+        v.pack_start(name, False, False, 0)
+        sub = self.msg.get(n["ssid"]) or ("✓ connected" if n["cur"] else "saved" if n["known"] else
+                                         "needs password" if n["lock"] else "open, no password")
+        sl = Gtk.Label(label=sub, xalign=0)
+        sl.get_style_context().add_class("ok" if n["cur"] else "ts")
+        v.pack_start(sl, False, False, 0)
+        r.pack_start(v, True, True, 0)
+        if self.busy == n["ssid"]:
+            r.pack_end(self.lab("…", "amber"), False, False, 0)
+        elif n["cur"]:
+            r.pack_end(self.btn("Disconnect", lambda: self.run(n, ["nmcli", "con", "down", "id", n["ssid"]])), False, False, 0)
+        else:
+            r.pack_end(self.btn("Connect", lambda: self.connect_to(n)), False, False, 0)
+            if n["known"]:
+                r.pack_end(self.btn("Forget", lambda: self.run(n, ["nmcli", "con", "delete", "id", n["ssid"]])), False, False, 0)
+        outer.pack_start(r, False, False, 0)
+        if self.open_pw == n["ssid"]:
+            pr = Gtk.Box(spacing=6)
+            pr.get_style_context().add_class("npw")
+            e = Gtk.Entry()
+            e.set_visibility(False)
+            e.set_placeholder_text("Password")
+            go = lambda *_: self.run(n, ["nmcli", "dev", "wifi", "connect", n["ssid"], "password", e.get_text()])
+            e.connect("activate", go)
+            pr.pack_start(e, True, True, 0)
+            show = Gtk.CheckButton(label="show")
+            show.connect("toggled", lambda c: e.set_visibility(c.get_active()))
+            pr.pack_start(show, False, False, 0)
+            pr.pack_start(self.btn("Join", go, "amber"), False, False, 0)
+            outer.pack_start(pr, False, False, 0)
+            GLib.idle_add(e.grab_focus)
+        return outer
+
+    def lab(self, t, cls):
+        l = Gtk.Label(label=t)
+        l.get_style_context().add_class(cls)
+        return l
+
+    def btn(self, t, cb, cls=""):
+        b = Gtk.Button(label=t)
+        b.get_style_context().add_class("nbtn")
+        for c in cls.split():
+            b.get_style_context().add_class(c)
+        b.set_valign(Gtk.Align.CENTER)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def connect_to(self, n):
+        if n["known"]:
+            self.run(n, ["nmcli", "con", "up", "id", n["ssid"]])
+        elif n["lock"]:
+            self.open_pw = None if self.open_pw == n["ssid"] else n["ssid"]
+            self.fill()
+        else:
+            self.run(n, ["nmcli", "dev", "wifi", "connect", n["ssid"]])
+
+    def run(self, n, cmd):
+        self.busy, self.open_pw = n["ssid"], None
+        self.msg.pop(n["ssid"], None)
+        self.fill()
+
+        def work():
+            rc, out, err = sh(cmd, timeout=45)
+
+            def done():
+                self.busy = None
+                if rc != 0:
+                    self.msg[n["ssid"]] = "did not work: " + ((err or out).strip().splitlines() or ["?"])[-1][:60]
+                self.load(False)
+                return False
+            GLib.idle_add(done)
+        threading.Thread(target=work, daemon=True).start()
+
+
+if __name__ == "__main__":
+    w = Wifi()
+    w.connect("destroy", Gtk.main_quit)
+    w.show_all()
+    Gtk.main()
