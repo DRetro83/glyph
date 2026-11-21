@@ -1,3 +1,16 @@
+diff --git a/include/ssd-internal.h b/include/ssd-internal.h
+index 4a19573..ac41ee2 100644
+--- a/include/ssd-internal.h
++++ b/include/ssd-internal.h
+@@ -45,6 +45,8 @@ struct ssd_sub_tree {
+ 	struct wlr_scene_buffer *stripes;
+ 	struct wlr_scene_rect *box_border;
+ 	struct wlr_scene_rect *box_fill;
++	/* Glyph: a solid shadow behind the window, moved down and right */
++	struct wlr_scene_rect *hard_shadow;
+ };
+ 
+ struct ssd_state_title_width {
 diff --git a/include/theme.h b/include/theme.h
 index 579f89b..b7d257b 100644
 --- a/include/theme.h
@@ -13,10 +26,43 @@ index 579f89b..b7d257b 100644
  	int window_button_hover_bg_corner_radius;
  
 diff --git a/src/ssd/ssd-shadow.c b/src/ssd/ssd-shadow.c
-index f7e386d..0abd5a5 100644
+index f7e386d..3d0c0e2 100644
 --- a/src/ssd/ssd-shadow.c
 +++ b/src/ssd/ssd-shadow.c
-@@ -294,6 +294,9 @@ ssd_shadow_update(struct ssd *ssd)
+@@ -202,6 +202,11 @@ set_shadow_geometry(struct ssd *ssd)
+ 				titlebar_height, corner_size, inset,
+ 				visible_shadow_width);
+ 		}
++		if (subtree->hard_shadow) {
++			wlr_scene_rect_set_size(subtree->hard_shadow, width, height);
++			wlr_scene_node_set_position(&subtree->hard_shadow->node,
++				0, -titlebar_height);
++		}
+ 	} FOR_EACH_END
+ }
+ 
+@@ -241,6 +246,7 @@ ssd_shadow_create(struct ssd *ssd)
+ 
+ 	FOR_EACH_STATE(ssd, subtree) {
+ 		wl_list_init(&subtree->parts);
++		subtree->hard_shadow = NULL;
+ 
+ 		if (!rc.shadows_enabled) {
+ 			/* Shadows are globally disabled */
+@@ -276,6 +282,12 @@ ssd_shadow_create(struct ssd *ssd)
+ 			edge_buffer, WL_OUTPUT_TRANSFORM_180);
+ 		make_shadow(&subtree->parts, LAB_SSD_PART_TOP, parent,
+ 			edge_buffer, WL_OUTPUT_TRANSFORM_270);
++		if (theme->window_shadow_offset > 0) {
++			/* Glyph: fill the space between the window and the
++			 * moved shadow edge, so the shadow is solid */
++			subtree->hard_shadow = wlr_scene_rect_create(parent, 1, 1,
++				theme->window[active].shadow_color);
++		}
+ 
+ 	} FOR_EACH_END
+ 
+@@ -294,6 +306,9 @@ ssd_shadow_update(struct ssd *ssd)
  		rc.shadows_enabled && !maximized && !view_is_tiled(ssd->view);
  	wlr_scene_node_set_enabled(&ssd->shadow.tree->node, show_shadows);
  	if (show_shadows) {
