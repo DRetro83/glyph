@@ -422,7 +422,7 @@ button.small {{ padding: 2px 10px; }}
 button.on, button.seg.on {{ border-color: {p['amber']}; color: {p['amber']}; background: {p['hov']}; }}
 .tog {{ padding: 8px 10px; min-height: 52px; }}
 .tog.on {{ background: {p['title']}; border-color: {p['title']}; }}
-.tog.on label {{ color: {p['tink']}; }}
+.tog.on label, .tog.on label:backdrop {{ color: {p['tink']}; opacity: 1; }}
 .tog .tn, .tn {{ font-weight: bold; }}
 .tog .ts, .ts {{ font-size: 11px; color: {p['dim']}; }}
 .tog.on .ts {{ color: {p['tink']}; }}
@@ -459,7 +459,7 @@ scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
 .start row.srow {{ padding: 8px 8px; border-bottom: 1px solid {p['hov']}; background: transparent; }}
 .start row.srow:hover {{ background: {p['hov']}; }}
 .start row.srow:selected, .start row.srow:selected:hover {{ background: {p['title']}; }}
-.start row.srow:selected label {{ color: {p['tink']}; }}
+.start row.srow:selected label, .start row.srow:selected label:backdrop, .start row.srow:selected .sdesc {{ color: {p['tink']}; opacity: 1; }}
 .start row.srow:selected .ltile {{ background: {p['tink']}; color: {p['title']}; }}
 .start .ltile {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; min-width: 26px; min-height: 26px; font-size: 12px; }}
 .start .sdesc {{ font-size: 11px; color: {p['dim']}; padding-right: 4px; }}

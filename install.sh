@@ -47,6 +47,7 @@ PACKAGES=(
   wlr-randr wlsunset lxpolkit          # screen scale, night light, password prompts
   pavucontrol blueman                  # volume per app, Bluetooth pairing
   qt6ct qt5ct                          # Qt apps in the Glyph colours
+  audacious mpv ristretto atril xfce4-taskmanager   # music (10-band EQ), video, pictures, PDF, system monitor
 )
 
 say()  { printf '\033[1;33m::\033[0m %s\n' "$*"; }

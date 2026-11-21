@@ -37,7 +37,7 @@ HIDE_IDS = {"org.kde.drkonqi.coredump.gui.desktop", "org.kde.kaddressbook.themee
             "org.kde.kmenuedit.desktop", "org.kde.plasma-systemmonitor.desktop", "org.kde.khelpcenter.desktop",
             "org.kde.kwalletmanager5.desktop", "org.kde.kwalletmanager.desktop", "systemsettings.desktop",
             "kdesystemsettings.desktop", "org.kde.plasma.emojier.desktop", "org.kde.kuserfeedback-console.desktop",
-            "org.kde.discover.desktop", "org.kde.plasma.themeexplorer.desktop", "org.kde.klipper.desktop",
+            "org.kde.plasma.themeexplorer.desktop", "org.kde.klipper.desktop",
             "xdg-desktop-portal-kde.desktop", "foot-server.desktop", "footclient.desktop",
             "thunar-settings.desktop", "thunar-volman-settings.desktop", "qt5ct.desktop", "qt6ct.desktop",
             "nm-connection-editor.desktop", "lxpolkit.desktop", "debian-uxterm.desktop", "debian-xterm.desktop",
@@ -55,7 +55,11 @@ NICE = {"foot.desktop": ("Terminal", "command line"), "thunar.desktop": ("Files"
         "pavucontrol.desktop": ("Volume control", "per app and microphone"),
         "blueman-manager.desktop": ("Bluetooth", "pair devices"), "mpv.desktop": ("Video player", "mpv"),
         "org.xfce.ristretto.desktop": ("Image viewer", "photos and pictures"),
-        "gparted.desktop": ("Partitions", "GParted, disks and partitions")}
+        "gparted.desktop": ("Partitions", "GParted, disks and partitions"),
+        "audacious.desktop": ("Music player", "Audacious, with 10-band equalizer"),
+        "org.xfce.taskmanager.desktop": ("System monitor", "programs, CPU and memory"),
+        "xfce4-taskmanager.desktop": ("System monitor", "programs, CPU and memory"),
+        "atril.desktop": ("PDF viewer", "read PDF files"), "org.kde.discover.desktop": ("Software", "install apps")}
 
 
 def read_list(p):
@@ -108,7 +112,7 @@ class Start(Gtk.Window):
         GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 52)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 0)
         GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, 8)
         try:
             GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
@@ -290,6 +294,8 @@ class Start(Gtk.Window):
         ev.add(box)
         tile = Gtk.Label(label=(a["name"][:1] or "?").upper())
         tile.get_style_context().add_class("ltile")
+        tile.set_xalign(0.5)
+        tile.set_yalign(0.5)
         tile.set_valign(Gtk.Align.CENTER)
         box.pack_start(tile, False, False, 0)
         nm = Gtk.Label(label=a["name"], xalign=0)

@@ -263,8 +263,8 @@ def run_panel(kind):
     GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
     GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
     GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
-    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 52)
-    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 6)
+    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 0)
+    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 8)
     try:
         GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.ON_DEMAND)
     except Exception:
@@ -319,6 +319,16 @@ def run_panel(kind):
     foot = Gtk.Box(spacing=6, homogeneous=True)
     foot.get_style_context().add_class("pfoot")
     outer.pack_start(foot, False, False, 0)
+
+    def tile_label(ch):
+        t = Gtk.Label(label=ch)
+        t.set_xalign(0.5)
+        t.set_yalign(0.5)
+        t.set_justify(Gtk.Justification.CENTER)
+        t.set_valign(Gtk.Align.CENTER)
+        t.set_halign(Gtk.Align.CENTER)
+        t.get_style_context().add_class("tile")
+        return t
 
     def label(text, cls=None, xalign=0, wrap=False):
         l = Gtk.Label(label=text, xalign=xalign)
@@ -451,19 +461,6 @@ def run_panel(kind):
                 row.pack_start(val, False, False, 0)
                 body.pack_start(row, False, False, 0)
 
-            # power profile + battery
-            prof = power_profile()
-            if prof:
-                body.pack_start(label("POWER PROFILE", "lab"), False, False, 0)
-                row = Gtk.Box(spacing=4, homogeneous=True)
-                for key, name in (("power-saver", "Saver"), ("balanced", "Balanced"), ("performance", "Performance")):
-                    b = button(name, (lambda k=key: (sh(["powerprofilesctl", "set", k]), later(draw, 200))), "seg on" if prof == key else "seg")
-                    row.pack_start(b, True, True, 0)
-                body.pack_start(row, False, False, 0)
-            bat = battery()
-            if bat:
-                body.pack_start(label(f"BATTERY  {bat[0]}% · {bat[1].lower()}", "dim"), False, False, 0)
-
             # Wi-Fi networks
             hdr = Gtk.Box(spacing=6)
             hdr.pack_start(label("WI-FI NETWORKS", "lab"), True, True, 0)
@@ -541,7 +538,7 @@ def run_panel(kind):
                 for d in devs:
                     r = Gtk.Box(spacing=8)
                     r.get_style_context().add_class("row")
-                    r.pack_start(label(d["name"][:1].upper(), "tile"), False, False, 0)
+                    r.pack_start(tile_label(d["name"][:1].upper()), False, False, 0)
                     r.pack_start(label(d["name"] + ("  ✓ connected" if d["on"] else ""), "on" if d["on"] else None), True, True, 0)
                     if d["mac"] in state["busy"]:
                         r.pack_end(label("…", "amber"), False, False, 0)
@@ -568,7 +565,7 @@ def run_panel(kind):
             for d in dl:
                 r = Gtk.Box(spacing=8)
                 r.get_style_context().add_class("row")
-                r.pack_start(label("U", "tile"), False, False, 0)
+                r.pack_start(tile_label("U"), False, False, 0)
                 v2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                 v2.pack_start(label(d["label"], "tn"), False, False, 0)
                 v2.pack_start(label(f"{d['size']} · " + (d["mnt"] if d["mnt"] else "not mounted"), "ts"), False, False, 0)
@@ -593,6 +590,19 @@ def run_panel(kind):
                         r.pack_end(button("Mount", mount, "small"), False, False, 0)
                 box.pack_start(r, False, False, 0)
             body.pack_start(box, False, False, 0)
+
+            # power profile + battery
+            prof = power_profile()
+            if prof:
+                body.pack_start(label("POWER PROFILE", "lab"), False, False, 0)
+                row = Gtk.Box(spacing=4, homogeneous=True)
+                for key, name in (("power-saver", "Saver"), ("balanced", "Balanced"), ("performance", "Performance")):
+                    b = button(name, (lambda k=key: (sh(["powerprofilesctl", "set", k]), later(draw, 200))), "seg on" if prof == key else "seg")
+                    row.pack_start(b, True, True, 0)
+                body.pack_start(row, False, False, 0)
+            bat = battery()
+            if bat:
+                body.pack_start(label(f"BATTERY  {bat[0]}% · {bat[1].lower()}", "dim"), False, False, 0)
             body.show_all()
             GLib.idle_add(fit_height)
 
