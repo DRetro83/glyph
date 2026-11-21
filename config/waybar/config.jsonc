@@ -25,7 +25,7 @@
     "icon-theme": "GlyphLetters",
     "icon-size": 22,
     "rewrite": {
-      ".* - Thunar": "  Files", "\\s*Thunar": "  Files", ".* - Mousepad": "  Text editor", "\\s*Mousepad": "  Text editor",
+      ".* - Files": "  Files", ".* - Music": "  Music", ".* - Thunar": "  Thunar", "\\s*Thunar": "  Thunar", ".* - Mousepad": "  Text editor", "\\s*Mousepad": "  Text editor",
       ".*Mozilla Firefox.*": "  Firefox", ".* — Firefox.*": "  Firefox", ".*Vivaldi.*": "  Vivaldi",
       "\\s*Settings": "  Settings", "\\s*foot": "  Terminal", ".*@.*:.*": "  Terminal",
       "^\\s*(.{0,20}).*$": "  $1"

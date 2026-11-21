@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 · own Files and Music · 2026-11-21
+
+- **Files** (glyph-files): the file manager from the design: SIDE, back/forward/up, path, search, LIST/GRID, places, devices with eject, network, trash, copy/cut/paste, rename, new folder, terminal here. Opens folders in the Glyph session; Thunar stays for advanced work
+- **Music** (glyph-music): the player from the design with a real 10-band equalizer, preamp, curve and presets, playlist, shuffle and repeat
+- **Quick settings**: every section folds open and shut; volume at the bottom
+- START as an amber frame and the bottom-left corner mark, as in the design
+
 ## 0.4.0 · closer to the design · 2026-11-21
 
 - Own **start menu** (glyph-start): categories, letter tiles, favourites, search, power; KDE helper apps hidden

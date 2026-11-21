@@ -12,7 +12,7 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 echo ":: Removing the Glyph session (asks for your password)"
 sudo rm -f /usr/share/wayland-sessions/glyph.desktop /usr/local/bin/glyph-*
 rm -rf "$CONF/glyph" "$DATA/themes/Glyph"
-rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf" "$DATA/applications/glyph-settings.desktop"
+rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf" "$DATA"/applications/glyph-*.desktop "$CONF/glyph-mimeapps.list"
 # app colours that glyph-theme made (only files that are ours)
 rm -f "$DATA"/gtksourceview-*/styles/glyph.xml "$CONF/qt5ct/colors/Glyph.conf" "$CONF/qt6ct/colors/Glyph.conf"
 for f in "$CONF/qt5ct/qt5ct.conf" "$CONF/qt6ct/qt6ct.conf"; do grep -qs "Glyph.conf" "$f" && rm -f "$f"; done

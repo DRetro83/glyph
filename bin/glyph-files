@@ -1,0 +1,971 @@
+#!/usr/bin/env python3
+"""glyph-files - the Glyph file manager, as in the design.
+
+  glyph-files [FOLDER]
+
+Places, devices and network on the left; the folder as a list (name, size,
+type, modified) or a grid. Keys:
+  Enter open  ·  Backspace / Alt+Left back  ·  Alt+Right forward  ·  Alt+Up up
+  Ctrl+C / Ctrl+X / Ctrl+V copy, cut, paste  ·  F2 rename  ·  Delete to trash
+  Shift+Delete delete for good  ·  Ctrl+Shift+N new folder  ·  Ctrl+H hidden files
+  Ctrl+L type a path  ·  Ctrl+F search  ·  Ctrl+A select all  ·  F4 terminal here
+"""
+import os
+import shutil
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
+
+GLib.set_prgname("glyph-files")
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+HOME = Path.home()
+ATTRS = "standard::*,time::modified,access::can-write,access::can-trash,trash::orig-path,trash::deletion-date"
+CLIP = {"op": None, "files": []}   # shared by all windows of this process
+
+
+def kv(path):
+    d = {}
+    try:
+        for l in Path(path).read_text().splitlines():
+            if "=" in l and not l.startswith("#"):
+                k, v = l.split("=", 1)
+                d[k.strip()] = v.strip().strip('"')
+    except Exception:
+        pass
+    return d
+
+
+def human(n):
+    for u in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or u == "TB":
+            return f"{n:.0f} {u}" if u == "B" else f"{n:.1f} {u}".replace(".0 ", " ")
+        n /= 1024
+
+
+def when(ts):
+    if not ts:
+        return ""
+    t = time.localtime(ts)
+    now = time.localtime()
+    day = time.mktime((t.tm_year, t.tm_mon, t.tm_mday, 0, 0, 0, 0, 0, -1))
+    today = time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1))
+    if day == today:
+        return "Today " + time.strftime("%H:%M", t)
+    if today - day <= 86400 + 3600:
+        return "Yesterday " + time.strftime("%H:%M", t)
+    return time.strftime("%-d %b %Y", t)
+
+
+def kind(info):
+    if info.get_file_type() == Gio.FileType.DIRECTORY:
+        return "Folder"
+    ct = info.get_content_type() or ""
+    d = Gio.content_type_get_description(ct) if ct else ""
+    return (d[:1].upper() + d[1:]) if d else "File"
+
+
+class Tiles:
+    """Letter tiles (like the design) as pixbufs, cached."""
+    def __init__(self, pal):
+        self.pal = pal
+        self.cache = {}
+
+    def get(self, ch, size, folder=False):
+        key = (ch, size, folder)
+        if key in self.cache:
+            return self.cache[key]
+        import cairo
+        s = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+        cr = cairo.Context(s)
+        bg = self.pal.get("GLYPH_TITLE" if folder else "GLYPH_HOV", "#a8957c")
+        fg = self.pal.get("GLYPH_TINK" if folder else "GLYPH_TEXT", "#0c0b0a")
+        c = lambda h: tuple(int(h.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        cr.set_source_rgb(*c(bg))
+        cr.rectangle(0, 0, size, size)
+        cr.fill()
+        if not folder:
+            cr.set_source_rgb(*c(self.pal.get("GLYPH_HI", "#57514a")))
+            cr.set_line_width(1)
+            cr.rectangle(0.5, 0.5, size - 1, size - 1)
+            cr.stroke()
+        cr.set_source_rgb(*c(fg))
+        cr.select_font_face("IBM Plex Mono", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        cr.set_font_size(size * 0.5)
+        ext = cr.text_extents(ch)
+        cr.move_to((size - ext.width) / 2 - ext.x_bearing, (size - ext.height) / 2 - ext.y_bearing)
+        cr.show_text(ch)
+        s.flush()
+        pb = Gdk.pixbuf_get_from_surface(s, 0, 0, size, size)
+        self.cache[key] = pb
+        return pb
+
+
+class Files(Gtk.Window):
+    # columns: tile, name, size text, type, modified text, gfile, is_dir, sort size, sort time, hidden
+    def __init__(self, app, start):
+        super().__init__(title="Files", application=app)
+        self.app = app
+        self.set_default_size(900, 580)
+        self.pal = kv(CONF / "palette.env")
+        self.tiles = Tiles(self.pal)
+        self.hist, self.fwd = [], []
+        self.show_hidden = False
+        self.view_mode = "list"
+        self.cwd = None
+        self.monitor = None
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        root.get_style_context().add_class("files")
+        self.add(root)
+
+        # toolbar
+        tb = Gtk.Box(spacing=4)
+        tb.get_style_context().add_class("ftool")
+        self.b_side = self.btn("SIDE", self.flip_side, "on")
+        tb.pack_start(self.b_side, False, False, 0)
+        self.b_back = self.btn("‹", self.back)
+        self.b_fwd = self.btn("›", self.forward)
+        tb.pack_start(self.b_back, False, False, 0)
+        tb.pack_start(self.b_fwd, False, False, 0)
+        tb.pack_start(self.btn("↑", self.up), False, False, 0)
+        self.path_stack = Gtk.Stack()
+        pbox = Gtk.Box()
+        pbox.get_style_context().add_class("fpath")
+        self.path_lab = Gtk.Label(xalign=0)
+        self.path_lab.set_ellipsize(Pango.EllipsizeMode.START)
+        self.path_lab.get_style_context().add_class("fpname")
+        pbox.pack_start(self.path_lab, True, True, 0)
+        pb = Gtk.Button(label="PATH")
+        pb.get_style_context().add_class("flink")
+        pb.connect("clicked", lambda *_: self.edit_path())
+        pbox.pack_end(pb, False, False, 0)
+        self.path_entry = Gtk.Entry()
+        self.path_entry.connect("activate", self.on_path)
+        self.path_entry.connect("focus-out-event", lambda *_: self.path_stack.set_visible_child_name("lab") or False)
+        self.path_stack.add_named(pbox, "lab")
+        self.path_stack.add_named(self.path_entry, "entry")
+        tb.pack_start(self.path_stack, True, True, 0)
+        self.search = Gtk.Entry()
+        self.search.set_placeholder_text("Search here…")
+        self.search.set_width_chars(18)
+        self.search.connect("changed", lambda *_: self.filter.refilter())
+        tb.pack_start(self.search, False, False, 0)
+        self.b_list = self.btn("LIST", lambda: self.set_view("list"), "on")
+        self.b_grid = self.btn("GRID", lambda: self.set_view("grid"))
+        tb.pack_start(self.b_list, False, False, 0)
+        tb.pack_start(self.b_grid, False, False, 0)
+        more = Gtk.MenuButton(label="···")
+        more.set_popup(self.more_menu())
+        tb.pack_start(more, False, False, 0)
+        root.pack_start(tb, False, False, 0)
+
+        mid = Gtk.Paned()
+        root.pack_start(mid, True, True, 0)
+        self.side_sw = Gtk.ScrolledWindow()
+        self.side_sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.side_sw.set_size_request(200, -1)
+        self.side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.side.get_style_context().add_class("fside")
+        self.side_sw.add(self.side)
+        mid.pack1(self.side_sw, False, False)
+
+        # model + views
+        self.store = Gtk.ListStore(GdkPixbuf.Pixbuf, str, str, str, str, object, bool, GObject.TYPE_INT64, GObject.TYPE_INT64, bool)
+        self.filter = self.store.filter_new()
+        self.filter.set_visible_func(self.visible)
+        self.sorted = Gtk.TreeModelSort(model=self.filter)
+        self.sorted.set_default_sort_func(self.sort_default)
+        for col, fn in ((1, self.sort_name), (2, self.sort_size), (3, self.sort_type), (4, self.sort_time)):
+            self.sorted.set_sort_func(col, fn)
+        self.sorted.set_sort_column_id(1, Gtk.SortType.ASCENDING)
+
+        self.views = Gtk.Stack()
+        self.tree = Gtk.TreeView(model=self.sorted)
+        self.tree.get_style_context().add_class("flist")
+        self.tree.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        self.tree.set_rubber_banding(True)
+        self.tree.set_enable_search(False)
+        c = Gtk.TreeViewColumn("NAME")
+        c.set_expand(True)
+        r1 = Gtk.CellRendererPixbuf()
+        r1.set_padding(6, 4)
+        r2 = Gtk.CellRendererText()
+        r2.set_property("ellipsize", Pango.EllipsizeMode.END)
+        c.pack_start(r1, False)
+        c.pack_start(r2, True)
+        c.add_attribute(r1, "pixbuf", 0)
+        c.add_attribute(r2, "text", 1)
+        c.set_sort_column_id(1)
+        c.set_resizable(True)
+        self.tree.append_column(c)
+        for title, col, w in (("SIZE", 2, 90), ("TYPE", 3, 150), ("MODIFIED", 4, 150)):
+            r = Gtk.CellRendererText()
+            if col == 2:
+                r.set_property("xalign", 1.0)
+            c = Gtk.TreeViewColumn(title, r, text=col)
+            c.set_sort_column_id(col)
+            c.set_min_width(w)
+            c.set_resizable(True)
+            r.set_property("foreground", self.pal.get("GLYPH_DIM", "#a89c88"))
+            self.tree.append_column(c)
+        self.tree.connect("row-activated", lambda tv, path, col: self.open_selected())
+        self.tree.connect("button-press-event", self.on_button)
+        sw = Gtk.ScrolledWindow()
+        sw.add(self.tree)
+        self.views.add_named(sw, "list")
+        self.icons = Gtk.IconView(model=self.sorted)
+        self.icons.get_style_context().add_class("fgrid")
+        self.icons.set_pixbuf_column(0)
+        self.icons.set_text_column(1)
+        self.icons.set_item_width(96)
+        self.icons.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
+        self.icons.connect("item-activated", lambda *_: self.open_selected())
+        self.icons.connect("button-press-event", self.on_button)
+        sw2 = Gtk.ScrolledWindow()
+        sw2.add(self.icons)
+        self.views.add_named(sw2, "grid")
+        mid.pack2(self.views, True, False)
+
+        st = Gtk.Box()
+        st.get_style_context().add_class("fstatus")
+        self.st_left = Gtk.Label(xalign=0)
+        self.st_right = Gtk.Label(xalign=1)
+        st.pack_start(self.st_left, True, True, 0)
+        st.pack_end(self.st_right, False, False, 0)
+        root.pack_start(st, False, False, 0)
+
+        self.vm = Gio.VolumeMonitor.get()
+        for sig in ("mount-added", "mount-removed", "volume-added", "volume-removed", "mount-changed"):
+            self.vm.connect(sig, lambda *_: GLib.idle_add(self.build_side))
+        self.connect("key-press-event", self.on_key)
+        self.build_side()
+        self.go(start, remember=False)
+
+    # ---------- small widgets
+    def btn(self, text, cb, cls=""):
+        b = Gtk.Button(label=text)
+        for c in cls.split():
+            b.get_style_context().add_class(c)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def lit(self, b, on):
+        (b.get_style_context().add_class if on else b.get_style_context().remove_class)("on")
+
+    def more_menu(self):
+        m = Gtk.Menu()
+        for text, cb in (("New folder        Ctrl+Shift+N", self.new_folder), ("New empty file", self.new_file),
+                         ("Paste             Ctrl+V", self.paste), (None, None),
+                         ("Show hidden files Ctrl+H", self.flip_hidden), ("Open terminal here  F4", self.terminal),
+                         ("Open in Thunar", lambda: self.spawn(["thunar", self.cwd.get_path() or self.cwd.get_uri()])),
+                         (None, None), ("Empty the trash", self.empty_trash)):
+            if text is None:
+                m.append(Gtk.SeparatorMenuItem())
+                continue
+            it = Gtk.MenuItem(label=text)
+            it.connect("activate", lambda _i, f=cb: f())
+            m.append(it)
+        m.show_all()
+        return m
+
+    def spawn(self, cmd):
+        try:
+            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        except Exception as e:
+            self.say(str(e))
+
+    def say(self, msg):
+        self.st_left.set_text(msg)
+        GLib.timeout_add(4000, lambda: (self.update_status(), False)[1])
+
+    # ---------- sidebar
+    def side_head(self, text):
+        l = Gtk.Label(label=text, xalign=0)
+        l.get_style_context().add_class("fhead")
+        self.side.pack_start(l, False, False, 0)
+
+    def side_item(self, ch, name, extra, target, eject=None, folder=True):
+        row = Gtk.Box()
+        b = Gtk.Button()
+        b.get_style_context().add_class("fplace")
+        b.target = target
+        h = Gtk.Box(spacing=10)
+        t = Gtk.Label(label=ch)
+        t.get_style_context().add_class("ftile" if folder else "ftile2")
+        t.set_xalign(0.5)
+        h.pack_start(t, False, False, 0)
+        n = Gtk.Label(label=name, xalign=0)
+        n.set_ellipsize(Pango.EllipsizeMode.END)
+        h.pack_start(n, False, False, 0)
+        if extra:
+            e = Gtk.Label(label=extra, xalign=0)
+            e.get_style_context().add_class("fdim")
+            e.set_ellipsize(Pango.EllipsizeMode.END)
+            h.pack_start(e, True, True, 0)
+        b.add(h)
+        b.connect("clicked", lambda *_: self.go(target() if callable(target) else target))
+        row.pack_start(b, True, True, 0)
+        if eject:
+            x = Gtk.Button(label="⏏")
+            x.get_style_context().add_class("feject")
+            x.set_tooltip_text("Eject")
+            x.connect("clicked", lambda *_: eject())
+            row.pack_end(x, False, False, 0)
+        self.side.pack_start(row, False, False, 0)
+        self.side_btns.append(b)
+
+    def build_side(self):
+        for c in self.side.get_children():
+            self.side.remove(c)
+        self.side_btns = []
+        self.side_head("PLACES")
+        self.side_item("H", "Home", "", Gio.File.new_for_path(str(HOME)))
+        for d, name in ((GLib.UserDirectory.DIRECTORY_DOCUMENTS, "Documents"), (GLib.UserDirectory.DIRECTORY_DOWNLOAD, "Downloads"),
+                        (GLib.UserDirectory.DIRECTORY_MUSIC, "Music"), (GLib.UserDirectory.DIRECTORY_PICTURES, "Pictures"),
+                        (GLib.UserDirectory.DIRECTORY_VIDEOS, "Videos")):
+            p = GLib.get_user_special_dir(d) or str(HOME / name)
+            if p and Path(p).is_dir() and Path(p) != HOME:
+                self.side_item(Path(p).name[:1].upper(), Path(p).name, "", Gio.File.new_for_path(p))
+        self.side_item("×", "Trash", "", Gio.File.new_for_uri("trash:///"), folder=False)
+        self.side_head("DEVICES")
+        try:
+            du = shutil.disk_usage("/")
+            sysname = os.uname().nodename
+            self.side_item("S", sysname, f"{du.free // 10**9} GB free", Gio.File.new_for_path("/"), folder=False)
+        except Exception:
+            pass
+        seen = set()
+        for m in self.vm.get_mounts():
+            if m.is_shadowed():
+                continue
+            r = m.get_root()
+            path = r.get_path() or ""
+            if path in ("/", "") or path.startswith(("/boot", "/snap")):
+                if r.get_uri_scheme() == "file":
+                    continue
+            seen.add(m.get_name())
+            extra = ""
+            try:
+                fi = r.query_filesystem_info("filesystem::free", None)
+                free = fi.get_attribute_uint64("filesystem::free")
+                extra = f"{human(free)} free" if free else ""
+            except Exception:
+                pass
+            ej = (lambda m=m: self.eject(m)) if (m.can_eject() or m.can_unmount()) else None
+            self.side_item("U", m.get_name(), extra, r, eject=ej, folder=False)
+        for v in self.vm.get_volumes():
+            if v.get_mount() or v.get_name() in seen:
+                continue
+            self.side_item("U", v.get_name(), "not mounted", (lambda v=v: self.mount(v)), folder=False)
+        self.side_head("NETWORK")
+        self.side_item("N", "Browse network", "", Gio.File.new_for_uri("network:///"), folder=False)
+        self.side.show_all()
+        self.mark_side()
+
+    def mark_side(self):
+        for b in getattr(self, "side_btns", []):
+            t = b.target
+            cur = (not callable(t)) and self.cwd is not None and t.equal(self.cwd)
+            (b.get_style_context().add_class if cur else b.get_style_context().remove_class)("cur")
+
+    def mount(self, vol):
+        self.say(f"Mounting {vol.get_name()}…")
+
+        def done(v, res):
+            try:
+                v.mount_finish(res)
+                m = v.get_mount()
+                if m:
+                    self.go(m.get_root())
+            except Exception as e:
+                self.say(f"Could not open {v.get_name()}: {e}")
+            self.build_side()
+        vol.mount(Gio.MountMountFlags.NONE, Gtk.MountOperation.new(self), None, done)
+        return self.cwd
+
+    def eject(self, m):
+        name = m.get_name()
+        if self.cwd and m.get_root().equal(self.cwd) or (self.cwd and self.cwd.has_prefix(m.get_root())):
+            self.go(Gio.File.new_for_path(str(HOME)))
+
+        def done(mm, res):
+            try:
+                (mm.eject_with_operation_finish if mm.can_eject() else mm.unmount_with_operation_finish)(res)
+                self.say(f"{name} can now be removed safely.")
+            except Exception as e:
+                self.say(f"{name} is still in use: {e}")
+            self.build_side()
+        if m.can_eject():
+            m.eject_with_operation(Gio.MountUnmountFlags.NONE, Gtk.MountOperation.new(self), None, done)
+        else:
+            m.unmount_with_operation(Gio.MountUnmountFlags.NONE, Gtk.MountOperation.new(self), None, done)
+
+    def flip_side(self):
+        vis = not self.side_sw.get_visible()
+        self.side_sw.set_visible(vis)
+        self.lit(self.b_side, vis)
+
+    # ---------- going places
+    def go(self, gfile, remember=True):
+        if gfile is None:
+            return
+        if isinstance(gfile, str):
+            gfile = Gio.File.new_for_commandline_arg(gfile)
+        try:
+            info = gfile.query_info("standard::type", Gio.FileQueryInfoFlags.NONE, None)
+            if info.get_file_type() != Gio.FileType.DIRECTORY:
+                self.launch(gfile)
+                return
+        except GLib.Error as e:
+            if gfile.get_uri_scheme() not in ("trash", "network", "recent"):
+                self.say(f"Cannot open: {e.message}")
+                return
+        if remember and self.cwd is not None and not self.cwd.equal(gfile):
+            self.hist.append(self.cwd)
+            self.fwd.clear()
+        self.cwd = gfile
+        self.search.set_text("")
+        self.load()
+        self.b_back.set_sensitive(bool(self.hist))
+        self.b_fwd.set_sensitive(bool(self.fwd))
+        self.mark_side()
+
+    def back(self):
+        if self.hist:
+            self.fwd.append(self.cwd)
+            self.go(self.hist.pop(), remember=False)
+
+    def forward(self):
+        if self.fwd:
+            self.hist.append(self.cwd)
+            self.go(self.fwd.pop(), remember=False)
+
+    def up(self):
+        p = self.cwd.get_parent() if self.cwd else None
+        if p:
+            self.go(p)
+
+    def title_of(self, gfile):
+        uri = gfile.get_uri()
+        if uri.startswith("trash:"):
+            return "Trash"
+        if uri.startswith("network:"):
+            return "Network"
+        p = gfile.get_path()
+        if p and Path(p) == HOME:
+            return "Home"
+        if p == "/":
+            return "Computer"
+        return gfile.get_basename() or uri
+
+    def edit_path(self):
+        self.path_entry.set_text(self.cwd.get_path() or self.cwd.get_uri())
+        self.path_stack.set_visible_child_name("entry")
+        self.path_entry.grab_focus()
+
+    def on_path(self, e):
+        t = os.path.expanduser(e.get_text().strip())
+        self.path_stack.set_visible_child_name("lab")
+        if t:
+            self.go(Gio.File.new_for_commandline_arg(t))
+
+    # ---------- listing
+    def load(self):
+        self.store.clear()
+        name = self.title_of(self.cwd)
+        self.path_lab.set_text(name.upper())
+        self.path_lab.set_tooltip_text(self.cwd.get_path() or self.cwd.get_uri())
+        self.set_title(f"{name} - Files")
+        if self.monitor:
+            self.monitor.cancel()
+        try:
+            self.monitor = self.cwd.monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, None)
+            self.monitor.set_rate_limit(400)
+            self.monitor.connect("changed", lambda *_: self.schedule_reload())
+        except Exception:
+            self.monitor = None
+        self.reload_pending = False
+        gen = object()
+        self.gen = gen
+        self.cwd.enumerate_children_async(ATTRS, Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, None, self.on_enum, gen)
+
+    def schedule_reload(self):
+        if not self.reload_pending:
+            self.reload_pending = True
+            GLib.timeout_add(300, lambda: (self.refresh(), False)[1])
+
+    def refresh(self):
+        sel = {self.sorted[p][1] for p in self.selected_paths()}
+        self.reload_pending = False
+        self.keep_sel = sel
+        self.store.clear()
+        gen = object()
+        self.gen = gen
+        self.cwd.enumerate_children_async(ATTRS, Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, None, self.on_enum, gen)
+
+    def on_enum(self, src, res, gen):
+        try:
+            en = src.enumerate_children_finish(res)
+        except GLib.Error as e:
+            self.st_left.set_text(f"Cannot read this folder: {e.message}")
+            return
+        self.read_more(en, gen)
+
+    def read_more(self, en, gen):
+        def got(e, res, gen=gen):
+            if gen is not self.gen:
+                return
+            try:
+                infos = e.next_files_finish(res)
+            except GLib.Error:
+                infos = []
+            for info in infos:
+                self.add_info(info)
+            if infos:
+                self.read_more(e, gen)
+            else:
+                e.close_async(GLib.PRIORITY_DEFAULT, None, None)
+                self.update_status()
+                sel = getattr(self, "keep_sel", None)
+                if sel:
+                    self.select_names(sel)
+                    self.keep_sel = None
+                threading.Thread(target=self.count_items, args=(gen,), daemon=True).start()
+        en.next_files_async(200, GLib.PRIORITY_DEFAULT, None, got)
+
+    def add_info(self, info):
+        name = info.get_display_name()
+        is_dir = info.get_file_type() == Gio.FileType.DIRECTORY
+        gf = self.cwd.get_child(info.get_name())
+        if self.cwd.get_uri_scheme() in ("trash", "network"):
+            tgt = info.get_attribute_string("standard::target-uri")
+            gf = Gio.File.new_for_uri(tgt) if tgt else self.cwd.get_child(info.get_name())
+        size = info.get_size() if not is_dir else -1
+        mt = info.get_modification_date_time()
+        ts = mt.to_unix() if mt else 0
+        ch = (name[:1] or "?").upper()
+        self.store.append([self.tiles.get(ch, 22, is_dir), name, "" if is_dir else human(size), kind(info), when(ts),
+                           gf, is_dir, size, ts, info.get_is_hidden() or info.get_is_backup()])
+
+    def count_items(self, gen):
+        """'N items' for folders, in the background."""
+        rows = [(i, r[5].get_path()) for i, r in enumerate(self.store) if r[6] and r[5].get_path()]
+        out = []
+        for i, p in rows:
+            if gen is not self.gen:
+                return
+            try:
+                n = sum(1 for _ in os.scandir(p) if self.show_hidden or not _.name.startswith("."))
+                out.append((i, n))
+            except Exception:
+                pass
+
+        def put():
+            if gen is not self.gen:
+                return False
+            for i, n in out:
+                try:
+                    it = self.store.get_iter((i,))
+                    self.store.set_value(it, 2, f"{n} item" + ("" if n == 1 else "s"))
+                    self.store.set_value(it, 7, -1000000 + n)
+                except Exception:
+                    pass
+            return False
+        GLib.idle_add(put)
+
+    def visible(self, model, it, _data):
+        if model[it][9] and not self.show_hidden:
+            return False
+        q = self.search.get_text().strip().lower()
+        return not q or q in model[it][1].lower()
+
+    def update_status(self):
+        total = len(self.store)
+        shown = len(self.filter)
+        hidden = sum(1 for r in self.store if r[9])
+        sel = len(self.selected_paths())
+        left = f"{shown} items" + (f" ({hidden} hidden)" if hidden and not self.show_hidden else "")
+        if sel:
+            left += f" · {sel} selected"
+        if self.search.get_text():
+            left += f" · search: {self.search.get_text()}"
+        self.st_left.set_text(left if total or shown else "Empty folder")
+        try:
+            fi = self.cwd.query_filesystem_info("filesystem::free", None)
+            self.st_right.set_text(f"{human(fi.get_attribute_uint64('filesystem::free'))} free")
+        except Exception:
+            self.st_right.set_text("")
+
+    # sorting: folders first
+    def _first(self, m, a, b):
+        da, db = m[a][6], m[b][6]
+        if da != db:
+            return -1 if da else 1
+        return None
+
+    def sort_default(self, m, a, b, _d=None):
+        return self.sort_name(m, a, b)
+
+    def sort_name(self, m, a, b, _d=None):
+        f = self._first(m, a, b)
+        if f is not None:
+            return f
+        x, y = m[a][1].lower(), m[b][1].lower()
+        return (x > y) - (x < y)
+
+    def sort_size(self, m, a, b, _d=None):
+        f = self._first(m, a, b)
+        return f if f is not None else (m[a][7] > m[b][7]) - (m[a][7] < m[b][7])
+
+    def sort_type(self, m, a, b, _d=None):
+        f = self._first(m, a, b)
+        return f if f is not None else (m[a][3] > m[b][3]) - (m[a][3] < m[b][3]) or self.sort_name(m, a, b)
+
+    def sort_time(self, m, a, b, _d=None):
+        f = self._first(m, a, b)
+        return f if f is not None else (m[a][8] > m[b][8]) - (m[a][8] < m[b][8])
+
+    # ---------- selection and opening
+    def selected_paths(self):
+        if self.view_mode == "list":
+            return self.tree.get_selection().get_selected_rows()[1]
+        return self.icons.get_selected_items()
+
+    def selected_files(self):
+        return [self.sorted[p][5] for p in self.selected_paths()]
+
+    def select_names(self, names):
+        for i, row in enumerate(self.sorted):
+            if row[1] in names:
+                if self.view_mode == "list":
+                    self.tree.get_selection().select_path(Gtk.TreePath(i))
+                else:
+                    self.icons.select_path(Gtk.TreePath(i))
+
+    def open_selected(self):
+        paths = self.selected_paths()
+        if len(paths) == 1 and self.sorted[paths[0]][6]:
+            self.go(self.sorted[paths[0]][5])
+            return
+        for p in paths:
+            if self.sorted[p][6]:
+                Files(self.app, self.sorted[p][5]).show_all()
+            else:
+                self.launch(self.sorted[p][5])
+
+    def launch(self, gfile):
+        try:
+            Gio.AppInfo.launch_default_for_uri(gfile.get_uri(), None)
+        except GLib.Error as e:
+            self.open_with([gfile], f"No app is set for this file ({e.message}). ")
+
+    def open_with(self, files=None, why=""):
+        files = files or self.selected_files()
+        if not files:
+            return
+        d = Gtk.AppChooserDialog.new(self, Gtk.DialogFlags.MODAL, files[0])
+        if why:
+            d.set_heading(why + "Choose one:")
+        if d.run() == Gtk.ResponseType.OK:
+            app = d.get_app_info()
+            if app:
+                app.launch(files, None)
+        d.destroy()
+
+    def set_view(self, mode):
+        self.view_mode = mode
+        self.views.set_visible_child_name(mode)
+        self.lit(self.b_list, mode == "list")
+        self.lit(self.b_grid, mode == "grid")
+        if mode == "grid":
+            for row in self.store:
+                row[0] = self.tiles.get(row[1][:1].upper() or "?", 48, row[6])
+        else:
+            for row in self.store:
+                row[0] = self.tiles.get(row[1][:1].upper() or "?", 22, row[6])
+
+    def flip_hidden(self):
+        self.show_hidden = not self.show_hidden
+        self.filter.refilter()
+        self.update_status()
+
+    # ---------- file actions
+    def copy(self, cut=False):
+        files = self.selected_files()
+        if files:
+            CLIP["op"] = "cut" if cut else "copy"
+            CLIP["files"] = files
+            uris = "\n".join(f.get_uri() for f in files)
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(uris, -1)
+            self.say(f"{len(files)} {'cut' if cut else 'copied'} · paste with Ctrl+V")
+
+    def paste(self):
+        if not CLIP["files"] or not self.cwd.get_path():
+            return
+        dest = Path(self.cwd.get_path())
+        files, op = list(CLIP["files"]), CLIP["op"]
+        if op == "cut":
+            CLIP["files"] = []
+        self.say(f"{'Moving' if op == 'cut' else 'Copying'} {len(files)}…")
+
+        def work():
+            errors = []
+            for f in files:
+                src = Path(f.get_path() or "")
+                if not src.exists():
+                    continue
+                target = dest / src.name
+                n = 2
+                while target.exists():
+                    if op == "cut" and target == src:
+                        break
+                    target = dest / f"{src.stem} ({n}){src.suffix}" if src.is_file() else dest / f"{src.name} ({n})"
+                    n += 1
+                try:
+                    if op == "cut":
+                        if target != src:
+                            shutil.move(str(src), str(target))
+                    elif src.is_dir():
+                        shutil.copytree(src, target, symlinks=True)
+                    else:
+                        shutil.copy2(src, target)
+                except Exception as e:
+                    errors.append(f"{src.name}: {e}")
+            GLib.idle_add(lambda: (self.say("Done." if not errors else "Problem: " + errors[0]), self.refresh(), False)[2])
+        threading.Thread(target=work, daemon=True).start()
+
+    def trash(self):
+        files = self.selected_files()
+        bad = []
+        for f in files:
+            try:
+                f.trash(None)
+            except GLib.Error as e:
+                bad.append(f"{f.get_basename()}: {e.message}")
+        self.say(f"{len(files) - len(bad)} moved to the trash" + (f" · {bad[0]}" if bad else ""))
+
+    def delete_for_good(self):
+        files = self.selected_files()
+        if not files or not self.confirm(f"Delete {len(files)} item(s) for good? This cannot be undone."):
+            return
+
+        def rm(f):
+            p = f.get_path()
+            if p and Path(p).is_dir() and not Path(p).is_symlink():
+                shutil.rmtree(p)
+            else:
+                f.delete(None)
+        for f in files:
+            try:
+                rm(f)
+            except Exception as e:
+                self.say(f"Could not delete {f.get_basename()}: {e}")
+
+    def empty_trash(self):
+        if not self.confirm("Empty the trash? Everything in it is deleted for good."):
+            return
+        self.spawn(["gio", "trash", "--empty"])
+        GLib.timeout_add(800, lambda: (self.refresh() if self.cwd.get_uri_scheme() == "trash" else None, False)[1])
+
+    def confirm(self, text):
+        d = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.WARNING,
+                              buttons=Gtk.ButtonsType.OK_CANCEL, text=text)
+        ok = d.run() == Gtk.ResponseType.OK
+        d.destroy()
+        return ok
+
+    def ask(self, title, value=""):
+        d = Gtk.Dialog(title=title, transient_for=self, modal=True)
+        d.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "OK", Gtk.ResponseType.OK)
+        d.set_default_response(Gtk.ResponseType.OK)
+        e = Gtk.Entry()
+        e.set_text(value)
+        e.set_activates_default(True)
+        e.set_width_chars(40)
+        box = d.get_content_area()
+        box.set_spacing(8)
+        box.set_border_width(12)
+        box.add(Gtk.Label(label=title, xalign=0))
+        box.add(e)
+        d.show_all()
+        if "." in value and not value.startswith("."):
+            e.select_region(0, value.rfind("."))
+        ok = d.run() == Gtk.ResponseType.OK
+        t = e.get_text().strip()
+        d.destroy()
+        return t if ok and t else None
+
+    def rename(self):
+        files = self.selected_files()
+        if len(files) != 1:
+            return
+        f = files[0]
+        new = self.ask("New name", f.get_basename())
+        if new and new != f.get_basename():
+            try:
+                f.set_display_name(new, None)
+                self.keep_sel = {new}
+            except GLib.Error as e:
+                self.say(f"Could not rename: {e.message}")
+
+    def new_folder(self):
+        n = self.ask("Name of the new folder", "New folder")
+        if n:
+            try:
+                self.cwd.get_child(n).make_directory(None)
+                self.keep_sel = {n}
+            except GLib.Error as e:
+                self.say(f"Could not make the folder: {e.message}")
+
+    def new_file(self):
+        n = self.ask("Name of the new file", "New file.txt")
+        if n:
+            try:
+                self.cwd.get_child(n).create(Gio.FileCreateFlags.NONE, None).close(None)
+                self.keep_sel = {n}
+            except GLib.Error as e:
+                self.say(f"Could not make the file: {e.message}")
+
+    def terminal(self):
+        p = self.cwd.get_path() if self.cwd else None
+        self.spawn(["foot", "-D", p] if p else ["foot"])
+
+    # ---------- mouse and keys
+    def on_button(self, w, e):
+        if e.button == 8:
+            self.back()
+            return True
+        if e.button == 9:
+            self.forward()
+            return True
+        if e.button != 3:
+            return False
+        path = (w.get_path_at_pos(int(e.x), int(e.y)) if isinstance(w, Gtk.TreeView) else w.get_path_at_pos(int(e.x), int(e.y)))
+        if isinstance(w, Gtk.TreeView) and path:
+            path = path[0]
+        if path is not None:
+            sel_paths = [p.to_string() for p in self.selected_paths()]
+            if path.to_string() not in sel_paths:
+                if isinstance(w, Gtk.TreeView):
+                    w.get_selection().unselect_all()
+                    w.get_selection().select_path(path)
+                else:
+                    w.unselect_all()
+                    w.select_path(path)
+        else:
+            (w.get_selection().unselect_all() if isinstance(w, Gtk.TreeView) else w.unselect_all())
+        has = bool(self.selected_paths())
+        m = Gtk.Menu()
+        items = []
+        if has:
+            items += [("Open", self.open_selected), ("Open with…", self.open_with), None,
+                      ("Cut          Ctrl+X", lambda: self.copy(True)), ("Copy         Ctrl+C", self.copy)]
+        items += [("Paste        Ctrl+V", self.paste)]
+        if has:
+            items += [None, ("Rename…      F2", self.rename), ("Move to trash  Delete", self.trash)]
+        items += [None, ("New folder…", self.new_folder), ("New empty file…", self.new_file),
+                  ("Open terminal here", self.terminal)]
+        for it in items:
+            if it is None:
+                m.append(Gtk.SeparatorMenuItem())
+                continue
+            mi = Gtk.MenuItem(label=it[0])
+            mi.connect("activate", lambda _i, f=it[1]: f())
+            if it[0].startswith("Paste") and not CLIP["files"]:
+                mi.set_sensitive(False)
+            m.append(mi)
+        m.show_all()
+        m.attach_to_widget(w, None)
+        m.popup_at_pointer(e)
+        return True
+
+    def on_key(self, w, e):
+        k = e.keyval
+        ctrl = bool(e.state & Gdk.ModifierType.CONTROL_MASK)
+        shift = bool(e.state & Gdk.ModifierType.SHIFT_MASK)
+        alt = bool(e.state & Gdk.ModifierType.MOD1_MASK)
+        typing = isinstance(self.get_focus(), Gtk.Entry)
+        if alt and k == Gdk.KEY_Left or (k == Gdk.KEY_BackSpace and not typing):
+            self.back()
+        elif alt and k == Gdk.KEY_Right:
+            self.forward()
+        elif alt and k == Gdk.KEY_Up:
+            self.up()
+        elif alt and k == Gdk.KEY_Home:
+            self.go(Gio.File.new_for_path(str(HOME)))
+        elif ctrl and k in (Gdk.KEY_l, Gdk.KEY_L):
+            self.edit_path()
+        elif ctrl and k in (Gdk.KEY_f, Gdk.KEY_F):
+            self.search.grab_focus()
+        elif ctrl and k in (Gdk.KEY_h, Gdk.KEY_H):
+            self.flip_hidden()
+        elif ctrl and shift and k in (Gdk.KEY_n, Gdk.KEY_N):
+            self.new_folder()
+        elif ctrl and k in (Gdk.KEY_n, Gdk.KEY_N):
+            Files(self.app, self.cwd).show_all()
+        elif ctrl and k in (Gdk.KEY_w, Gdk.KEY_W, Gdk.KEY_q, Gdk.KEY_Q):
+            self.close()
+        elif k == Gdk.KEY_F4:
+            self.terminal()
+        elif k == Gdk.KEY_F5:
+            self.refresh()
+        elif typing:
+            if k == Gdk.KEY_Escape:
+                self.search.set_text("")
+                (self.tree if self.view_mode == "list" else self.icons).grab_focus()
+                return True
+            return False
+        elif ctrl and k in (Gdk.KEY_c, Gdk.KEY_C):
+            self.copy()
+        elif ctrl and k in (Gdk.KEY_x, Gdk.KEY_X):
+            self.copy(True)
+        elif ctrl and k in (Gdk.KEY_v, Gdk.KEY_V):
+            self.paste()
+        elif ctrl and k in (Gdk.KEY_a, Gdk.KEY_A):
+            (self.tree.get_selection().select_all() if self.view_mode == "list" else self.icons.select_all())
+        elif k == Gdk.KEY_F2:
+            self.rename()
+        elif k == Gdk.KEY_Delete:
+            (self.delete_for_good if shift else self.trash)()
+        elif k in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            self.open_selected()
+        elif not ctrl and not alt and e.string and e.string.isprintable() and len(e.string) == 1:
+            self.search.grab_focus()
+            self.search.set_text(self.search.get_text() + e.string)
+            self.search.set_position(-1)
+        else:
+            return False
+        return True
+
+
+class App(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="org.glyph.Files", flags=Gio.ApplicationFlags.HANDLES_OPEN | Gio.ApplicationFlags.NON_UNIQUE)
+
+    def do_startup(self):
+        Gtk.Application.do_startup(self)
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+    def do_activate(self):
+        Files(self, Gio.File.new_for_path(str(HOME))).show_all()
+
+    def do_open(self, files, n, hint):
+        for f in files:
+            Files(self, f).show_all()
+
+
+if __name__ == "__main__":
+    sys.exit(App().run(sys.argv))

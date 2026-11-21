@@ -1,0 +1,591 @@
+#!/usr/bin/env python3
+"""glyph-music - the Glyph music player, as in the design.
+
+  glyph-music                 play your Music folder
+  glyph-music FILE|FOLDER...  play these
+
+Now playing, a 10-band equalizer (with a preamp, a curve and presets) that
+really changes the sound, and the playlist. Space = play/pause,
+Ctrl+O = add files, drag files or folders onto the window to add them.
+Your equalizer and playlist are kept in ~/.config/glyph/music.json
+"""
+import json
+import os
+import random
+import sys
+import threading
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("Gst", "1.0")
+gi.require_version("GstPbutils", "1.0")
+from gi.repository import Gdk, GLib, Gst, GstPbutils, Gtk  # noqa: E402
+
+GLib.set_prgname("glyph-music")
+Gst.init(None)
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+STATE = CONF / "music.json"
+AUDIO = {".mp3", ".flac", ".ogg", ".oga", ".opus", ".m4a", ".aac", ".wav", ".wma", ".aiff", ".aif", ".ape", ".mka", ".webm"}
+BANDS = ["31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"]
+PRESETS = {
+    "Flat": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "Bass": [7, 6, 4, 2, 0, 0, 0, 0, 0, 0],
+    "Bass cut": [-8, -6, -3, -1, 0, 0, 0, 0, 0, 0],
+    "Vocal": [-3, -2, -1, 1, 3, 4, 4, 2, 0, -1],
+    "Treble": [0, 0, 0, 0, 0, 1, 2, 4, 6, 7],
+    "Loud": [6, 5, 2, 0, -1, -1, 0, 2, 5, 6],
+    "Rock": [5, 4, 2, -1, -2, -1, 2, 3, 4, 4],
+    "Pop": [-1, 1, 3, 4, 3, 0, -1, -1, 1, 2],
+    "Jazz": [3, 2, 1, 2, -1, -1, 0, 1, 2, 3],
+    "Classical": [4, 3, 2, 1, 0, 0, 0, 1, 2, 3],
+    "Electronic": [6, 5, 1, 0, -2, 1, 0, 2, 4, 5],
+    "Speech": [-6, -4, -1, 1, 3, 4, 4, 3, 1, -2],
+    "Night": [-4, -3, -1, 0, 1, 1, 1, 0, -1, -3],
+}
+
+
+def kv(path):
+    d = {}
+    try:
+        for l in Path(path).read_text().splitlines():
+            if "=" in l and not l.startswith("#"):
+                k, v = l.split("=", 1)
+                d[k.strip()] = v.strip().strip('"')
+    except Exception:
+        pass
+    return d
+
+
+def rgb(h):
+    h = (h or "#a8957c").lstrip("#")
+    return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def fmt(sec):
+    if sec is None or sec < 0:
+        return "-:--"
+    sec = int(sec)
+    return f"{sec // 3600}:{sec % 3600 // 60:02d}:{sec % 60:02d}" if sec >= 3600 else f"{sec // 60}:{sec % 60:02d}"
+
+
+def collect(paths):
+    out = []
+    for p in paths:
+        p = Path(p)
+        if p.is_dir():
+            for f in sorted(p.rglob("*")):
+                if f.suffix.lower() in AUDIO and f.is_file():
+                    out.append(str(f))
+        elif p.suffix.lower() in AUDIO and p.is_file():
+            out.append(str(p))
+    return out
+
+
+class Music(Gtk.Window):
+    def __init__(self, args):
+        super().__init__(title="Music")
+        self.set_default_size(470, 760)
+        self.pal = kv(CONF / "palette.env")
+        st = {}
+        try:
+            st = json.loads(STATE.read_text())
+        except Exception:
+            pass
+        self.gains = list(st.get("gains", PRESETS["Flat"]))[:10] + [0] * (10 - len(st.get("gains", [0] * 10)))
+        self.pre = float(st.get("pre", 0))
+        self.eq_on = bool(st.get("on", True))
+        self.preset = st.get("preset", "Flat")
+        self.tracks = []          # dicts: path, title, artist, album, dur
+        self.cur = -1
+        self.playing = False
+        self.shuffle = bool(st.get("shuffle", False))
+        self.repeat = bool(st.get("repeat", True))
+
+        # sound: playbin -> volume (preamp) -> 10-band equalizer
+        self.pb = Gst.ElementFactory.make("playbin", "player")
+        self.eq = Gst.ElementFactory.make("equalizer-10bands", "eq")
+        self.prevol = Gst.ElementFactory.make("volume", "pre")
+        conv = Gst.ElementFactory.make("audioconvert", "conv")
+        filt = Gst.Bin.new("glyphfilter")
+        for e in (conv, self.prevol, self.eq):
+            filt.add(e)
+        conv.link(self.prevol)
+        self.prevol.link(self.eq)
+        filt.add_pad(Gst.GhostPad.new("sink", conv.get_static_pad("sink")))
+        filt.add_pad(Gst.GhostPad.new("src", self.eq.get_static_pad("src")))
+        self.pb.set_property("audio-filter", filt)
+        bus = self.pb.get_bus()
+        bus.add_signal_watch()
+        bus.connect("message::eos", lambda *_: self.next(auto=True))
+        bus.connect("message::error", self.on_error)
+        bus.connect("message::tag", self.on_tag)
+        self.apply_eq()
+
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        root.get_style_context().add_class("panel")
+        root.get_style_context().add_class("music")
+        self.add(root)
+        top = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        top.get_style_context().add_class("mtop")
+        root.pack_start(top, False, False, 0)
+
+        # now playing
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        card.get_style_context().add_class("mcard")
+        r = Gtk.Box()
+        self.t_title = self.lab("Nothing playing", "mtitle")
+        self.t_title.set_ellipsize(3)
+        r.pack_start(self.t_title, True, True, 0)
+        self.t_time = self.lab("0:00 / 0:00", "dim")
+        r.pack_end(self.t_time, False, False, 0)
+        card.pack_start(r, False, False, 0)
+        self.t_sub = self.lab("add music with + FILES or + FOLDER", "dim small")
+        self.t_sub.set_ellipsize(3)
+        card.pack_start(self.t_sub, False, False, 0)
+        self.seek = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 1, 1)
+        self.seek.set_draw_value(False)
+        self.seek.get_style_context().add_class("mseek")
+        self.seek_lock = False
+        self.seek.connect("change-value", self.on_seek)
+        card.pack_start(self.seek, False, False, 2)
+        ctl = Gtk.Box(spacing=6, homogeneous=True)
+        ctl.pack_start(self.btn("|◂", self.prev, "mctl"), True, True, 0)
+        self.b_play = self.btn("▸", self.toggle, "mctl mplay")
+        ctl.pack_start(self.b_play, True, True, 0)
+        ctl.pack_start(self.btn("▸|", self.next, "mctl"), True, True, 0)
+        card.pack_start(ctl, False, False, 4)
+        top.pack_start(card, False, False, 0)
+
+        # equalizer
+        eqc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        eqc.get_style_context().add_class("mcard")
+        h = Gtk.Box(spacing=6)
+        h.pack_start(self.lab("EQUALIZER", "mhead"), False, False, 0)
+        self.t_preset = self.lab("· " + self.preset, "dim")
+        h.pack_start(self.t_preset, False, False, 4)
+        h.pack_start(Gtk.Box(), True, True, 0)
+        h.pack_start(self.btn("RESET", self.reset, "small"), False, False, 0)
+        self.b_on = self.btn("ON" if self.eq_on else "OFF", self.flip_on, "small mon" + (" on" if self.eq_on else ""))
+        h.pack_start(self.b_on, False, False, 0)
+        eqc.pack_start(h, False, False, 0)
+        self.graph = Gtk.DrawingArea()
+        self.graph.set_size_request(-1, 70)
+        self.graph.connect("draw", self.draw_graph)
+        eqc.pack_start(self.graph, False, False, 0)
+        pr = Gtk.Box(spacing=8)
+        pr.pack_start(self.lab("PRESET", "dim"), False, False, 0)
+        self.combo = Gtk.ComboBoxText()
+        for n in PRESETS:
+            self.combo.append(n, n)
+        self.combo.append("Custom", "Custom")
+        self.combo.set_active_id(self.preset if self.preset in PRESETS else "Custom")
+        self.combo.connect("changed", self.on_preset)
+        pr.pack_start(self.combo, True, True, 0)
+        eqc.pack_start(pr, False, False, 0)
+        sl = Gtk.Box(spacing=0, homogeneous=True)
+        self.scales = []
+        self.vals = []
+        for i in range(11):
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            g = self.pre if i == 0 else self.gains[i - 1]
+            v = self.lab(f"{g:+.0f}".replace("+0", "0"), "dim small")
+            v.set_xalign(0.5)
+            col.pack_start(v, False, False, 0)
+            sc = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, -12, 12, 1)
+            sc.set_inverted(True)
+            sc.set_draw_value(False)
+            sc.set_value(g)
+            sc.set_size_request(-1, 120)
+            sc.get_style_context().add_class("meq")
+            sc.connect("value-changed", self.on_band, i)
+            col.pack_start(sc, True, True, 0)
+            f = self.lab("PRE" if i == 0 else BANDS[i - 1], "small " + ("amber" if i == 0 else "dim"))
+            f.set_xalign(0.5)
+            col.pack_start(f, False, False, 0)
+            sl.pack_start(col, True, True, 0)
+            self.scales.append(sc)
+            self.vals.append(v)
+        eqc.pack_start(sl, False, False, 0)
+        eqc.pack_start(self.lab("10 bands · dB · works on everything this player plays", "dim small"), False, False, 0)
+        top.pack_start(eqc, False, False, 0)
+
+        # playlist
+        bar = Gtk.Box(spacing=4)
+        bar.get_style_context().add_class("mbar")
+        bar.pack_start(self.btn("+ FILES", self.add_files, "small"), False, False, 0)
+        bar.pack_start(self.btn("+ FOLDER", self.add_folder, "small"), False, False, 0)
+        bar.pack_start(self.btn("CLEAR", self.clear, "small"), False, False, 0)
+        bar.pack_start(Gtk.Box(), True, True, 0)
+        self.b_shuf = self.btn("SHUFFLE", self.flip_shuffle, "small" + (" on" if self.shuffle else ""))
+        bar.pack_start(self.b_shuf, False, False, 0)
+        self.b_rep = self.btn("REPEAT", self.flip_repeat, "small" + (" on" if self.repeat else ""))
+        bar.pack_start(self.b_rep, False, False, 0)
+        root.pack_start(bar, False, False, 0)
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.list = Gtk.ListBox()
+        self.list.get_style_context().add_class("mlist")
+        self.list.connect("row-activated", lambda lb, row: self.play(row.get_index()))
+        sw.add(self.list)
+        root.pack_start(sw, True, True, 0)
+        self.t_foot = self.lab("", "dim small mfoot")
+        root.pack_start(self.t_foot, False, False, 0)
+
+        # drag and drop, keys
+        self.drag_dest_set(Gtk.DestDefaults.ALL, [], Gdk.DragAction.COPY)
+        self.drag_dest_add_uri_targets()
+        self.connect("drag-data-received", self.on_drop)
+        self.connect("key-press-event", self.on_key)
+        self.connect("delete-event", self.on_close)
+
+        paths = collect(args) if args else [t for t in st.get("playlist", []) if Path(t).exists()]
+        if not paths and not args:
+            music = Path(GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_MUSIC) or Path.home() / "Music")
+            paths = collect([music])
+        self.add_paths(paths, play_first=bool(args))
+        GLib.timeout_add(500, self.tick)
+
+    # ---------- widgets
+    def lab(self, text, cls=""):
+        l = Gtk.Label(label=text, xalign=0)
+        for c in cls.split():
+            l.get_style_context().add_class(c)
+        return l
+
+    def btn(self, text, cb, cls=""):
+        b = Gtk.Button(label=text)
+        for c in cls.split():
+            b.get_style_context().add_class(c)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def set_on(self, b, on):
+        (b.get_style_context().add_class if on else b.get_style_context().remove_class)("on")
+
+    # ---------- equalizer
+    def apply_eq(self):
+        for i in range(10):
+            self.eq.set_property(f"band{i}", float(self.gains[i]) if self.eq_on else 0.0)
+        self.prevol.set_property("volume", 10 ** ((self.pre if self.eq_on else 0) / 20))
+
+    def on_band(self, sc, i):
+        v = int(round(sc.get_value()))
+        self.vals[i].set_text(f"{v:+d}" if v else "0")
+        if i == 0:
+            self.pre = v
+        else:
+            self.gains[i - 1] = v
+            name = next((n for n, g in PRESETS.items() if g == self.gains), "Custom")
+            if name != self.preset:
+                self.preset = name
+                self.t_preset.set_text("· " + name)
+                self.combo.handler_block_by_func(self.on_preset)
+                self.combo.set_active_id(name)
+                self.combo.handler_unblock_by_func(self.on_preset)
+        self.apply_eq()
+        self.graph.queue_draw()
+
+    def on_preset(self, combo):
+        n = combo.get_active_id()
+        if n in PRESETS:
+            self.preset = n
+            self.t_preset.set_text("· " + n)
+            for i, g in enumerate(PRESETS[n]):
+                self.scales[i + 1].set_value(g)
+
+    def reset(self):
+        self.combo.set_active_id("Flat")
+        self.scales[0].set_value(0)
+
+    def flip_on(self):
+        self.eq_on = not self.eq_on
+        self.b_on.set_label("ON" if self.eq_on else "OFF")
+        self.set_on(self.b_on, self.eq_on)
+        self.apply_eq()
+        self.graph.queue_draw()
+
+    def draw_graph(self, w, cr):
+        a = w.get_allocation()
+        W, H = a.width, a.height
+        p = self.pal
+        cr.set_source_rgb(*rgb(p.get("GLYPH_LO", "#0c0b0a")))
+        cr.rectangle(0, 0, W, H)
+        cr.fill()
+        cr.set_source_rgb(*rgb(p.get("GLYPH_HOV", "#3a3631")))
+        cr.set_line_width(1)
+        for i in range(1, 10):
+            x = int(W * i / 10) + 0.5
+            cr.move_to(x, 0)
+            cr.line_to(x, H)
+        for y in (H / 2,):
+            cr.move_to(0, int(y) + 0.5)
+            cr.line_to(W, int(y) + 0.5)
+        cr.stroke()
+        cr.set_source_rgb(*rgb(p.get("GLYPH_HI", "#57514a")))
+        cr.rectangle(0.5, 0.5, W - 1, H - 1)
+        cr.stroke()
+        cr.set_source_rgb(*rgb(p.get("GLYPH_DIM", "#a89c88")))
+        cr.select_font_face("IBM Plex Mono")
+        cr.set_font_size(9)
+        for t, y in (("+12", 11), ("0", H / 2 - 2), ("-12", H - 4)):
+            cr.move_to(4, y)
+            cr.show_text(t)
+        g = self.gains if self.eq_on else [0] * 10
+        pts = [(W * (i + 0.5) / 10, H / 2 - v / 12 * (H / 2 - 6)) for i, v in enumerate(g)]
+        pts = [(0, pts[0][1])] + pts + [(W, pts[-1][1])]
+        cr.set_source_rgb(*rgb(p.get("GLYPH_AMBER", "#ffb340")))
+        cr.set_line_width(2)
+        cr.move_to(*pts[0])
+        for i in range(1, len(pts)):
+            x0, y0 = pts[i - 1]
+            x1, y1 = pts[i]
+            mx = (x0 + x1) / 2
+            cr.curve_to(mx, y0, mx, y1, x1, y1)
+        cr.stroke()
+        return False
+
+    # ---------- playlist
+    def add_paths(self, paths, play_first=False):
+        start = len(self.tracks)
+        for path in paths:
+            t = {"path": path, "title": Path(path).stem, "artist": "", "album": "", "dur": None}
+            self.tracks.append(t)
+            self.list.add(self.row(t))
+        self.list.show_all()
+        self.update_foot()
+        threading.Thread(target=self.discover, args=(self.tracks[start:],), daemon=True).start()
+        if play_first and len(self.tracks) > start:
+            self.play(start)
+        elif self.cur < 0 and self.tracks:
+            self.select(0)
+
+    def row(self, t):
+        r = Gtk.ListBoxRow()
+        r.get_style_context().add_class("mrow")
+        b = Gtk.Box(spacing=8)
+        n = self.lab(t["title"], "mname")
+        n.set_ellipsize(3)
+        b.pack_start(n, True, True, 0)
+        d = self.lab(fmt(t["dur"]) if t["dur"] else "", "dim")
+        b.pack_end(d, False, False, 0)
+        r.add(b)
+        r.name_l, r.dur_l = n, d
+        return r
+
+    def discover(self, tracks):
+        try:
+            disc = GstPbutils.Discoverer.new(5 * Gst.SECOND)
+        except Exception:
+            return
+        for t in tracks:
+            try:
+                info = disc.discover_uri(Gst.filename_to_uri(t["path"]))
+            except Exception:
+                continue
+            dur = info.get_duration() / Gst.SECOND if info.get_duration() else None
+            tags = info.get_tags()
+            title = artist = album = None
+            if tags:
+                ok, title = tags.get_string("title")
+                title = title if ok else None
+                ok, artist = tags.get_string("artist")
+                artist = artist if ok else None
+                ok, album = tags.get_string("album")
+                album = album if ok else None
+            GLib.idle_add(self.fill_info, t, title, artist, album, dur)
+
+    def fill_info(self, t, title, artist, album, dur):
+        if t not in self.tracks:
+            return False
+        if title:
+            t["title"] = title
+        t["artist"], t["album"], t["dur"] = artist or "", album or "", dur
+        r = self.list.get_row_at_index(self.tracks.index(t))
+        if r:
+            r.name_l.set_text(t["title"])
+            r.dur_l.set_text(fmt(dur))
+        if self.tracks.index(t) == self.cur:
+            self.show_now()
+        self.update_foot()
+        return False
+
+    def update_foot(self):
+        total = sum(t["dur"] or 0 for t in self.tracks)
+        self.t_foot.set_text(f"{len(self.tracks)} tracks · {fmt(total)}" if self.tracks else
+                             "Drag music here, or use + FILES / + FOLDER.")
+
+    def select(self, i):
+        self.cur = i
+        for j, r in enumerate(self.list.get_children()):
+            (r.get_style_context().add_class if j == i else r.get_style_context().remove_class)("cur")
+        self.show_now()
+
+    def show_now(self):
+        if 0 <= self.cur < len(self.tracks):
+            t = self.tracks[self.cur]
+            self.t_title.set_text(t["title"])
+            self.t_sub.set_text(" · ".join(x for x in (t["artist"], t["album"]) if x) or Path(t["path"]).parent.name)
+            self.set_title(("▸ " if self.playing else "") + t["title"] + " - Music")
+
+    # ---------- playback
+    def play(self, i):
+        if not (0 <= i < len(self.tracks)):
+            return
+        self.pb.set_state(Gst.State.NULL)
+        self.pb.set_property("uri", Gst.filename_to_uri(self.tracks[i]["path"]))
+        self.pb.set_state(Gst.State.PLAYING)
+        self.playing = True
+        self.b_play.set_label("❚❚")
+        self.select(i)
+
+    def toggle(self):
+        if not self.tracks:
+            self.add_files()
+            return
+        if self.cur < 0:
+            self.play(0)
+            return
+        if self.pb.get_property("uri") is None:
+            self.play(self.cur)
+            return
+        self.playing = not self.playing
+        self.pb.set_state(Gst.State.PLAYING if self.playing else Gst.State.PAUSED)
+        self.b_play.set_label("❚❚" if self.playing else "▸")
+        self.show_now()
+
+    def next(self, auto=False):
+        if not self.tracks:
+            return
+        if self.shuffle and len(self.tracks) > 1:
+            i = random.choice([j for j in range(len(self.tracks)) if j != self.cur])
+        else:
+            i = self.cur + 1
+            if i >= len(self.tracks):
+                if auto and not self.repeat:
+                    self.pb.set_state(Gst.State.NULL)
+                    self.playing = False
+                    self.b_play.set_label("▸")
+                    return
+                i = 0
+        self.play(i)
+
+    def prev(self):
+        ok, pos = self.pb.query_position(Gst.Format.TIME)
+        if ok and pos > 3 * Gst.SECOND:
+            self.pb.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, 0)
+        elif self.tracks:
+            self.play((self.cur - 1) % len(self.tracks))
+
+    def on_seek(self, sc, scroll, value):
+        self.pb.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, int(value * Gst.SECOND))
+        return False
+
+    def tick(self):
+        ok, pos = self.pb.query_position(Gst.Format.TIME)
+        ok2, dur = self.pb.query_duration(Gst.Format.TIME)
+        if ok and ok2 and dur > 0:
+            self.seek.set_range(0, dur / Gst.SECOND)
+            self.seek.set_value(pos / Gst.SECOND)
+            self.t_time.set_text(f"{fmt(pos / Gst.SECOND)} / {fmt(dur / Gst.SECOND)}")
+        elif 0 <= self.cur < len(self.tracks):
+            self.t_time.set_text(f"0:00 / {fmt(self.tracks[self.cur]['dur'])}")
+        return True
+
+    def on_error(self, bus, msg):
+        err, _ = msg.parse_error()
+        self.t_sub.set_text("cannot play this file: " + (err.message if err else "?"))
+        GLib.timeout_add(1500, lambda: (self.next(auto=True), False)[1])
+
+    def on_tag(self, bus, msg):
+        pass
+
+    # ---------- adding music
+    def chooser(self, folder):
+        d = Gtk.FileChooserDialog(title="Add a music folder" if folder else "Add music", transient_for=self,
+                                  action=Gtk.FileChooserAction.SELECT_FOLDER if folder else Gtk.FileChooserAction.OPEN)
+        d.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Add", Gtk.ResponseType.OK)
+        d.set_select_multiple(True)
+        if not folder:
+            f = Gtk.FileFilter()
+            f.set_name("Music")
+            for e in AUDIO:
+                f.add_pattern("*" + e)
+                f.add_pattern("*" + e.upper())
+            d.add_filter(f)
+        if d.run() == Gtk.ResponseType.OK:
+            self.add_paths(collect(d.get_filenames()))
+        d.destroy()
+
+    def add_files(self):
+        self.chooser(False)
+
+    def add_folder(self):
+        self.chooser(True)
+
+    def clear(self):
+        self.pb.set_state(Gst.State.NULL)
+        self.playing = False
+        self.b_play.set_label("▸")
+        self.tracks = []
+        self.cur = -1
+        for r in self.list.get_children():
+            self.list.remove(r)
+        self.t_title.set_text("Nothing playing")
+        self.t_sub.set_text("add music with + FILES or + FOLDER")
+        self.update_foot()
+
+    def flip_shuffle(self):
+        self.shuffle = not self.shuffle
+        self.set_on(self.b_shuf, self.shuffle)
+
+    def flip_repeat(self):
+        self.repeat = not self.repeat
+        self.set_on(self.b_rep, self.repeat)
+
+    def on_drop(self, w, ctx, x, y, data, info, time):
+        paths = [GLib.filename_from_uri(u)[0] for u in data.get_uris() if u.startswith("file:")]
+        self.add_paths(collect(paths))
+
+    def on_key(self, w, e):
+        ctrl = e.state & Gdk.ModifierType.CONTROL_MASK
+        if e.keyval == Gdk.KEY_space and not isinstance(self.get_focus(), Gtk.Entry):
+            self.toggle()
+            return True
+        if ctrl and e.keyval in (Gdk.KEY_o, Gdk.KEY_O):
+            self.add_files()
+            return True
+        if e.keyval in (Gdk.KEY_Right,) and ctrl:
+            self.next()
+            return True
+        if e.keyval in (Gdk.KEY_Left,) and ctrl:
+            self.prev()
+            return True
+        return False
+
+    def on_close(self, *_):
+        try:
+            CONF.mkdir(parents=True, exist_ok=True)
+            STATE.write_text(json.dumps({"gains": self.gains, "pre": self.pre, "on": self.eq_on, "preset": self.preset,
+                                         "shuffle": self.shuffle, "repeat": self.repeat,
+                                         "playlist": [t["path"] for t in self.tracks][:5000]}, indent=1))
+        except Exception:
+            pass
+        self.pb.set_state(Gst.State.NULL)
+        Gtk.main_quit()
+        return False
+
+
+if __name__ == "__main__":
+    w = Music(sys.argv[1:])
+    w.show_all()
+    Gtk.main()

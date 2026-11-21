@@ -28,7 +28,7 @@ HIDDEN = CONF / "menu-hidden"
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 PIDFILE = RUN / "glyph-start.pid"
 
-DEFAULT_FAVS = ["foot.desktop", "thunar.desktop", "firefox-esr.desktop", "firefox.desktop",
+DEFAULT_FAVS = ["foot.desktop", "glyph-files.desktop", "glyph-music.desktop", "firefox-esr.desktop", "firefox.desktop",
                 "org.xfce.mousepad.desktop", "glyph-settings.desktop"]
 # KDE helpers that make no sense in Glyph (they stay in KDE)
 HIDE_IDS = {"org.kde.drkonqi.coredump.gui.desktop", "org.kde.kaddressbook.themeeditor.desktop",
@@ -48,7 +48,8 @@ CATS = [("Development", ["Development"]), ("Education", ["Education"]), ("Games"
         ("Office", ["Office"]), ("Science", ["Science"]), ("Settings", ["Settings"]), ("System", ["System"]),
         ("Utilities", ["Utility"]), ("Wine", ["Wine"])]
 # a few clearer names and descriptions, like in the design
-NICE = {"foot.desktop": ("Terminal", "command line"), "thunar.desktop": ("Files", "file manager, USB drives, trash"),
+NICE = {"foot.desktop": ("Terminal", "command line"), "glyph-files.desktop": ("Files", "file manager, USB drives, trash"),
+        "thunar.desktop": ("Thunar", "advanced file manager"),
         "org.xfce.mousepad.desktop": ("Text editor", "notes and config files"),
         "glyph-settings.desktop": ("Settings", "look, display, sound, keyboard, power"),
         "firefox-esr.desktop": ("Firefox", "web browser"), "firefox.desktop": ("Firefox", "web browser"),
@@ -56,7 +57,7 @@ NICE = {"foot.desktop": ("Terminal", "command line"), "thunar.desktop": ("Files"
         "blueman-manager.desktop": ("Bluetooth", "pair devices"), "mpv.desktop": ("Video player", "mpv"),
         "org.xfce.ristretto.desktop": ("Image viewer", "photos and pictures"),
         "gparted.desktop": ("Partitions", "GParted, disks and partitions"),
-        "audacious.desktop": ("Music player", "Audacious, with 10-band equalizer"),
+        "glyph-music.desktop": ("Music", "music player with 10-band equalizer"),
         "org.xfce.taskmanager.desktop": ("System monitor", "programs, CPU and memory"),
         "xfce4-taskmanager.desktop": ("System monitor", "programs, CPU and memory"),
         "atril.desktop": ("PDF viewer", "read PDF files"), "org.kde.discover.desktop": ("Software", "install apps")}

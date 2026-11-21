@@ -586,7 +586,7 @@ def run_panel(kind):
                                      bg(["notify-send", "-a", "Drives", "Drives", f"{l} can now be removed safely." if rc == 0 else f"{l} is still in use. Close the files on it and try again."]), draw()))
                         r.pack_end(button("Eject", eject, "small amber"), False, False, 0)
                         if d["mnt"]:
-                            r.pack_end(button("Open", (lambda m=d["mnt"]: (bg(["thunar", m]), quit_())), "small"), False, False, 0)
+                            r.pack_end(button("Open", (lambda m=d["mnt"]: (bg(["glyph-files", m]), quit_())), "small"), False, False, 0)
                         else:
                             def mount(p=d["path"]):
                                 state["busy"].add(p)

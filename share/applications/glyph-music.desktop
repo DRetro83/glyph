@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Music
+GenericName=Music player
+Comment=play music, with a 10-band equalizer
+Exec=glyph-music %F
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;player;equalizer;eq;mp3;flac;audio;
+MimeType=audio/mpeg;audio/flac;audio/x-flac;audio/ogg;audio/x-vorbis+ogg;audio/opus;audio/mp4;audio/x-m4a;audio/aac;audio/x-wav;audio/wav;
+StartupWMClass=glyph-music
+Icon=multimedia-audio-player

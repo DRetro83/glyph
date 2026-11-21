@@ -446,6 +446,54 @@ entry:focus {{ border-color: {p['amber']}; }}
 scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
 .sechdr {{ padding-top: 6px; }}
 .sechdr .dim {{ font-size: 11px; padding-left: 8px; }}
+/* Files */
+.files .ftool {{ padding: 6px 8px; background: {p['panel']}; border-bottom: 1px solid {p['hi']}; }}
+.files .ftool button, .files .ftool entry {{ padding: 2px 10px; min-height: 24px; }}
+.files .fpath button.flink {{ min-height: 0; padding: 0 8px; }}
+.files .ftool button.on, .files .ftool button.on:hover {{ border-color: {p['amber']}; color: {p['amber']}; background: {p['hov']}; }}
+.files .fpath {{ border: 1px solid {p['hi']}; background: {p['view']}; padding: 0 0 0 8px; }}
+.files .fpname {{ font-weight: bold; letter-spacing: 1px; }}
+.files button.flink {{ border: none; background: transparent; color: {p['dim']}; font-size: 10px; letter-spacing: 1px; }}
+.files .fside {{ background: {p['panel']}; padding-bottom: 8px; }}
+.files .fhead {{ font-size: 10px; letter-spacing: 2px; color: {p['dim']}; padding: 14px 12px 4px 12px; }}
+.files button.fplace {{ border: none; border-left: 3px solid transparent; background: transparent; padding: 5px 10px; }}
+.files button.fplace:hover {{ background: {p['hov']}; }}
+.files button.fplace.cur {{ background: {p['hov']}; border-left-color: {p['title']}; }}
+.files button.fplace.cur label {{ font-weight: bold; }}
+.files .ftile {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; font-size: 11px; min-width: 22px; min-height: 22px; }}
+.files .ftile2 {{ border: 1px solid {p['hi']}; color: {p['text']}; font-weight: bold; font-size: 11px; min-width: 20px; min-height: 20px; }}
+.files .fdim {{ color: {p['dim']}; font-size: 11px; }}
+.files button.feject {{ border: none; background: transparent; color: {p['amber']}; padding: 0 10px; }}
+.files treeview.flist {{ background: {p['win']}; }}
+.files treeview.flist header button {{ font-size: 10px; letter-spacing: 2px; color: {p['dim']}; background: {p['win']}; padding: 8px 10px; }}
+.files treeview.flist:selected, .files treeview.flist:selected:focus {{ background: {p['title']}; color: {p['tink']}; }}
+.files iconview.fgrid {{ background: {p['win']}; }}
+.files iconview.fgrid:selected {{ background: {p['title']}; color: {p['tink']}; }}
+.files .fstatus {{ padding: 6px 10px; background: {p['panel']}; border-top: 1px solid {p['hi']}; color: {p['dim']}; font-size: 11px; }}
+.files .fstatus label {{ color: {p['dim']}; }}
+/* Music player */
+.music {{ background: {p['win']}; }}
+.music .mtop {{ padding: 12px; }}
+.music .mcard {{ border: 1px solid {p['hi']}; background: {p['view']}; padding: 12px; }}
+.music .mtitle {{ font-weight: bold; font-size: 14px; }}
+.music .small {{ font-size: 11px; }}
+.music .mhead {{ font-weight: bold; letter-spacing: 1px; }}
+.music button.mctl {{ padding: 8px; font-weight: bold; }}
+.music button.mplay {{ border-color: {p['amber']}; color: {p['amber']}; }}
+.music button.on {{ background: {p['title']}; color: {p['tink']}; border-color: {p['title']}; }}
+.music scale.mseek trough {{ min-height: 4px; background: {p['hov']}; }}
+.music scale.mseek highlight {{ background: {p['title']}; }}
+.music scale.mseek slider {{ min-width: 10px; min-height: 10px; background: {p['text']}; }}
+.music scale.meq trough {{ min-width: 4px; background: {p['hov']}; }}
+.music scale.meq highlight {{ background: transparent; }}
+.music scale.meq slider {{ min-width: 16px; min-height: 10px; background: {p['title']}; border: 1px solid {p['lo']}; }}
+.music .amber {{ color: {p['amber']}; }}
+.music .mbar {{ padding: 6px 12px; border-top: 1px solid {p['hi']}; border-bottom: 1px solid {p['hi']}; background: {p['panel']}; }}
+.music list.mlist {{ background: {p['win']}; }}
+.music row.mrow {{ padding: 10px 12px; border-bottom: 1px solid {p['hov']}; }}
+.music row.mrow.cur {{ background: {p['hov']}; }}
+.music row.mrow.cur .mname {{ color: {p['amber']}; font-weight: bold; }}
+.music .mfoot {{ padding: 8px 12px; border-top: 1px solid {p['hi']}; background: {p['panel']}; }}
 /* Start menu */
 #glyph-start {{ background: transparent; }}
 .start .sside {{ background: {p['panel']}; border-right: 1px solid {p['hi']}; padding: 4px 0; }}
@@ -698,7 +746,7 @@ def sourceview_xml(p):
 
 def letter_icons(p):
     """A letter-tile icon for every app, so the taskbar shows F for Files, T for Terminal ..."""
-    nice = {"thunar": "F", "org.xfce.thunar": "F", "foot": "T", "utilities-terminal": "T", "org.xfce.mousepad": "E",
+    nice = {"system-file-manager": "F", "multimedia-audio-player": "M", "thunar": "T", "org.xfce.thunar": "F", "foot": "T", "utilities-terminal": "T", "org.xfce.mousepad": "E",
             "glyph-settings": "S", "preferences-system": "S", "firefox-esr": "W", "firefox": "W"}
     d = DATA_DIR / "icons" / "GlyphLetters"
     out = d / "scalable" / "apps"

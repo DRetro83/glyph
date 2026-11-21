@@ -43,11 +43,12 @@ PACKAGES=(
   wireplumber network-manager   # volume and network on the taskbar
   xdg-user-dirs    # Pictures folder for screenshots
   python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1   # start menu, desktop, panels, Settings
-  udisks2 bluez power-profiles-daemon   # drives, Bluetooth, power profiles
+  udisks2 gvfs bluez power-profiles-daemon   # drives, trash, Bluetooth, power profiles
   wlr-randr wlsunset lxpolkit          # screen scale, night light, password prompts
   pavucontrol blueman                  # volume per app, Bluetooth pairing
   qt6ct qt5ct                          # Qt apps in the Glyph colours
-  audacious mpv ristretto atril xfce4-taskmanager   # music (10-band EQ), video, pictures, PDF, system monitor
+  mpv ristretto atril xfce4-taskmanager   # video, pictures, PDF, system monitor
+  gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-good gstreamer1.0-plugins-base gstreamer1.0-libav   # Glyph music player
 )
 
 say()  { printf '\033[1;33m::\033[0m %s\n' "$*"; }
@@ -119,7 +120,26 @@ ok "settings in $GLYPH_CONF/labwc"
 run sudo install -m 755 "$HERE"/bin/glyph-* /usr/local/bin/
 run sudo install -m 644 "$HERE/share/wayland-sessions/glyph.desktop" /usr/share/wayland-sessions/glyph.desktop
 run mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-run cp "$HERE/share/applications/glyph-settings.desktop" "${XDG_DATA_HOME:-$HOME/.local/share}/applications/"
+run cp "$HERE"/share/applications/glyph-*.desktop "${XDG_DATA_HOME:-$HOME/.local/share}/applications/"
+# Glyph's own Files and Music open folders and songs, only in the Glyph session
+# (KDE keeps Dolphin and its own player: this file is read only when the desktop is Glyph)
+if (( ! CHECK )); then
+  cat > "$CONF/glyph-mimeapps.list" <<'MIME'
+[Default Applications]
+inode/directory=glyph-files.desktop
+audio/mpeg=glyph-music.desktop
+audio/flac=glyph-music.desktop
+audio/x-flac=glyph-music.desktop
+audio/ogg=glyph-music.desktop
+audio/x-vorbis+ogg=glyph-music.desktop
+audio/opus=glyph-music.desktop
+audio/mp4=glyph-music.desktop
+audio/x-m4a=glyph-music.desktop
+audio/aac=glyph-music.desktop
+audio/x-wav=glyph-music.desktop
+audio/wav=glyph-music.desktop
+MIME
+fi
 run mkdir -p "$CONF/xdg-desktop-portal"
 run cp "$HERE/share/xdg-desktop-portal/glyph-portals.conf" "$CONF/xdg-desktop-portal/"
 ok "Glyph added to the login screen"

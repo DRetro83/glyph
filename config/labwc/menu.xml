@@ -7,7 +7,7 @@
     <item label="Start menu"><action name="Execute" command="glyph-menu" /></item>
     <separator />
     <item label="Terminal"><action name="Execute" command="foot" /></item>
-    <item label="Files"><action name="Execute" command="thunar" /></item>
+    <item label="Files"><action name="Execute" command="glyph-files" /></item>
     <item label="Text editor"><action name="Execute" command="mousepad" /></item>
     <separator />
     <menu id="glyph-look" label="Look">
