@@ -29,7 +29,15 @@ want() { case " $PARTS " in *" $1 "*) return 0 ;; esac; return 1; }
 
 if [ $REMOVE = 1 ]; then
   echo "Glyph start-up look: removing$PARTS"
-  if want sddm; then run sudo rm -f /etc/sddm.conf.d/glyph.conf /etc/sddm.conf.d/zz-glyph.conf; run sudo rm -rf /usr/share/sddm/themes/glyph; fi
+  if want sddm; then
+    run sudo rm -f /etc/sddm.conf.d/glyph.conf /etc/sddm.conf.d/zz-glyph.conf
+    if [ -f $STATE/sddm-current-before ] && [ -f /etc/sddm.conf ]; then
+      before=$(sed 's/^[[:space:]]*//' $STATE/sddm-current-before)
+      run sudo sed -i "s/^\([[:space:]]*\)Current=glyph\$/\1$before/" /etc/sddm.conf
+      run sudo rm -f $STATE/sddm-current-before
+    fi
+    run sudo rm -rf /usr/share/sddm/themes/glyph
+  fi
   if want plymouth && has plymouth-set-default-theme; then
     prev=$(cat $STATE/plymouth-before 2>/dev/null || echo bgrt)
     run sudo plymouth-set-default-theme -R "$prev" || true
@@ -78,6 +86,9 @@ SEG=$((SH / 72)); [ $SEG -lt 14 ] && SEG=14
 export GW GH BH IH LBW FH FS SEG
 echo "  screen $RES, GRUB letters $FS px"
 python3 "$HERE/make-images.py" "$PAL" "$TMP/grub" "$TMP/plymouth"
+TEXTPICS=0
+. "$TMP/grub/sizes.sh"
+rm -f "$TMP/grub/sizes.sh"
 chmod 755 "$TMP"/*   # SDDM and GRUB must be able to read the copies
 
 if want sddm; then
@@ -91,11 +102,17 @@ if want sddm; then
   run sudo rm -rf /usr/share/sddm/themes/glyph
   run sudo cp -r "$TMP/sddm" /usr/share/sddm/themes/glyph
   run sudo mkdir -p /etc/sddm.conf.d
-  if [ $DRY = 0 ]; then printf '[Theme]\nCurrent=glyph\n' | sudo tee /etc/sddm.conf.d/zz-glyph.conf >/dev/null; sudo rm -f /etc/sddm.conf.d/glyph.conf; fi
+  if [ $DRY = 0 ]; then printf '[Theme]\nCurrent=glyph\n' | sudo tee /etc/sddm.conf.d/zz-glyph.conf >/dev/null; sudo rm -f /etc/sddm.conf.d/glyph.conf
+    # /etc/sddm.conf is read last and wins: if it names a theme, point it to Glyph (and remember the old one)
+    if [ -f /etc/sddm.conf ] && grep -q '^[[:space:]]*Current=' /etc/sddm.conf; then
+      [ -f $STATE/sddm-current-before ] || grep -m1 '^[[:space:]]*Current=' /etc/sddm.conf | sudo tee $STATE/sddm-current-before >/dev/null
+      sudo sed -i 's/^\([[:space:]]*\)Current=.*/\1Current=glyph/' /etc/sddm.conf
+    fi
+  fi
 fi
 
 if want plymouth; then
-  sed "s/@VIEW_RGB@/$(rgbf $GLYPH_LO)/g; s/@TAN_RGB@/$(rgbf $GLYPH_TAN)/g; s/@AMBER_RGB@/$(rgbf $GLYPH_AMBER)/g; s/@FS@/$FS/g; s/@DIM_RGB@/$(rgbf $GLYPH_DIM)/g; s/@TEXT_RGB@/$(rgbf $GLYPH_TEXT)/g" \
+  sed "s/@VIEW_RGB@/$(rgbf $GLYPH_LO)/g; s/@TAN_RGB@/$(rgbf $GLYPH_TAN)/g; s/@AMBER_RGB@/$(rgbf $GLYPH_AMBER)/g; s/@FS@/$FS/g; s/@TEXTPICS@/$TEXTPICS/g; s/@DIM_RGB@/$(rgbf $GLYPH_DIM)/g; s/@TEXT_RGB@/$(rgbf $GLYPH_TEXT)/g" \
     "$HERE/plymouth/glyph/glyph.script.in" > "$TMP/plymouth/glyph.script"
   cp "$HERE/plymouth/glyph/glyph.plymouth" "$TMP/plymouth/"
   echo "- Plymouth start-up screen"
@@ -107,13 +124,26 @@ fi
 
 if want grub; then
   cp "$HERE/grub/glyph/theme.txt" "$TMP/grub/"
-  sed -i "s/@LO@/$GLYPH_LO/g; s/@DIM@/$GLYPH_DIM/g; s/@TEXT@/$GLYPH_TEXT/g; s/@TINK@/$GLYPH_TINK/g;
-          s/@FS@/$FS/g; s/@GX@/$GX/g; s/@GY@/$GY/g; s/@GW@/$GW/g; s/@GH@/$GH/g; s/@LX@/$LX/g; s/@LY@/$LY/g;
-          s/@LBW@/$LBW/g; s/@MX@/$MX/g; s/@MY@/$MY/g; s/@MW@/$MW/g; s/@MH@/$MH/g; s/@IH@/$IH/g; s/@PAD@/$PAD/g;
-          s/@FX@/$FX/g; s/@FY@/$FY/g; s/@GW2@/$GW2/g; s/@GW3@/$GW3/g" "$TMP/grub/theme.txt"
+  # GRUB's own font, with a fixed name ("Glyph Regular 26"); Debian's unicode font if that fails
   F=/usr/share/fonts/truetype/ibm-plex
-  grub-mkfont -s "$FS" -o "$TMP/grub/plex.pf2" "$F/IBMPlexMono-Regular.ttf" 2>/dev/null
-  grub-mkfont -s "$FS" -o "$TMP/grub/plexb.pf2" "$F/IBMPlexMono-Bold.ttf" 2>/dev/null
+  FONTR="Glyph Regular $FS"; FONTB="Glyph Bold $FS"
+  if ! grub-mkfont -n Glyph -s "$FS" -o "$TMP/grub/glyph-regular.pf2" "$F/IBMPlexMono-Regular.ttf" ||
+     ! grub-mkfont -n Glyph -s "$FS" -o "$TMP/grub/glyph-bold.pf2" "$F/IBMPlexMono-Bold.ttf"; then
+    echo "  grub-mkfont failed; using GRUB's own font"
+    rm -f "$TMP"/grub/*.pf2
+    cp /boot/grub/fonts/unicode.pf2 "$TMP/grub/" 2>/dev/null || cp /usr/share/grub/unicode.pf2 "$TMP/grub/" 2>/dev/null || true
+    FONTR="Unifont Regular 16"; FONTB="Unifont Regular 16"
+  fi
+  LX=$((GX + 8 + (LBW - ${TT_W:-$((LBW - FS))}) / 2))
+  LYI=$((GY + (BH - ${TT_H:-$FS}) / 2)); FYI=$((GY + GH - FH + (FH - ${TK_H:-$FS}) / 2))
+  if [ "$TEXTPICS" = 1 ]; then sed -i 's/^#IMG //; /^#LBL /d' "$TMP/grub/theme.txt"; else sed -i 's/^#LBL //; /^#IMG /d' "$TMP/grub/theme.txt"; fi
+  sed -i "s/@LO@/$GLYPH_LO/g; s/@DIM@/$GLYPH_DIM/g; s/@TEXT@/$GLYPH_TEXT/g; s/@TINK@/$GLYPH_TINK/g;
+          s/@FONTR@/$FONTR/g; s/@FONTB@/$FONTB/g; s/@FS@/$FS/g;
+          s/@GX@/$GX/g; s/@GY@/$GY/g; s/@GW@/$GW/g; s/@GH@/$GH/g; s/@LX@/$LX/g; s/@LY@/$LY/g; s/@LYI@/$LYI/g;
+          s/@LBW@/$LBW/g; s/@MX@/$MX/g; s/@MY@/$MY/g; s/@MW@/$MW/g; s/@MH@/$MH/g; s/@IH@/$IH/g; s/@PAD@/$PAD/g;
+          s/@FX@/$FX/g; s/@FY@/$FY/g; s/@FYI@/$FYI/g; s/@GW2@/$GW2/g; s/@GW3@/$GW3/g;
+          s/@TT_W@/${TT_W:-0}/g; s/@TT_H@/${TT_H:-0}/g; s/@TK_W@/${TK_W:-0}/g; s/@TK_H@/${TK_H:-0}/g;
+          s/@TP_W@/${TP_W:-0}/g; s/@TP_H@/${TP_H:-0}/g" "$TMP/grub/theme.txt"
   echo "- GRUB menu"
   run sudo rm -rf /boot/grub/themes/glyph
   run sudo mkdir -p /boot/grub/themes
@@ -124,6 +154,10 @@ if want grub; then
       echo 'GRUB_THEME=/boot/grub/themes/glyph/theme.txt'
       echo "GRUB_GFXMODE=$RES,auto"
       echo 'GRUB_GFXPAYLOAD_LINUX=keep'
+      echo 'GRUB_TERMINAL_OUTPUT=gfxterm'
+      [ -f "$TMP/grub/glyph-regular.pf2" ] && echo 'GRUB_FONT=/boot/grub/themes/glyph/glyph-regular.pf2'
+      echo 'GRUB_TIMEOUT=5'
+      echo 'GRUB_TIMEOUT_STYLE=menu'
       want plymouth && echo 'GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT splash"'
     } | sudo tee /etc/default/grub.d/glyph.cfg >/dev/null
   fi
@@ -133,5 +167,7 @@ fi
 if want grub || want plymouth; then has update-grub && run sudo update-grub; fi
 [ $DRY = 1 ] || { want sddm && sudo chmod -R a+rX /usr/share/sddm/themes/glyph; want plymouth && sudo chmod -R a+rX /usr/share/plymouth/themes/glyph; want grub && sudo chmod -R a+rX /boot/grub/themes/glyph; true; }
 
+# for checking what was made: GLYPH_BOOT_KEEP=/some/dir install-boot.sh --check
+[ -n "${GLYPH_BOOT_KEEP:-}" ] && cp -r "$TMP"/. "$GLYPH_BOOT_KEEP"/
 echo
 echo "Done. Restart to see it. To go back: extras/boot/install-boot.sh --remove"

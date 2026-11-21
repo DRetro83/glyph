@@ -3,12 +3,15 @@ Window.SetBackgroundTopColor(@VIEW_RGB@);
 Window.SetBackgroundBottomColor(@VIEW_RGB@);
 W = Window.GetWidth(); H = Window.GetHeight();
 fs = @FS@;
+pics = @TEXTPICS@;   // 1: the text was drawn as pictures by install-boot.sh
 
-logo.image = Image.Text("GLYPH", @TEXT_RGB@, 1, "IBM Plex Mono Bold " + (fs * 3));
+if (pics) logo.image = Image("logo.png");
+else logo.image = Image.Text("GLYPH", @TEXT_RGB@, 1, "IBM Plex Mono Bold " + (fs * 3));
 logo.sprite = Sprite(logo.image);
 logo.sprite.SetPosition(W / 2 - logo.image.GetWidth() / 2, H / 2 - fs * 6, 1);
 
-sub.image = Image.Text("D E B I A N   1 3   ·   L A B W C", @DIM_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.7));
+if (pics) sub.image = Image("sub.png");
+else sub.image = Image.Text("D E B I A N   1 3   ·   L A B W C", @DIM_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.7));
 sub.sprite = Sprite(sub.image);
 sub.sprite.SetPosition(W / 2 - sub.image.GetWidth() / 2, H / 2 - fs * 6 + logo.image.GetHeight() + fs / 3, 1);
 
@@ -38,16 +41,20 @@ fun progress_cb(duration, progress) {
 }
 Plymouth.SetBootProgressFunction(progress_cb);
 
-status.image = Image.Text("Starting …", @TAN_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.8));
+if (pics) status.image = Image("starting.png");
+else status.image = Image.Text("Starting …", @TAN_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.8));
 status.sprite = Sprite(status.image);
 status.sprite.SetPosition(W / 2 - status.image.GetWidth() / 2, by + off.GetHeight() + fs, 1);
 
-hint.image = Image.Text("Esc · show details", @DIM_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.7));
+if (pics) hint.image = Image("hint.png");
+else hint.image = Image.Text("Esc · show details", @DIM_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.7));
 hint.sprite = Sprite(hint.image);
 hint.sprite.SetPosition(W / 2 - hint.image.GetWidth() / 2, H - fs * 2.5, 1);
 
 fun message_cb(text) {
-  status.image = Image.Text(text, @TAN_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.8));
+  img = Image.Text(text, @TAN_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.8));
+  if (!img || img.GetWidth() < 2) return;
+  status.image = img;
   status.sprite.SetImage(status.image);
   status.sprite.SetPosition(W / 2 - status.image.GetWidth() / 2, by + off.GetHeight() + fs, 1);
 }
