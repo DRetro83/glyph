@@ -1,0 +1,50 @@
+diff --git a/include/theme.h b/include/theme.h
+index 579f89b..b7d257b 100644
+--- a/include/theme.h
++++ b/include/theme.h
+@@ -62,6 +62,9 @@ struct theme {
+ 	bool window_label_text_box;
+ 	bool window_label_text_uppercase;
+ 
++	/* Glyph: move the window shadow down and right (a hard "drop" shadow) */
++	int window_shadow_offset;
++
+ 	/* the corner radius of the hover effect */
+ 	int window_button_hover_bg_corner_radius;
+ 
+diff --git a/src/ssd/ssd-shadow.c b/src/ssd/ssd-shadow.c
+index f7e386d..0abd5a5 100644
+--- a/src/ssd/ssd-shadow.c
++++ b/src/ssd/ssd-shadow.c
+@@ -294,6 +294,9 @@ ssd_shadow_update(struct ssd *ssd)
+ 		rc.shadows_enabled && !maximized && !view_is_tiled(ssd->view);
+ 	wlr_scene_node_set_enabled(&ssd->shadow.tree->node, show_shadows);
+ 	if (show_shadows) {
++		/* Glyph: a hard shadow, moved down and right */
++		int off = rc.theme->window_shadow_offset;
++		wlr_scene_node_set_position(&ssd->shadow.tree->node, off, off);
+ 		set_shadow_geometry(ssd);
+ 	}
+ }
+diff --git a/src/theme.c b/src/theme.c
+index 30cf127..832499f 100644
+--- a/src/theme.c
++++ b/src/theme.c
+@@ -496,6 +496,7 @@ theme_builtin(struct theme *theme, struct server *server)
+ 	theme->window_label_text_justify = parse_justification("Center");
+ 	theme->window_label_text_box = false;
+ 	theme->window_label_text_uppercase = false;
++	theme->window_shadow_offset = 0;
+ 	for (int i = THEME_INACTIVE; i <= THEME_ACTIVE; i++) {
+ 		theme->window[i].title_stripes = false;
+ 		parse_hexstr("#000000", theme->window[i].title_stripe_color);
+@@ -788,6 +789,9 @@ entry(struct theme *theme, const char *key, const char *value)
+ 	}
+ 
+ 	/* window drop-shadows */
++	if (match_glob(key, "window.shadow.offset")) {
++		theme->window_shadow_offset = atoi(value);
++	}
+ 	if (match_glob(key, "window.active.shadow.size")) {
+ 		theme->window[THEME_ACTIVE].shadow_size = get_int_if_positive(
+ 			value, "window.active.shadow.size");

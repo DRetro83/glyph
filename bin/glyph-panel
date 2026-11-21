@@ -484,7 +484,7 @@ def run_panel(kind):
     # with shadows the window is 8px bigger down and right (room for the shadow);
     # move it so the panel itself still touches the taskbar
     sh_on = "shadows=no" not in (CONF / "theme.conf").read_text() if (CONF / "theme.conf").exists() else True
-    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, -8 if sh_on else 0)
+    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 0)
     GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 0 if sh_on else 8)
     try:
         GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.ON_DEMAND)

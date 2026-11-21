@@ -145,10 +145,12 @@ def themerc(p, mode):
 # Change the look in ~/.config/glyph/theme.conf and run glyph-theme.
 
 border.width: 1
-window.active.shadow.size: 14
-window.inactive.shadow.size: 8
-window.active.shadow.color: {"#00000040" if mode == "light" else "#000000a0"}
-window.inactive.shadow.color: {"#00000028" if mode == "light" else "#00000070"}
+# a hard shadow 6px down-right, like the prototype (offset needs labwc-glyph)
+window.shadow.offset: 6
+window.active.shadow.size: 3
+window.inactive.shadow.size: 3
+window.active.shadow.color: {"#00000048" if mode == "light" else "#000000b0"}
+window.inactive.shadow.color: {"#00000030" if mode == "light" else "#00000080"}
 padding.height: 4
 titlebar.height: 28
 window.titlebar.padding.width: 2
@@ -445,8 +447,9 @@ def shadows_on():
 
 def panel_css(p):
     # hard shadow like the prototype: 8px down-right; the panel window keeps room for it
-    shcol = "rgba(0,0,0,0.25)" if is_light(p) else p['lo']
-    panel_shadow = (f"box-shadow: 8px 8px 0 0 {shcol}; margin: 0 8px 8px 0;" if shadows_on()
+    # no room below: the shadow never falls on the taskbar, only to the right
+    shcol = "rgba(0,0,0,0.25)" if is_light(p) else "rgba(0,0,0,0.6)"
+    panel_shadow = (f"box-shadow: 8px 8px 0 0 {shcol}; margin: 0 8px 0 0;" if shadows_on()
                     else "box-shadow: none; margin: 0;")
     stripes = f"repeating-linear-gradient(to bottom, {p['title']} 0px, {p['title']} 2px, shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 4px)"
     return f"""/* Glyph quick settings and calendar - made by glyph-theme */

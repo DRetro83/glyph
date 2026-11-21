@@ -114,9 +114,7 @@ class Start(Gtk.Window):
         GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
-        tc = CONF / "theme.conf"
-        sh_on = "shadows=no" not in tc.read_text() if tc.exists() else True
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, -8 if sh_on else 0)   # room for the shadow
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 0)
         GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, 8)
         try:
             GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
