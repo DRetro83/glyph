@@ -14,6 +14,10 @@ waybar -c "$G/waybar/config.jsonc" -s "$G/waybar/style.css" >/dev/null 2>&1 &
 # notifications (where: Settings -> Notifications)
 glyph-notifyd >/dev/null 2>&1 &
 
+# "show in folder" from browsers opens Glyph Files (not Dolphin)
+pkill -u "$(id -u)" -f "bin/glyph-filemanager1" 2>/dev/null
+glyph-filemanager1 >/dev/null 2>&1 &
+
 # lock after the time in Settings -> Power & lock, and always before sleep
 glyph-idle &
 

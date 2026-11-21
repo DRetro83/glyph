@@ -82,6 +82,20 @@ jobs:
           sleep 8
           ls $XDG_RUNTIME_DIR
           WAYLAND_DISPLAY=wayland-0 grim out/screenshot.png || true
+          # does a theme change (labwc --reconfigure) close GTK apps on this labwc?
+          apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 python3-gi-cairo >/dev/null 2>&1 || true
+          export WAYLAND_DISPLAY=wayland-0 PATH="$PWD/bin:$PATH" LABWC_PID=$(pgrep -x labwc)
+          python3 bin/glyph-settings Appearance > out/settings-run.log 2>&1 &
+          sleep 4
+          echo "before: $(pgrep -af glyph-settings)" >> out/reconf.log
+          python3 bin/glyph-theme --mode light >> out/reconf.log 2>&1 || true
+          sleep 3
+          echo "after theme: $(pgrep -af glyph-settings)" >> out/reconf.log
+          labwc --reconfigure; sleep 3
+          echo "after reconfigure: $(pgrep -af glyph-settings)" >> out/reconf.log
+          cat /root/.cache/glyph-settings.log >> out/reconf.log 2>/dev/null || true
+          grim out/screenshot2.png || true
+          tail -30 out/labwc-test.log >> out/reconf.log || true
           ls -la out
       - uses: actions/upload-artifact@v4
         if: always()

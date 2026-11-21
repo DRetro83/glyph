@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import gi
@@ -590,8 +591,10 @@ if __name__ == "__main__":
     import faulthandler
     try:   # if Settings ever closes by itself, the reason is in this file
         _log = open(Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-settings.log", "a")
+        os.dup2(_log.fileno(), 2)          # GTK and Wayland messages too
         faulthandler.enable(_log)
         sys.stderr = _log
+        print(time.strftime("--- %Y-%m-%d %H:%M:%S Settings started"), file=_log, flush=True)
     except Exception:
         pass
     GLib.set_prgname("glyph-settings")

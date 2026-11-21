@@ -1177,7 +1177,14 @@ class App(Gtk.Application):
 
     def do_open(self, files, n, hint):
         for f in files:
-            FilesWindow(self, f).show_all()
+            if f.query_file_type(Gio.FileQueryInfoFlags.NONE, None) == Gio.FileType.DIRECTORY or not f.get_parent():
+                FilesWindow(self, f).show_all()
+                continue
+            # a file: open its folder and select it ("show in folder" from a browser)
+            w = FilesWindow(self, f.get_parent())
+            w.show_all()
+            name = f.get_basename()
+            GLib.timeout_add(500, lambda w=w, name=name: (w.panes[0].select_names([name]), False)[1])
 
 
 if __name__ == "__main__":
