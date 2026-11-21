@@ -72,6 +72,9 @@ jobs:
           mkdir -p $HOME/.config/glyph/labwc
           cp config/labwc/rc.xml config/labwc/menu.xml $HOME/.config/glyph/labwc/
           python3 bin/glyph-theme --colour tan || true
+          # test only: a red shadow, so the screenshot shows where it falls
+          sed -i 's/^window.active.shadow.color:.*/window.active.shadow.color: #ff0000ff/; s/^window.inactive.shadow.color:.*/window.inactive.shadow.color: #ff000080/' $HOME/.local/share/themes/Glyph/labwc/themerc || true
+          grep -n -i shadow $HOME/.config/glyph/labwc/rc.xml $HOME/.local/share/themes/Glyph/labwc/themerc || true
           cat $HOME/.local/share/themes/Glyph/labwc/themerc | head -40 || true
           printf 'foot -T "notes.txt - Text editor" &\nsleep 1\nfoot -T "Home - Files" &\n' > $HOME/.config/glyph/labwc/autostart
           eval $(dbus-launch --sh-syntax) || true

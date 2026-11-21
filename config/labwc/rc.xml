@@ -21,7 +21,7 @@
     <name>Glyph</name>
     <cornerRadius>0</cornerRadius>
     <keepBorder>yes</keepBorder>
-    <dropShadows>no</dropShadows>
+    <dropShadows>yes</dropShadows>
     <!-- no window icons: text first. Buttons on the right: _ [] x -->
     <titlebar>
       <layout>:iconify,max,close</layout>
