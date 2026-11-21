@@ -468,8 +468,7 @@ entry:focus {{ border-color: {p['amber']}; }}
 .day.today {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; }}
 scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
 .sechdr {{ padding-top: 6px; }}
-.sechdr button.small, button.endbtn, box.endbtn {{ min-width: 76px; }}
-button.endbtn {{ padding-left: 0; padding-right: 0; }}
+.panel button.small.endbtn, .panel .sechdr button.endbtn {{ padding: 2px 0; min-height: 0; min-width: 0; font-size: 11px; }}
 .sechdr .dim {{ font-size: 11px; padding-left: 8px; }}
 /* Files */
 .files .ftool {{ padding: 6px 8px; background: {p['panel']}; border-bottom: 1px solid {p['hi']}; }}

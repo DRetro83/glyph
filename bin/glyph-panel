@@ -308,6 +308,8 @@ _SLOW = ["wifi_on", "wifi_current", "wired_up", "wifi_list", "bt_present", "bt_o
          "modem_present", "wwan_on", "dnd_on", "night_on", "airplane_on", "volume", "brightness",
          "power_profile", "battery", "device_batteries", "drives"]
 _RAW, _CACHE = {}, {}
+QS_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-quick.json"
+ENDW = 64   # width of Show/Hide, MUTE and the space after the brightness slider
 _LOCK = threading.Lock()
 
 
@@ -331,17 +333,38 @@ def use_cache():
             g[n] = _cached(n)
 
 
+def _plain(v):
+    return json.loads(json.dumps(v))   # tuples become lists, like after loading
+
+
+def load_saved_cache():
+    try:
+        data = json.loads(QS_CACHE.read_text())
+        with _LOCK:
+            for k, v in data.items():
+                if k in _SLOW:
+                    _CACHE[k] = tuple(v) if k == "volume" and isinstance(v, list) else v
+        return True
+    except Exception:
+        return False
+
+
 def refresh_cache():
     """Ask all the tools again; returns True when something changed."""
     new = {}
     for n in _SLOW:
         try:
-            new[n] = _RAW[n]()
+            v = _RAW[n]()
         except Exception:
-            new[n] = None
+            v = None
+        new[n] = tuple(v) if n == "volume" and isinstance(v, (list, tuple)) else _plain(v)
     with _LOCK:
         changed = any(_CACHE.get(k) != v for k, v in new.items())
         _CACHE.update(new)
+    try:
+        QS_CACHE.write_text(json.dumps(new))
+    except Exception:
+        pass
     return changed
 
 
@@ -483,7 +506,7 @@ def run_panel(kind):
 
     def endspace():
         e = Gtk.Box()
-        e.get_style_context().add_class("endbtn")
+        e.set_size_request(ENDW, -1)
         return e
 
     def short(lab, chars=16):
@@ -577,7 +600,10 @@ def run_panel(kind):
                 (state["open"].discard if is_open else state["open"].add)(key)
                 save_open(state["open"])
                 draw()
-            hdr.pack_start(button("Hide ▴" if is_open else "Show ▾", flip, "small"), False, False, 0)
+            sb = button("Hide ▴" if is_open else "Show ▾", flip, "small endbtn")
+            sb.set_size_request(ENDW, -1)
+            sb.set_valign(Gtk.Align.CENTER)
+            hdr.pack_start(sb, False, False, 0)
             body.pack_start(hdr, False, False, 0)
             return is_open
 
@@ -800,6 +826,8 @@ def run_panel(kind):
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
                 mb = button("ON" if muted else "MUTE", lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)), "small endbtn")
+                mb.set_size_request(ENDW, -1)
+                mb.set_valign(Gtk.Align.CENTER)
                 row.pack_start(mb, False, False, 0)
                 body.pack_start(row, False, False, 0)
             br = brightness()
@@ -865,8 +893,11 @@ def run_panel(kind):
         foot.pack_start(button("Settings", lambda: (bg(["glyph-settings"]), quit_())), True, True, 0)
         foot.pack_start(button("Lock", lambda: (bg(["glyph-lock"]), quit_())), True, True, 0)
         foot.pack_start(button("Power", lambda: (bg(["glyph-power"]), quit_()), "amber"), True, True, 0)
-        body.pack_start(label("…", "dim"), False, False, 0)
         use_cache()
+        if load_saved_cache():
+            draw()                       # last known state at once ...
+        else:
+            body.pack_start(label("…", "dim"), False, False, 0)
         busy = {"v": False}
 
         def refresh_async(force=False):
