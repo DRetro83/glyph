@@ -1,6 +1,7 @@
 // Glyph - taskbar (step 2). Colours come from style.css, made by glyph-theme.
 {
   "layer": "top",
+  "reload_style_on_change": true,
   "position": "bottom",
   "height": 46,
   "spacing": 0,

@@ -1188,4 +1188,11 @@ class App(Gtk.Application):
 
 
 if __name__ == "__main__":
+    # Leave the taskbar's process group: when the taskbar reloads (after a colour
+    # change) it ends its whole group, which closed this window and every app
+    # started from here.
+    try:
+        os.setsid()
+    except Exception:
+        pass
     sys.exit(App().run(sys.argv))

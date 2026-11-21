@@ -274,6 +274,11 @@ class Settings(Gtk.Window):
         p.pack_start(self.toggle("Shadows", "A shadow under windows, the start menu and the panels, like the prototype.",
                                  t.get("shadows", "yes") != "no",
                                  lambda on: self.theme("--shadows", "yes" if on else "no")), False, False, 0)
+        p.pack_start(self.toggle("Colour LibreOffice too",
+                                 "Installs a Glyph theme in LibreOffice (25.2). Close LibreOffice first; then in LibreOffice: "
+                                 "Tools → Options → Appearance → theme Glyph, and tick Enable application theming.",
+                                 t.get("libreoffice", "standard") == "glyph",
+                                 lambda on: self.theme("--libreoffice", "glyph" if on else "standard")), False, False, 0)
         p.pack_start(self.toggle("Colour Firefox and Vivaldi too", "They follow your mode and colour after a restart of the browser.",
                                  t.get("browsers", "yes") == "yes",
                                  lambda on: (write_kv(THEME, "browsers", "yes" if on else "no", "# Glyph look\n"), self.theme())), False, False, 0)
@@ -588,6 +593,13 @@ class Settings(Gtk.Window):
 
 
 if __name__ == "__main__":
+    # Leave the taskbar's process group: when the taskbar reloads (after a colour
+    # change) it ends its whole group, which closed this window and every app
+    # started from here.
+    try:
+        os.setsid()
+    except Exception:
+        pass
     import faulthandler
     try:   # if Settings ever closes by itself, the reason is in this file
         _log = open(Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-settings.log", "a")
