@@ -141,6 +141,7 @@ class Pane(Gtk.Box):
         pbox.get_style_context().add_class("fpath")
         self.path_lab = Gtk.Label(xalign=0)
         self.path_lab.set_ellipsize(Pango.EllipsizeMode.START)
+        self.path_lab.set_width_chars(4)
         self.path_lab.get_style_context().add_class("fpname")
         pbox.pack_start(self.path_lab, True, True, 0)
         pb = Gtk.Button(label="PATH")
@@ -148,6 +149,7 @@ class Pane(Gtk.Box):
         pb.connect("clicked", lambda *_: self.edit_path())
         pbox.pack_end(pb, False, False, 0)
         self.path_entry = Gtk.Entry()
+        self.path_entry.set_width_chars(4)
         self.path_entry.connect("activate", self.on_path)
         self.path_entry.connect("focus-out-event", lambda *_: self.path_stack.set_visible_child_name("lab") or False)
         self.path_stack.add_named(pbox, "lab")
@@ -155,7 +157,7 @@ class Pane(Gtk.Box):
         tb.pack_start(self.path_stack, True, True, 0)
         self.search = Gtk.Entry()
         self.search.set_placeholder_text("Search here…")
-        self.search.set_width_chars(18)
+        self.search.set_width_chars(14)
         self.search.connect("changed", lambda *_: self.filter.refilter())
         tb.pack_start(self.search, False, False, 0)
         self.b_list = self.btn("LIST", lambda: self.set_view("list"), "on")
@@ -208,7 +210,7 @@ class Pane(Gtk.Box):
         c.set_sort_column_id(1)
         c.set_resizable(True)
         self.tree.append_column(c)
-        for title, col, w in (("SIZE", 2, 90), ("TYPE", 3, 150), ("MODIFIED", 4, 150)):
+        for title, col, w in (("SIZE", 2, 70), ("TYPE", 3, 90), ("MODIFIED", 4, 110)):
             r = Gtk.CellRendererText()
             if col == 2:
                 r.set_property("xalign", 1.0)
@@ -239,6 +241,8 @@ class Pane(Gtk.Box):
         st = Gtk.Box()
         st.get_style_context().add_class("fstatus")
         self.st_left = Gtk.Label(xalign=0)
+        self.st_left.set_ellipsize(Pango.EllipsizeMode.END)
+        self.st_left.set_width_chars(4)
         self.st_right = Gtk.Label(xalign=1)
         st.pack_start(self.st_left, True, True, 0)
         st.pack_end(self.st_right, False, False, 0)
@@ -316,6 +320,19 @@ class Pane(Gtk.Box):
                 ("Properties…", "Alt+Enter", self.properties),
                 ("Open in Thunar", "", lambda: self.spawn(["thunar", self.cwd.get_path() or self.cwd.get_uri()])),
                 ("Empty the trash", "", self.empty_trash)]
+
+    def set_compact(self, on):
+        """In SPLIT, each half keeps only what it needs (search and LIST/GRID are in ···)."""
+        for w in (self.search, self.b_list, self.b_grid):
+            w.set_visible(not on)
+        # the TYPE column makes room for names; the side panel can come back with SIDE or F9
+        for c in self.tree.get_columns():
+            if c.get_title() == "TYPE":
+                c.set_visible(not on)
+        if on and self.side_sw.get_visible():
+            self.flip_side()
+        elif not on and not self.side_sw.get_visible():
+            self.flip_side()
 
     def select_all(self):
         (self.tree.get_selection().select_all() if self.view_mode == "list" else self.icons.select_all())
@@ -1084,6 +1101,7 @@ class Pane(Gtk.Box):
         elif k in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
             self.open_selected()
         elif not ctrl and not alt and e.string and e.string.isprintable() and len(e.string) == 1:
+            self.search.show()
             self.search.grab_focus()
             self.search.set_text(self.search.get_text() + e.string)
             self.search.set_position(-1)
@@ -1119,9 +1137,6 @@ class FilesWindow(Gtk.ApplicationWindow):
 
     def flip_split(self, pane):
         if len(self.panes) == 1:
-            w = self.get_allocated_width()
-            if w < 1100:
-                self.resize(min(1500, max(w, 1200)), self.get_allocated_height())
             second = Pane(self.get_application(), pane.cwd)
             second.win = self
             second.side_sw.set_visible(False)
@@ -1133,12 +1148,14 @@ class FilesWindow(Gtk.ApplicationWindow):
             self.box.set_position(self.get_allocated_width() // 2)
             for p in self.panes:
                 p.lit(p.b_split, True)
+                p.set_compact(True)
             self.set_active(second)
         else:
             gone = self.panes.pop()
             self.box.remove(gone)
             gone.destroy()
             self.panes[0].lit(self.panes[0].b_split, False)
+            self.panes[0].set_compact(False)
             self.set_active(self.panes[0])
 
 
