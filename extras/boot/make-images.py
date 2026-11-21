@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-"""Make the small PNG pieces for the GRUB and Plymouth themes in your Glyph colours.
-Usage: make-images.py palette.env grub_dir plymouth_dir [bar_width bar_height]   (no extra Python packages needed)"""
+"""Make the PNG pieces for the GRUB and Plymouth themes in your Glyph colours.
+Usage: make-images.py palette.env grub_dir plymouth_dir
+Sizes come from environment variables set by install-boot.sh:
+  GW GH (boot menu box), BH (title bar), IH (menu row), LBW (title box width), FH (footer), FS (font size)
+No extra Python packages needed."""
+import os
 import struct
 import sys
 import zlib
@@ -11,7 +15,7 @@ def png(path, w, h, px):
     raw = b"".join(b"\x00" + b"".join(bytes(px(x, y)) for x in range(w)) for y in range(h))
     chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
     Path(path).write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
-                           + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+                           + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))
 
 
 def rgb(h):
@@ -27,19 +31,41 @@ pal = {}
 for l in Path(sys.argv[1]).read_text().splitlines():
     if l.startswith("GLYPH_"):
         k, v = l.split("=", 1)
-        pal[k[6:].lower()] = rgb(v)
+        pal[k[6:].lower()] = rgb(v.strip().strip('"'))
 g, p = Path(sys.argv[2]), Path(sys.argv[3])
-title, tink, view, win, hi, lo, amber = (pal[k] for k in ("title", "tink", "view", "win", "hi", "lo", "amber"))
-stripe = mix(title, tink, 0.3)
+title, tink, view, win, hi, lo = (pal[k] for k in ("title", "tink", "view", "win", "hi", "lo"))
+stripe = mix(title, tink, 0.22)
+dark = mix(title, tink, 0.45)
+E = lambda k, d: int(os.environ.get(k, d))
+GW, GH, BH, IH, LBW, FH = E("GW", 640), E("GH", 220), E("BH", 30), E("IH", 40), E("LBW", 120), E("FH", 32)
+FOOT = GH - FH
 
-# GRUB: striped title bar, menu box (9 pieces), selected row (9 pieces), terminal box
-bw, bh = (int(sys.argv[4]), int(sys.argv[5])) if len(sys.argv) > 5 else (600, 30)
-png(g / "bar.png", bw, bh, lambda x, y: stripe if y % 3 == 1 else title)
-for name, centre, edge in (("menu", win, title), ("sel", title, title), ("term", view, hi)):
-    for part, (w, h) in {"nw": (1, 1), "n": (1, 1), "ne": (1, 1), "w": (1, 1), "e": (1, 1),
-                         "sw": (1, 1), "s": (1, 1), "se": (1, 1), "c": (8, 8)}.items():
-        png(g / f"{name}_{part}.png", w, h, (lambda x, y, c=(centre if part == "c" else edge): c))
+# GRUB: the whole boot-menu box as one picture: striped title bar with the
+# title box, the window, a line above the footer, and a border
+def box(x, y):
+    if x == 0 or y == 0 or x == GW - 1 or y == GH - 1:
+        return title
+    if y < BH:
+        lb = 8 <= x < 8 + LBW and 4 <= y < BH - 4
+        if lb:
+            edge = x in (8, 8 + LBW - 1) or y in (4, BH - 5)
+            return dark if edge else title
+        return stripe if y % 3 == 1 else title
+    if y == BH:
+        return lo
+    if y == FOOT:
+        return hi
+    return win
+png(g / "box.png", GW, GH, box)
+# selected row: striped, like the title bar (exact row height, so nothing is stretched)
+png(g / "sel_c.png", 8, IH, lambda x, y: stripe if y % 3 == 1 else title)
+for part in ("nw", "n", "ne", "w", "e", "sw", "s", "se"):
+    png(g / f"sel_{part}.png", 1, 1, lambda x, y: title)
+for part in ("nw", "n", "ne", "w", "e", "sw", "s", "se", "c"):
+    png(g / f"term_{part}.png", 1, 1, lambda x, y, c=(lo if part == "c" else hi): c)
 
-# Plymouth: frame around the progress bar and the striped fill
-png(p / "frame.png", 360, 16, lambda x, y: hi if x in (0, 359) or y in (0, 15) else lo)
-png(p / "fill.png", 1, 10, lambda x, y: stripe if y % 3 == 1 else title)
+# Plymouth: progress blocks (empty and filled, filled ones striped)
+S = E("SEG", 20)
+SH_ = max(10, S * 3 // 5)
+png(p / "seg_off.png", S, SH_, lambda x, y: hi if (x in (0, S - 1) or y in (0, SH_ - 1)) else mix(lo, hi, 0.45))
+png(p / "seg_on.png", S, SH_, lambda x, y: stripe if y % 3 == 1 else title)

@@ -66,9 +66,18 @@ done
 RES=${RES:-1920x1080}
 SW=${RES%x*}; SH=${RES#*x}
 FS=$((SH / 54)); [ $FS -lt 16 ] && FS=16; [ $FS -gt 40 ] && FS=40
-BW=$((SW * 46 / 100)); BH=$((FS * 2)); IH=$((FS * 2)); PAD=$((FS * 3 / 4)); LT=$(((BH - FS) / 2 - 2))
+# the boot-menu box, as in the design: 44 % wide, a fifth down
+GW=$((SW * 44 / 100)); GX=$(((SW - GW) / 2)); GY=$((SH / 5))
+BH=$((FS * 17 / 10)); IH=$((FS * 2)); PAD=$((FS * 3 / 4)); FH=$((FS * 2))
+LBW=$((FS * 7)); MH=$((4 * (IH + 2)))
+GH=$((BH + PAD + MH + PAD + FH))
+LX=$((GX + 8 + FS / 2)); LY=$((GY + (BH - FS) / 2 - 1))
+MX=$((GX + PAD / 2)); MY=$((GY + BH + PAD / 2)); MW=$((GW - PAD))
+FX=$((GX + PAD)); FY=$((GY + GH - FH + (FH - FS) / 2 - 1)); GW2=$((GW / 2)); GW3=$((GW - 2 * PAD))
+SEG=$((SH / 72)); [ $SEG -lt 14 ] && SEG=14
+export GW GH BH IH LBW FH FS SEG
 echo "  screen $RES, GRUB letters $FS px"
-python3 "$HERE/make-images.py" "$PAL" "$TMP/grub" "$TMP/plymouth" "$BW" "$BH"
+python3 "$HERE/make-images.py" "$PAL" "$TMP/grub" "$TMP/plymouth"
 chmod 755 "$TMP"/*   # SDDM and GRUB must be able to read the copies
 
 if want sddm; then
@@ -86,7 +95,7 @@ if want sddm; then
 fi
 
 if want plymouth; then
-  sed "s/@VIEW_RGB@/$(rgbf $GLYPH_VIEW)/g; s/@TAN_RGB@/$(rgbf $GLYPH_TAN)/g; s/@DIM_RGB@/$(rgbf $GLYPH_DIM)/g; s/@TEXT_RGB@/$(rgbf $GLYPH_TEXT)/g" \
+  sed "s/@VIEW_RGB@/$(rgbf $GLYPH_LO)/g; s/@TAN_RGB@/$(rgbf $GLYPH_TAN)/g; s/@AMBER_RGB@/$(rgbf $GLYPH_AMBER)/g; s/@FS@/$FS/g; s/@DIM_RGB@/$(rgbf $GLYPH_DIM)/g; s/@TEXT_RGB@/$(rgbf $GLYPH_TEXT)/g" \
     "$HERE/plymouth/glyph/glyph.script.in" > "$TMP/plymouth/glyph.script"
   cp "$HERE/plymouth/glyph/glyph.plymouth" "$TMP/plymouth/"
   echo "- Plymouth start-up screen"
@@ -98,8 +107,10 @@ fi
 
 if want grub; then
   cp "$HERE/grub/glyph/theme.txt" "$TMP/grub/"
-  sed -i "s/@VIEW@/$GLYPH_VIEW/g; s/@DIM@/$GLYPH_DIM/g; s/@TEXT@/$GLYPH_TEXT/g; s/@TINK@/$GLYPH_TINK/g;
-          s/@FS@/$FS/g; s/@BW@/$BW/g; s/@BH@/$BH/g; s/@IH@/$IH/g; s/@PAD@/$PAD/g; s/@LT@/$LT/g" "$TMP/grub/theme.txt"
+  sed -i "s/@LO@/$GLYPH_LO/g; s/@DIM@/$GLYPH_DIM/g; s/@TEXT@/$GLYPH_TEXT/g; s/@TINK@/$GLYPH_TINK/g;
+          s/@FS@/$FS/g; s/@GX@/$GX/g; s/@GY@/$GY/g; s/@GW@/$GW/g; s/@GH@/$GH/g; s/@LX@/$LX/g; s/@LY@/$LY/g;
+          s/@LBW@/$LBW/g; s/@MX@/$MX/g; s/@MY@/$MY/g; s/@MW@/$MW/g; s/@MH@/$MH/g; s/@IH@/$IH/g; s/@PAD@/$PAD/g;
+          s/@FX@/$FX/g; s/@FY@/$FY/g; s/@GW2@/$GW2/g; s/@GW3@/$GW3/g" "$TMP/grub/theme.txt"
   F=/usr/share/fonts/truetype/ibm-plex
   grub-mkfont -s "$FS" -o "$TMP/grub/plex.pf2" "$F/IBMPlexMono-Regular.ttf" 2>/dev/null
   grub-mkfont -s "$FS" -o "$TMP/grub/plexb.pf2" "$F/IBMPlexMono-Bold.ttf" 2>/dev/null

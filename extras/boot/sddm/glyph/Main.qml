@@ -36,7 +36,7 @@ Rectangle {
         Repeater { model: Math.ceil(root.height / 4); Rectangle { width: root.width; height: 1; color: config.lo }
         } }
 
-    Text { x: 24; y: 18; text: "DEBIAN · GLYPH"; color: config.dim; font.family: root.font; font.pixelSize: 13; font.letterSpacing: 1 }
+    Text { x: 24; y: 18; text: "DEBIAN 13 · GLYPH"; color: config.dim; font.family: root.font; font.pixelSize: 13; font.letterSpacing: 1 }
     Text { id: clock; anchors.right: parent.right; anchors.rightMargin: 24; y: 18; color: config.dim; font.family: root.font; font.pixelSize: 13
         function tick() { text = Qt.formatDateTime(new Date(), "ddd d MMM · hh:mm") }
         Component.onCompleted: tick() }

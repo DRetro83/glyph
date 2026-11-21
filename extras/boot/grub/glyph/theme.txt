@@ -1,20 +1,17 @@
-# Glyph GRUB theme - colours, sizes and the font size are filled in by install-boot.sh
+# Glyph GRUB theme - colours and sizes are filled in by install-boot.sh
 title-text: ""
-desktop-color: "@VIEW@"
+desktop-color: "@LO@"
 terminal-font: "IBM Plex Mono Regular @FS@"
 terminal-box: "term_*.png"
 
-+ label { left = 2% top = 2% text = "DEBIAN · GLYPH" color = "@DIM@" font = "IBM Plex Mono Regular @FS@" }
-
-+ image { left = 27% top = 25% width = @BW@ height = @BH@ file = "bar.png" }
-+ label { left = 27%+@PAD@ top = 25%+@LT@ width = 40% height = @FS@ text = "■ START UP" color = "@TINK@" font = "IBM Plex Mono Bold @FS@" }
++ image { left = @GX@ top = @GY@ width = @GW@ height = @GH@ file = "box.png" }
++ label { left = @LX@ top = @LY@ width = @LBW@ height = @FS@ text = "■ BOOT MENU" color = "@TINK@" font = "IBM Plex Mono Bold @FS@" }
 
 + boot_menu {
-    left = 27%
-    top = 25%+@BH@
-    width = @BW@
-    height = 40%
-    menu_pixmap_style = "menu_*.png"
+    left = @MX@
+    top = @MY@
+    width = @MW@
+    height = @MH@
     item_font = "IBM Plex Mono Regular @FS@"
     item_color = "@TEXT@"
     selected_item_font = "IBM Plex Mono Bold @FS@"
@@ -28,7 +25,6 @@ terminal-box: "term_*.png"
     scrollbar = false
 }
 
-+ label {
-    left = 27% top = 70% width = @BW@ align = "center"
-    id = "__timeout__" text = "Starts in %d s  ·  ↑ ↓ choose  ·  Enter start" color = "@DIM@" font = "IBM Plex Mono Regular @FS@"
-}
++ label { left = @FX@ top = @FY@ width = @GW2@ height = @FS@ text = "↑ ↓ choose  ·  Enter start" color = "@DIM@" font = "IBM Plex Mono Regular @FS@" }
++ label { left = @FX@ top = @FY@ width = @GW3@ height = @FS@ align = "right"
+          id = "__timeout__" text = "starting in %d s" color = "@DIM@" font = "IBM Plex Mono Regular @FS@" }

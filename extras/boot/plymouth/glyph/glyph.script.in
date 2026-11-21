@@ -1,47 +1,66 @@
-// Glyph start-up screen. Colours are filled in by install-boot.sh.
+// Glyph start-up screen, as in the design. Colours and sizes are filled in by install-boot.sh.
 Window.SetBackgroundTopColor(@VIEW_RGB@);
 Window.SetBackgroundBottomColor(@VIEW_RGB@);
 W = Window.GetWidth(); H = Window.GetHeight();
+fs = @FS@;
 
-logo.image = Image.Text("GLYPH", @TAN_RGB@, 1, "IBM Plex Mono Bold 40");
+logo.image = Image.Text("GLYPH", @TEXT_RGB@, 1, "IBM Plex Mono Bold " + (fs * 3));
 logo.sprite = Sprite(logo.image);
-logo.sprite.SetPosition(W / 2 - logo.image.GetWidth() / 2, H / 2 - 70, 1);
+logo.sprite.SetPosition(W / 2 - logo.image.GetWidth() / 2, H / 2 - fs * 6, 1);
 
-sub.image = Image.Text("a light, text-first desktop", @DIM_RGB@, 1, "IBM Plex Mono 13");
+sub.image = Image.Text("D E B I A N   1 3   ·   L A B W C", @DIM_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.7));
 sub.sprite = Sprite(sub.image);
-sub.sprite.SetPosition(W / 2 - sub.image.GetWidth() / 2, H / 2 - 10, 1);
+sub.sprite.SetPosition(W / 2 - sub.image.GetWidth() / 2, H / 2 - fs * 6 + logo.image.GetHeight() + fs / 3, 1);
 
-frame.image = Image("frame.png");
-frame.sprite = Sprite(frame.image);
-frame.sprite.SetPosition(W / 2 - frame.image.GetWidth() / 2, H / 2 + 30, 1);
-
-fill.original = Image("fill.png");
-fill.sprite = Sprite();
-fill.sprite.SetPosition(W / 2 - frame.image.GetWidth() / 2 + 3, H / 2 + 33, 2);
-t = 0;
+// 24 blocks; the filled ones are striped like a Glyph title bar
+off = Image("seg_off.png");
+on = Image("seg_on.png");
+n = 24;
+gap = 2;
+bw = off.GetWidth();
+total = n * bw + (n - 1) * gap;
+x0 = W / 2 - total / 2;
+by = H / 2 + fs;
+for (i = 0; i < n; i++) {
+  seg[i] = Sprite(off);
+  seg[i].SetPosition(x0 + i * (bw + gap), by, 1);
+}
+lit = 0;
 
 fun progress_cb(duration, progress) {
-  w = Math.Int((frame.image.GetWidth() - 6) * progress);
-  if (w < 1) w = 1;
-  fill.sprite.SetImage(fill.original.Scale(w, fill.original.GetHeight()));
+  want = Math.Int(progress * n + 0.5);
+  if (want < 1) want = 1;
+  if (want > n) want = n;
+  while (lit < want) {
+    seg[lit].SetImage(on);
+    lit++;
+  }
 }
 Plymouth.SetBootProgressFunction(progress_cb);
+
+status.image = Image.Text("Starting …", @TAN_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.8));
+status.sprite = Sprite(status.image);
+status.sprite.SetPosition(W / 2 - status.image.GetWidth() / 2, by + off.GetHeight() + fs, 1);
+
+hint.image = Image.Text("Esc · show details", @DIM_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.7));
+hint.sprite = Sprite(hint.image);
+hint.sprite.SetPosition(W / 2 - hint.image.GetWidth() / 2, H - fs * 2.5, 1);
+
+fun message_cb(text) {
+  status.image = Image.Text(text, @TAN_RGB@, 1, "IBM Plex Mono " + Math.Int(fs * 0.8));
+  status.sprite.SetImage(status.image);
+  status.sprite.SetPosition(W / 2 - status.image.GetWidth() / 2, by + off.GetHeight() + fs, 1);
+}
+Plymouth.SetMessageFunction(message_cb);
 
 // password prompt (encrypted disk)
 fun display_password_cb(prompt, bullets) {
   s = "";
   for (i = 0; i < bullets; i++) s += "•";
-  pw.image = Image.Text(prompt + "  " + s, @TEXT_RGB@, 1, "IBM Plex Mono 14");
+  pw.image = Image.Text(prompt + "  " + s, @TEXT_RGB@, 1, "IBM Plex Mono " + fs);
   pw.sprite = Sprite(pw.image);
-  pw.sprite.SetPosition(W / 2 - pw.image.GetWidth() / 2, H / 2 + 80, 3);
+  pw.sprite.SetPosition(W / 2 - pw.image.GetWidth() / 2, by + off.GetHeight() + fs * 3, 3);
 }
 fun display_normal_cb() { pw.sprite = NULL; }
 Plymouth.SetDisplayPasswordFunction(display_password_cb);
 Plymouth.SetDisplayNormalFunction(display_normal_cb);
-
-fun message_cb(text) {
-  msg.image = Image.Text(text, @DIM_RGB@, 1, "IBM Plex Mono 12");
-  msg.sprite = Sprite(msg.image);
-  msg.sprite.SetPosition(W / 2 - msg.image.GetWidth() / 2, H - 60, 3);
-}
-Plymouth.SetMessageFunction(message_cb);
