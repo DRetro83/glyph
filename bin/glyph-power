@@ -15,8 +15,8 @@ case "$choice" in
     ok=$(printf 'No, go back\nYes, %s\n' "$(echo "$choice" | tr '[:upper:]' '[:lower:]')" | pick 2 "$choice? ")
     case "$ok" in Yes*) ;; *) exit 0 ;; esac
     case "$choice" in
-      "Log out")   exec labwc --exit ;;
-      Restart)     exec systemctl reboot ;;
-      "Shut down") exec systemctl poweroff ;;
+      "Log out")   exec glyph-shutdown logout ;;
+      Restart)     exec glyph-shutdown restart ;;
+      "Shut down") exec glyph-shutdown off ;;
     esac ;;
 esac

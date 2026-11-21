@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""glyph-shutdown - close every app politely, then log out, restart or shut down.
+
+  glyph-shutdown off | restart | logout
+
+First every window is asked to close, as if you clicked its X. An app with
+unsaved work (a drawing, a document) then asks "Save?" as usual, and Glyph
+waits for you. A small box at the bottom shows which apps are still open,
+with "Do it anyway" and "Cancel". When the last window is gone, Glyph goes on.
+"""
+import json
+import os
+import subprocess
+import sys
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
+
+from pathlib import Path  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+ACTIONS = {"off": ("SHUTTING DOWN", "Shut down anyway", ["systemctl", "poweroff"]),
+           "restart": ("RESTARTING", "Restart anyway", ["systemctl", "reboot"]),
+           "logout": ("LOGGING OUT", "Log out anyway", ["labwc", "--exit"])}
+
+
+def windows():
+    try:
+        out = subprocess.run(["glyph-toplevel", "list"], capture_output=True, text=True, timeout=3).stdout
+        data = json.loads(out or "null")
+    except Exception:
+        return None
+    return data
+
+
+def name(w):
+    a = (w.get("app_id") or "").split(".")[-1]
+    a = a.replace("glyph-", "")
+    return (a[:1].upper() + a[1:]) if a else (w.get("title") or "window")
+
+
+def do(cmd):
+    subprocess.Popen(cmd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def main():
+    what = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ACTIONS else "off"
+    title, anyway, cmd = ACTIONS[what]
+    if os.environ.get("GLYPH_SHUTDOWN_DRY"):        # for testing: only say what would happen
+        cmd = ["sh", "-c", "echo " + " ".join(cmd) + " > " + os.environ["GLYPH_SHUTDOWN_DRY"]]
+    first = windows()
+    if not first:            # nothing open (or no window list): go on at once
+        do(cmd)
+        return
+    subprocess.run(["glyph-toplevel", "close-all"], capture_output=True, timeout=5)
+
+    css = Gtk.CssProvider()
+    try:
+        css.load_from_path(str(CONF / "panel" / "panel.css"))
+    except Exception:
+        pass
+    Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 10)
+    win = Gtk.Window()
+    win.set_name("glyph-panel")
+    GtkLayerShell.init_for_window(win)
+    GtkLayerShell.set_namespace(win, "glyph-shutdown")
+    GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
+    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
+    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 16)
+    outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    outer.get_style_context().add_class("panel")
+    win.add(outer)
+    head = Gtk.Box()
+    head.get_style_context().add_class("ptitle")
+    t = Gtk.Label(label="■ " + title)
+    t.get_style_context().add_class("pt")
+    head.pack_start(t, False, False, 0)
+    outer.pack_start(head, False, False, 0)
+    body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+    body.get_style_context().add_class("pbody")
+    msg = Gtk.Label(xalign=0)
+    msg.set_line_wrap(True)
+    msg.set_max_width_chars(48)
+    body.pack_start(msg, False, False, 0)
+    outer.pack_start(body, False, False, 0)
+    foot = Gtk.Box(spacing=6, homogeneous=True)
+    foot.get_style_context().add_class("pfoot")
+    b_any = Gtk.Button(label=anyway)
+    b_any.get_style_context().add_class("amber")
+    b_cancel = Gtk.Button(label="Cancel")
+    foot.pack_start(b_cancel, True, True, 0)
+    foot.pack_start(b_any, True, True, 0)
+    outer.pack_start(foot, False, False, 0)
+    win.set_size_request(440, -1)
+
+    def finish(*_):
+        do(cmd)
+        Gtk.main_quit()
+    b_any.connect("clicked", finish)
+    b_cancel.connect("clicked", lambda *_: Gtk.main_quit())
+
+    def check():
+        w = windows()
+        if w is not None and not w:
+            finish()
+            return False
+        names = sorted({name(x) for x in (w or [])})
+        msg.set_text("Closing your apps. If an app asks to save your work, answer it first.\n\n"
+                      "Still open: " + (", ".join(names) if names else "…"))
+        return True
+    check()
+    GLib.timeout_add(700, check)
+    win.show_all()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    try:
+        os.setsid()
+    except Exception:
+        pass
+    main()

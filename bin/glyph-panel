@@ -981,10 +981,10 @@ def run_panel(kind):
         body.get_style_context().add_class("powerbody")
         armed = {"what": None, "id": 0}
         rows = [("lock", "Lock", "Ctrl+Alt+L", ["glyph-lock"], False),
-                ("logout", "Log out", "back to sign in", ["labwc", "--exit"], True),
+                ("logout", "Log out", "back to sign in", ["glyph-shutdown", "logout"], True),
                 ("sleep", "Sleep", "wake with a key", ["systemctl", "suspend"], False),
-                ("restart", "Restart", "start again", ["systemctl", "reboot"], True),
-                ("off", "⏻  Off", "shut down", ["systemctl", "poweroff"], True)]
+                ("restart", "Restart", "start again", ["glyph-shutdown", "restart"], True),
+                ("off", "⏻  Off", "shut down", ["glyph-shutdown", "off"], True)]
 
         def draw():
             clear(body)
