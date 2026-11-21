@@ -141,7 +141,7 @@ def themerc(p, mode):
 
 border.width: 1
 padding.height: 4
-titlebar.height: 26
+titlebar.height: 28
 window.titlebar.padding.width: 2
 window.titlebar.padding.height: 0
 
@@ -156,6 +156,15 @@ window.inactive.title.bg.color: {p['win']}
 window.active.label.text.color: {p['tink']}
 window.inactive.label.text.color: {p['dim']}
 window.label.text.justify: left
+
+# Glyph's own labwc (labwc-glyph) also draws fine stripes and the title box;
+# standard labwc skips these lines.
+window.active.title.bg.stripe.color: {shade(p['title'], 0.80)}
+window.inactive.title.bg.stripe.color: {shade(p['win'], 0.80)}
+window.active.label.box.border.color: {shade(p['title'], 0.60)}
+window.inactive.label.box.border.color: {p['hi']}
+window.label.text.box: yes
+window.label.text.uppercase: yes
 
 window.button.width: 24
 window.button.spacing: 2
@@ -205,6 +214,13 @@ snapping.overlay.edge.border.width: 2
 snapping.overlay.region.border.color: {p['amber']}
 snapping.overlay.edge.border.color: {p['amber']}
 """
+
+
+def shade(h, f):
+    """Darker (f < 1) or lighter (f > 1) version of #rrggbb."""
+    h = h.lstrip("#")
+    c = [min(255, max(0, round(int(h[i:i + 2], 16) * f))) for i in (0, 2, 4)]
+    return "#%02x%02x%02x" % tuple(c)
 
 
 def button_svg(kind, fill, ink):

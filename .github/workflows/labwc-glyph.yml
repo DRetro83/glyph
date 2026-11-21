@@ -1,0 +1,92 @@
+# Builds labwc-glyph: Debian 13's labwc with Glyph's small titlebar patch
+# (fine stripes and the boxed "■ TITLE"), tests it headless, and puts the
+# .deb and a screenshot on the release "labwc-glyph".
+name: labwc-glyph
+
+on:
+  push:
+    paths:
+      - "extras/labwc/**"
+      - ".github/workflows/labwc-glyph.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates devscripts dpkg-dev quilt
+      - uses: actions/checkout@v4
+      - name: Debian source of labwc
+        run: |
+          sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources
+          apt-get update
+          apt-get build-dep -y labwc
+          mkdir -p build && cd build
+          apt-get source labwc
+          ls
+      - name: Apply the Glyph patch and build
+        run: |
+          set -o pipefail
+          cd build/labwc-*/
+          cp "$GITHUB_WORKSPACE/extras/labwc/glyph-titlebar.patch" debian/patches/
+          echo glyph-titlebar.patch >> debian/patches/series
+          export QUILT_PATCHES=debian/patches
+          quilt push -a
+          quilt pop -a
+          DEBEMAIL="glyph@users.noreply.github.com" DEBFULLNAME="Glyph" \
+            dch -v "$(dpkg-parsechangelog -S Version)+glyph1" --distribution trixie --force-distribution \
+            "Glyph: fine titlebar stripes and a boxed window title."
+          dpkg-buildpackage -b -uc -us 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+      - name: Collect
+        if: always()
+        run: |
+          mkdir -p out
+          cp build/labwc_*.deb out/ 2>/dev/null || true
+          cp build.log out/ 2>/dev/null || true
+          ls -la out
+      - name: Test headless
+        run: |
+          apt-get install -y --no-install-recommends ./out/labwc_*.deb grim foot fonts-ibm-plex python3 dbus-x11 librsvg2-common
+          export HOME=/root XDG_RUNTIME_DIR=/tmp/xdg WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 LANG=C.UTF-8
+          mkdir -p $XDG_RUNTIME_DIR && chmod 700 $XDG_RUNTIME_DIR
+          python3 bin/glyph-theme --colour tan
+          mkdir -p $HOME/.config/glyph/labwc
+          cp config/labwc/rc.xml config/labwc/menu.xml $HOME/.config/glyph/labwc/
+          printf 'foot -T "notes.txt - Text editor" &\nsleep 1\nfoot -T "Home - Files" &\n' > $HOME/.config/glyph/labwc/autostart
+          eval $(dbus-launch --sh-syntax)
+          labwc -C $HOME/.config/glyph/labwc > out/labwc-test.log 2>&1 &
+          sleep 6
+          WAYLAND_DISPLAY=wayland-0 grim out/screenshot.png || true
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: labwc-glyph
+          path: out/
+
+  release:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: labwc-glyph
+          path: out
+      - name: Publish to the release "labwc-glyph"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la out
+          gh release view labwc-glyph >/dev/null 2>&1 || \
+            gh release create labwc-glyph --prerelease --title "labwc-glyph (titlebar patch for Debian 13)" \
+              --notes "labwc from Debian 13 with Glyph's titlebar patch: fine stripes and a boxed window title. Installed by install.sh. Built automatically."
+          gh release upload labwc-glyph out/* --clobber
