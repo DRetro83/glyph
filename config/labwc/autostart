@@ -1,0 +1,7 @@
+# Glyph - programs that start with the session (step 1)
+# Plain background in the Glyph "view" colour. A picture comes later.
+. "${XDG_CONFIG_HOME:-$HOME/.config}/glyph/palette.env" 2>/dev/null
+swaybg -c "${GLYPH_VIEW:-#221f1b}" >/dev/null 2>&1 &
+
+# Let portals (screenshots, file pickers) know which session this is
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP >/dev/null 2>&1 &

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# glyph-update - get the newest Glyph from GitHub and install it.
+# Your own look (theme.conf) is kept. Old settings get a backup.
+set -euo pipefail
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+SRC="$(cat "$CONF/source" 2>/dev/null || true)"
+[[ -d "$SRC/.git" ]] || { echo "Glyph source folder not found. Run install.sh from the glyph folder first." >&2; exit 1; }
+
+cd "$SRC"
+OLD="$(git rev-parse --short HEAD)"
+echo ":: Checking GitHub for a newer Glyph"
+git pull --ff-only
+NEW="$(git rev-parse --short HEAD)"
+if [[ "$OLD" == "$NEW" ]]; then
+  echo " ✓ Glyph is up to date ($NEW)"
+  exit 0
+fi
+echo ":: What changed:"
+git log --oneline "$OLD..$NEW"
+./install.sh
+echo " ✓ Updated $OLD -> $NEW. Log out and in again to use everything."

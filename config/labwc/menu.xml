@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Glyph - right-click menus (step 1). Text only, no icons. -->
+<openbox_menu>
+
+  <!-- right-click on the desktop -->
+  <menu id="root-menu" label="GLYPH">
+    <item label="Terminal"><action name="Execute" command="foot" /></item>
+    <item label="Files"><action name="Execute" command="thunar" /></item>
+    <item label="Text editor"><action name="Execute" command="mousepad" /></item>
+    <separator />
+    <menu id="glyph-look" label="Look">
+      <item label="Dark"><action name="Execute" command="glyph-theme --mode dark" /></item>
+      <item label="OLED black"><action name="Execute" command="glyph-theme --mode oled" /></item>
+      <item label="Light"><action name="Execute" command="glyph-theme --mode light" /></item>
+      <separator />
+      <item label="Tan"><action name="Execute" command="glyph-theme --colour tan" /></item>
+      <item label="Amber"><action name="Execute" command="glyph-theme --colour amber" /></item>
+      <item label="Olive"><action name="Execute" command="glyph-theme --colour olive" /></item>
+      <item label="Green"><action name="Execute" command="glyph-theme --colour green" /></item>
+      <item label="Rose"><action name="Execute" command="glyph-theme --colour rose" /></item>
+      <item label="Blue"><action name="Execute" command="glyph-theme --colour blue" /></item>
+      <item label="Dark blue"><action name="Execute" command="glyph-theme --colour dark-blue" /></item>
+    </menu>
+    <item label="Next workspace"><action name="GoToDesktop" to="right" wrap="yes" /></item>
+    <item label="Reload Glyph"><action name="Reconfigure" /></item>
+    <separator />
+    <item label="Log out"><action name="Exit" /></item>
+  </menu>
+
+  <!-- right-click on a title bar -->
+  <menu id="client-menu" label="WINDOW">
+    <item label="Minimize"><action name="Iconify" /></item>
+    <item label="Maximize"><action name="ToggleMaximize" /></item>
+    <item label="Always on top"><action name="ToggleAlwaysOnTop" /></item>
+    <menu id="client-send-to-menu" />
+    <separator />
+    <item label="Close"><action name="Close" /></item>
+  </menu>
+
+</openbox_menu>

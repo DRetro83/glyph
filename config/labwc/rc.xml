@@ -1,0 +1,132 @@
+<?xml version="1.0"?>
+<!--
+  Glyph - labwc settings (step 1: windows, shortcuts, snapping, workspaces)
+  Every shortcut also works with Ctrl+Alt, like in the prototype.
+  Reload after a change: right-click the desktop -> Reload Glyph
+-->
+<labwc_config>
+
+  <core>
+    <decoration>server</decoration>
+    <gap>0</gap>
+    <adaptiveSync>no</adaptiveSync>
+    <reuseOutputMode>no</reuseOutputMode>
+  </core>
+
+  <placement>
+    <policy>cascade</policy>
+  </placement>
+
+  <theme>
+    <name>Glyph</name>
+    <cornerRadius>0</cornerRadius>
+    <keepBorder>yes</keepBorder>
+    <dropShadows>no</dropShadows>
+    <!-- no window icons: text first. Buttons on the right: _ [] x -->
+    <titlebar>
+      <layout>:iconify,max,close</layout>
+      <showTitle>yes</showTitle>
+    </titlebar>
+    <font place="ActiveWindow"><name>IBM Plex Mono</name><size>10</size><weight>Bold</weight></font>
+    <font place="InactiveWindow"><name>IBM Plex Mono</name><size>10</size><weight>Bold</weight></font>
+    <font place="MenuItem"><name>IBM Plex Mono</name><size>10</size></font>
+    <font place="OnScreenDisplay"><name>IBM Plex Mono</name><size>10</size></font>
+  </theme>
+
+  <!-- Alt+Tab list: text only -->
+  <windowSwitcher show="yes" preview="yes" outlines="yes" allWorkspaces="no">
+    <fields>
+      <field content="title" width="100%" />
+    </fields>
+  </windowSwitcher>
+
+  <!-- drag to an edge: left/right half, top = maximize -->
+  <snapping>
+    <range>10</range>
+    <overlay>
+      <enabled>yes</enabled>
+      <delay inner="400" outer="400" />
+    </overlay>
+    <topMaximize>yes</topMaximize>
+    <notifyClient>always</notifyClient>
+  </snapping>
+
+  <desktops number="4">
+    <popupTime>700</popupTime>
+    <names>
+      <name>1</name>
+      <name>2</name>
+      <name>3</name>
+      <name>4</name>
+    </names>
+  </desktops>
+
+  <resize>
+    <popupShow>Never</popupShow>
+  </resize>
+
+  <focus>
+    <followMouse>no</followMouse>
+    <raiseOnFocus>no</raiseOnFocus>
+  </focus>
+
+  <keyboard>
+    <default />
+    <repeatRate>30</repeatRate>
+    <repeatDelay>500</repeatDelay>
+    <numlock>on</numlock>
+
+    <!-- apps -->
+    <keybind key="C-A-t"><action name="Execute" command="foot" /></keybind>
+    <keybind key="W-e"><action name="Execute" command="thunar" /></keybind>
+
+    <!-- windows -->
+    <keybind key="C-A-w"><action name="Close" /></keybind>
+    <keybind key="A-F4"><action name="Close" /></keybind>
+    <keybind key="A-q"><action name="NextWindow" /></keybind>
+    <keybind key="W-Left"><action name="SnapToEdge" direction="left" /></keybind>
+    <keybind key="W-Right"><action name="SnapToEdge" direction="right" /></keybind>
+    <keybind key="W-Up"><action name="Maximize" /></keybind>
+    <keybind key="W-Down"><action name="UnMaximize" /></keybind>
+    <keybind key="C-A-Left"><action name="SnapToEdge" direction="left" /></keybind>
+    <keybind key="C-A-Right"><action name="SnapToEdge" direction="right" /></keybind>
+    <keybind key="C-A-Up"><action name="Maximize" /></keybind>
+    <keybind key="C-A-Down"><action name="UnMaximize" /></keybind>
+
+    <!-- workspaces -->
+    <keybind key="C-A-1"><action name="GoToDesktop" to="1" /></keybind>
+    <keybind key="C-A-2"><action name="GoToDesktop" to="2" /></keybind>
+    <keybind key="C-A-3"><action name="GoToDesktop" to="3" /></keybind>
+    <keybind key="C-A-4"><action name="GoToDesktop" to="4" /></keybind>
+    <keybind key="S-C-A-1"><action name="SendToDesktop" to="1" /></keybind>
+    <keybind key="S-C-A-2"><action name="SendToDesktop" to="2" /></keybind>
+    <keybind key="S-C-A-3"><action name="SendToDesktop" to="3" /></keybind>
+    <keybind key="S-C-A-4"><action name="SendToDesktop" to="4" /></keybind>
+
+    <!-- volume and brightness (PipeWire + brightnessctl) -->
+    <keybind key="XF86AudioRaiseVolume"><action name="Execute" command="wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+" /></keybind>
+    <keybind key="XF86AudioLowerVolume"><action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-" /></keybind>
+    <keybind key="XF86AudioMute"><action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" /></keybind>
+    <keybind key="C-A-Prior"><action name="Execute" command="wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+" /></keybind>
+    <keybind key="C-A-Next"><action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-" /></keybind>
+    <keybind key="XF86MonBrightnessUp"><action name="Execute" command="brightnessctl set +10%" /></keybind>
+    <keybind key="XF86MonBrightnessDown"><action name="Execute" command="brightnessctl set 10%-" /></keybind>
+
+    <!-- desktop menu from the keyboard -->
+    <keybind key="C-A-m"><action name="ShowMenu" menu="root-menu" /></keybind>
+  </keyboard>
+
+  <mouse>
+    <default />
+    <doubleClickTime>400</doubleClickTime>
+  </mouse>
+
+  <libinput>
+    <device category="touchpad">
+      <naturalScroll>no</naturalScroll>
+      <tap>yes</tap>
+      <disableWhileTyping>yes</disableWhileTyping>
+    </device>
+  </libinput>
+
+</labwc_config>

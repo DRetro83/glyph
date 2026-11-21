@@ -1,0 +1,275 @@
+#!/usr/bin/env python3
+"""glyph-theme: build the Glyph look from one small settings file.
+
+Reads   ~/.config/glyph/theme.conf   (mode=dark|light|oled, colour=#rrggbb)
+Writes  ~/.local/share/themes/Glyph/labwc/themerc  and the title bar buttons.
+
+Later steps add more outputs here (waybar, gtk.css, foot, mako, Firefox,
+Vivaldi ...). Every output is made from the same palette, so the whole
+desktop always matches.
+
+Usage:
+  glyph-theme                 rebuild from theme.conf
+  glyph-theme --mode light    change the mode, save it, rebuild
+  glyph-theme --colour '#ffb340'
+  glyph-theme --print         show the palette and exit
+"""
+import argparse
+import colorsys
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+HOME = Path.home()
+CONF_DIR = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "glyph"
+DATA_DIR = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share"))
+THEME_CONF = CONF_DIR / "theme.conf"
+LABWC_THEME = DATA_DIR / "themes" / "Glyph" / "labwc"
+
+COLOURS = {  # the system colours offered in Settings -> Appearance
+    "tan": "#a8957c", "light-tan": "#cdbb9f", "cream": "#e6dac4",
+    "amber": "#ffb340", "olive": "#b5b03c", "green": "#8c9e3a",
+    "rose": "#b8405c", "blue": "#8fb0c8", "dark-blue": "#4a6a8a",
+    "dark-tan": "#6e5f4c",
+}
+DEFAULTS = {"mode": "dark", "colour": "#a8957c"}
+
+
+# ---------- colour helpers (same maths as the HTML prototype) ----------
+def hex2rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def rgb2hex(r, g, b):
+    return "#%02x%02x%02x" % tuple(round(max(0, min(1, c)) * 255) for c in (r, g, b))
+
+
+def hex2hsl(h):
+    hh, l, s = colorsys.rgb_to_hls(*hex2rgb(h))
+    return hh * 360, s, l
+
+
+def hsl(h, s, l):
+    return rgb2hex(*colorsys.hls_to_rgb(h / 360, l, s))
+
+
+def lum(h):
+    def ch(c):
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (ch(c) for c in hex2rgb(h))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def make_palette(acc, mode):
+    """Port of makePalette() from the prototype."""
+    acc = acc.lower()
+    if acc == "#a8957c" and mode != "light":
+        p = dict(lo="#0c0b0a", panel="#1a1714", view="#221f1b", win="#2c2925",
+                 hov="#3a3631", hi="#57514a", tanlo="#6e5f4c", dim="#a89c88",
+                 tan="#a8957c", tanhi="#cdbb9f", text="#e6dac4", amber="#ffb340",
+                 title="#a8957c")
+    else:
+        h, s0, _ = hex2hsl(acc)
+        s, s2 = min(s0, 0.35) * 0.45, min(s0, 0.3)
+        a = acc
+        if mode != "light":
+            p = dict(lo=hsl(h, s, .04), panel=hsl(h, s, .085), view=hsl(h, s, .12),
+                     win=hsl(h, s, .16), hov=hsl(h, s, .215), hi=hsl(h, s, .32),
+                     tanlo=hsl(h, s2, .36), dim=hsl(h, s * 1.3, .62),
+                     text=hsl(h, s2, .88), amber="#ffb340")
+        else:
+            if hex2hsl(acc)[2] > 0.62:
+                a = hsl(hex2hsl(acc)[0], hex2hsl(acc)[1], 0.48)
+            p = dict(lo=hsl(h, s, .2), panel=hsl(h, s, .84), view=hsl(h, s, .9),
+                     win=hsl(h, s, .955), hov=hsl(h, s, .83), hi=hsl(h, s, .62),
+                     tanlo=hsl(h, s2, .74), dim=hsl(h, s * 1.3, .34),
+                     text=hsl(h, s2, .12), amber="#9a5a00")
+        th = hex2hsl(a)
+        p.update(tan=a, tanhi=hsl(th[0], th[1], min(.85, th[2] + .14)), title=a)
+    if mode == "oled":
+        h0 = hex2hsl(p["title"])[0]
+        s1 = min(hex2hsl(p["title"])[1], 0.35) * 0.45
+        p.update(lo="#000000", panel="#000000", view="#000000", win="#000000",
+                 hov=hsl(h0, s1, .09), hi=hsl(h0, s1, .24))
+    if mode == "light":
+        p.update(greenhi="#4f6a10", olivehi="#6b6812", rosehi="#9e2f4a")
+    else:
+        p.update(greenhi="#aabe50", olivehi="#d0cb6a", rosehi="#d6607c")
+    p.update(olive="#b5b03c", green="#8c9e3a", rose="#b8405c")
+    p["tink"] = ("#111111" if mode == "light" else "#0c0b0a") if lum(p["title"]) > 0.28 else "#ffffff"
+    return p
+
+
+# ---------- settings file ----------
+def read_conf():
+    conf = dict(DEFAULTS)
+    if THEME_CONF.exists():
+        for line in THEME_CONF.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                conf[k.strip()] = v.strip()
+    if conf["mode"] not in ("dark", "light", "oled"):
+        conf["mode"] = "dark"
+    c = conf["colour"].lower()
+    conf["colour"] = COLOURS.get(c, c if c.startswith("#") and len(c) == 7 else DEFAULTS["colour"])
+    return conf
+
+
+def write_conf(conf):
+    CONF_DIR.mkdir(parents=True, exist_ok=True)
+    THEME_CONF.write_text(
+        "# Glyph look. Change it here or in Settings -> Appearance,\n"
+        "# then run: glyph-theme\n"
+        f"mode={conf['mode']}\ncolour={conf['colour']}\n")
+
+
+# ---------- outputs ----------
+def themerc(p, mode):
+    border = p["title"] if mode != "oled" else p["title"]
+    return f"""# Glyph labwc theme - made by glyph-theme, do not edit by hand.
+# Change the look in ~/.config/glyph/theme.conf and run glyph-theme.
+
+border.width: 1
+padding.height: 4
+titlebar.height: 26
+window.titlebar.padding.width: 2
+window.titlebar.padding.height: 0
+
+window.active.border.color: {border}
+window.inactive.border.color: {p['hi']}
+window.active.indicator.toggled-keybind.color: {p['rose']}
+
+window.*.title.bg: Solid
+window.active.title.bg.color: {p['title']}
+window.inactive.title.bg.color: {p['win']}
+
+window.active.label.text.color: {p['tink']}
+window.inactive.label.text.color: {p['dim']}
+window.label.text.justify: left
+
+window.button.width: 24
+window.button.spacing: 2
+window.button.hover.bg.color: #ffffff33
+window.active.button.unpressed.image.color: {p['tink']}
+window.inactive.button.unpressed.image.color: {p['dim']}
+
+menu.overlap.x: 0
+menu.overlap.y: 0
+menu.width.min: 200
+menu.width.max: 360
+menu.border.width: 1
+menu.border.color: {p['hi']}
+menu.items.bg.color: {p['panel']}
+menu.items.text.color: {p['text']}
+menu.items.active.bg.color: {p['title']}
+menu.items.active.text.color: {p['tink']}
+menu.items.padding.x: 12
+menu.items.padding.y: 6
+menu.separator.width: 1
+menu.separator.padding.width: 6
+menu.separator.padding.height: 4
+menu.separator.color: {p['hi']}
+menu.title.bg.color: {p['win']}
+menu.title.text.color: {p['dim']}
+menu.title.text.justify: left
+
+osd.bg.color: {p['panel']}
+osd.border.color: {p['title']}
+osd.border.width: 1
+osd.label.text.color: {p['text']}
+osd.window-switcher.width: 50%
+osd.window-switcher.padding: 4
+osd.window-switcher.item.padding.x: 10
+osd.window-switcher.item.padding.y: 6
+osd.window-switcher.item.active.border.width: 2
+osd.window-switcher.preview.border.width: 2
+osd.workspace-switcher.boxes.width: 24
+osd.workspace-switcher.boxes.height: 16
+
+snapping.overlay.region.bg.enabled: yes
+snapping.overlay.edge.bg.enabled: yes
+snapping.overlay.region.bg.color: {p['amber']}33
+snapping.overlay.edge.bg.color: {p['amber']}33
+snapping.overlay.region.border.width: 2
+snapping.overlay.edge.border.width: 2
+snapping.overlay.region.border.color: {p['amber']}
+snapping.overlay.edge.border.color: {p['amber']}
+"""
+
+
+def button_svg(kind, fill, ink):
+    """Square coloured buttons like the prototype: _  []  x"""
+    glyph = {
+        "iconify": '<rect x="5" y="12" width="8" height="2" fill="{ink}"/>',
+        "max": '<rect x="5" y="5" width="8" height="8" fill="none" stroke="{ink}" stroke-width="1.6"/>',
+        "max_toggled": '<rect x="4" y="6.5" width="6.5" height="6.5" fill="none" stroke="{ink}" stroke-width="1.4"/>'
+                       '<path d="M7 6.5V4h7v7h-3" fill="none" stroke="{ink}" stroke-width="1.4"/>',
+        "close": '<path d="M5.5 5.5l7 7M12.5 5.5l-7 7" stroke="{ink}" stroke-width="1.8" stroke-linecap="square"/>',
+    }[kind].format(ink=ink)
+    return ('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" '
+            'shape-rendering="crispEdges">'
+            f'<rect x="0.5" y="0.5" width="17" height="17" fill="{fill}" stroke="#0c0b0a" stroke-opacity=".45"/>'
+            f'{glyph}</svg>\n')
+
+
+def write_buttons(p):
+    fills = {"iconify": p["olive"], "max": p["green"], "max_toggled": p["green"], "close": p["rose"]}
+    for kind, fill in fills.items():
+        ink = "#ffffff" if kind == "close" else "#0c0b0a"
+        (LABWC_THEME / f"{kind}-active.svg").write_text(button_svg(kind, fill, ink))
+        (LABWC_THEME / f"{kind}-inactive.svg").write_text(button_svg(kind, p["hov"], p["dim"]))
+
+
+def reload_labwc(p):
+    """Apply at once when Glyph is running: window colours and background."""
+    if not os.environ.get("LABWC_PID"):
+        return
+    subprocess.run(["labwc", "--reconfigure"], check=False)
+    if subprocess.run(["pgrep", "-x", "swaybg"], capture_output=True).returncode == 0:
+        subprocess.run(["pkill", "-x", "swaybg"], check=False)
+        subprocess.Popen(["swaybg", "-c", p["view"]], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Build the Glyph look.")
+    ap.add_argument("--mode", choices=["dark", "light", "oled"])
+    ap.add_argument("--colour", "--color", help="#rrggbb or a name: " + ", ".join(COLOURS))
+    ap.add_argument("--print", action="store_true", help="show the palette and exit")
+    a = ap.parse_args()
+
+    conf = read_conf()
+    if a.mode:
+        conf["mode"] = a.mode
+    if a.colour:
+        c = a.colour.lower()
+        if c in COLOURS:
+            c = COLOURS[c]
+        if not (c.startswith("#") and len(c) == 7):
+            sys.exit("glyph-theme: colour must look like #a8957c or be one of: " + ", ".join(COLOURS))
+        conf["colour"] = c
+    p = make_palette(conf["colour"], conf["mode"])
+    if a.print:
+        for k, v in p.items():
+            print(f"{k:8} {v}")
+        return
+    write_conf(conf)
+    LABWC_THEME.mkdir(parents=True, exist_ok=True)
+    (LABWC_THEME / "themerc").write_text(themerc(p, conf["mode"]))
+    write_buttons(p)
+    # labwc 0.7 looks in openbox-3/, newer versions in labwc/: offer both
+    ob = LABWC_THEME.parent / "openbox-3"
+    if not ob.exists():
+        ob.symlink_to("labwc")
+    (CONF_DIR / "palette.env").write_text(
+        "# Glyph palette for scripts - made by glyph-theme\n" +
+        "".join(f"GLYPH_{k.upper()}={v}\n" for k, v in p.items()))
+    reload_labwc(p)
+    print(f"Glyph: {conf['mode']} mode, colour {conf['colour']}")
+
+
+if __name__ == "__main__":
+    main()

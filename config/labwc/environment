@@ -1,0 +1,8 @@
+# Glyph - environment for the Glyph session only (KDE is not touched)
+XDG_CURRENT_DESKTOP=Glyph:wlroots
+XDG_SESSION_DESKTOP=glyph
+XCURSOR_SIZE=24
+MOZ_ENABLE_WAYLAND=1
+QT_QPA_PLATFORM=wayland;xcb
+_JAVA_AWT_WM_NONREPARENTING=1
+# keyboard: install.sh copies your layout from /etc/default/keyboard below

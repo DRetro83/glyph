@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Glyph
+Comment=A light, text-first desktop (labwc)
+Exec=/usr/local/bin/glyph-session
+Type=Application
+DesktopNames=Glyph;wlroots
