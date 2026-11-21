@@ -117,6 +117,7 @@ run mkdir -p "$GLYPH_CONF/labwc"
 run cp "$HERE"/config/labwc/{rc.xml,menu.xml,autostart,environment} "$GLYPH_CONF/labwc/"
 run mkdir -p "$GLYPH_CONF/waybar"
 run cp "$HERE/config/waybar/config.jsonc" "$GLYPH_CONF/waybar/"
+(( CHECK )) || "$HERE/bin/glyph-bar" >/dev/null 2>&1 || true   # keep your taskbar choice (Settings -> Taskbar)
 
 # keyboard layout: take the one Debian already uses
 if [[ -r /etc/default/keyboard ]] && (( ! CHECK )); then

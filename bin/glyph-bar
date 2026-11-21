@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""glyph-bar - choose what the taskbar shows (Settings -> Taskbar).
+
+  glyph-bar                 apply the saved choice to the taskbar
+  glyph-bar set KEY on|off  KEY: workspaces, apps, windows, tray
+  glyph-bar show            print the current choice
+
+Saved in ~/.config/glyph/glyph.conf as bar_<key>=on|off.
+START, SETTINGS, the clock and the power button always stay.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+G = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+CONF = G / "glyph.conf"
+CFG = G / "waybar" / "config.jsonc"
+LEFT = [("custom/start", None), ("custom/ws1", "workspaces"), ("custom/ws2", "workspaces"),
+        ("custom/ws3", "workspaces"), ("custom/ws4", "workspaces"), ("wlr/taskbar", "apps")]
+RIGHT = [("tray", "tray"), ("custom/windows", "windows"), ("custom/settings", None),
+         ("clock", None), ("custom/power", None)]
+KEYS = ("workspaces", "apps", "windows", "tray")
+
+
+def read():
+    d = {}
+    try:
+        for line in CONF.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                d[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return d
+
+
+def choice():
+    d = read()
+    return {k: d.get("bar_" + k, "on") != "off" for k in KEYS}
+
+
+def save(key, on):
+    d = read()
+    d["bar_" + key] = "on" if on else "off"
+    CONF.parent.mkdir(parents=True, exist_ok=True)
+    CONF.write_text("# Glyph settings\n" + "".join(f"{k}={v}\n" for k, v in d.items()))
+
+
+def apply():
+    c = choice()
+    try:
+        text = CFG.read_text()
+    except Exception:
+        sys.exit("glyph-bar: no taskbar config found")
+    for name, mods in (("modules-left", LEFT), ("modules-right", RIGHT)):
+        keep = [m for m, k in mods if k is None or c[k]]
+        text = re.sub(r'"%s"\s*:\s*\[[^\]]*\]' % name, f'"{name}": {json.dumps(keep, ensure_ascii=False)}', text, count=1)
+    CFG.write_text(text)
+    subprocess.run(["pkill", "-SIGUSR2", "-x", "waybar"], check=False)   # waybar reloads
+
+
+if __name__ == "__main__":
+    a = sys.argv[1:]
+    if a[:1] == ["set"] and len(a) == 3 and a[1] in KEYS:
+        save(a[1], a[2] in ("on", "yes", "1", "true"))
+        apply()
+    elif a[:1] == ["show"]:
+        print(" ".join(f"{k}={'on' if v else 'off'}" for k, v in choice().items()))
+    elif not a:
+        apply()
+    else:
+        print(__doc__)
