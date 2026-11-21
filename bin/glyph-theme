@@ -261,7 +261,7 @@ def waybar_css(p):
     light = is_light(p)
     bar = p['panel'] if light else p['lo']                 # the bar itself: light in light mode
     sys_ink = shade(p['title'], 0.55) if light else p['title']   # system colour as text: darker on light
-    ws_on = p['title'] if light else p['text']
+    ws_on = p['title']                                     # the current workspace: the system colour
     return f"""/* Glyph taskbar - made by glyph-theme, do not edit by hand. */
 * {{ font-family: "IBM Plex Mono", monospace; font-size: 13px; border-radius: 0; min-height: 0; box-shadow: none; text-shadow: none; }}
 window#waybar {{ background: {bar}; color: {p['text']}; border-top: 1px solid {p['hi']}; }}
@@ -273,7 +273,7 @@ button {{ border: none; }}
 #custom-start:hover {{ background: {p['hov']}; }}
 
 #custom-ws1, #custom-ws2, #custom-ws3, #custom-ws4 {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; min-width: 40px; padding: 0; margin: 4px 2px; font-weight: bold; }}
-#custom-ws1.active, #custom-ws2.active, #custom-ws3.active, #custom-ws4.active {{ background: {ws_on}; color: {p['tink'] if light else p['lo']}; border-color: {ws_on}; }}
+#custom-ws1.active, #custom-ws2.active, #custom-ws3.active, #custom-ws4.active {{ background: {ws_on}; color: {p['tink']}; border-color: {ws_on}; border-bottom: 3px solid {shade(p['title'], 0.6)}; }}
 #custom-ws1:hover, #custom-ws2:hover, #custom-ws3:hover, #custom-ws4:hover {{ border-color: {p['title']}; }}
 #custom-ws4 {{ margin-right: 8px; }}
 
