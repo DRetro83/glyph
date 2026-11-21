@@ -111,6 +111,8 @@ def box(x, y):
         return hi
     return win
 png(g / "box.png", GW, GH, box)
+# plain dark picture, used instead of Debian's blue GRUB background
+png(g / "bg.png", 16, 16, lambda x, y: lo)
 # selected row: striped, like the title bar (exact row height, so nothing is stretched)
 png(g / "sel_c.png", 8, IH, lambda x, y: stripe if y % 3 == 1 else title)
 for part in ("nw", "n", "ne", "w", "e", "sw", "s", "se"):

@@ -4,7 +4,6 @@ desktop-color: "@LO@"
 terminal-font: "@FONTR@"
 terminal-box: "term_*.png"
 
-+ image { left = @GX@ top = @GY@ width = @GW@ height = @GH@ file = "box.png" }
 #IMG + image { left = @LX@ top = @LYI@ width = @TT_W@ height = @TT_H@ file = "t_title.png" }
 #IMG + image { left = @FX@ top = @FYI@ width = @TK_W@ height = @TK_H@ file = "t_keys.png" }
 #IMG + image { left = 24 top = 18 width = @TP_W@ height = @TP_H@ file = "t_top.png" }
@@ -31,3 +30,6 @@ terminal-box: "term_*.png"
 
 + label { left = @FX@ top = @FY@ width = @GW3@ height = @FS@ align = "right"
           id = "__timeout__" text = "starting in %d s" color = "@DIM@" font = "@FONTR@" }
+
+# GRUB draws later items underneath earlier ones, so the box comes last
++ image { left = @GX@ top = @GY@ width = @GW@ height = @GH@ file = "box.png" }

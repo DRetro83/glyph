@@ -65,8 +65,8 @@ want plymouth && pkgs="$pkgs plymouth plymouth-label"   # label draws the text; 
 [ $DRY = 1 ] || sudo mkdir -p $STATE
 
 # GRUB in the screen's own resolution, with a font size that fits it
-RES=""
-for c in /sys/class/drm/card*-*; do
+RES="${GLYPH_BOOT_RES:-}"
+[ -n "$RES" ] || for c in /sys/class/drm/card*-*; do
   [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
   m=$(head -n1 "$c/modes" 2>/dev/null)
   [ -n "$m" ] && { RES=$m; break; }
@@ -81,7 +81,7 @@ LBW=$((FS * 7)); MH=$((4 * (IH + 2)))
 GH=$((BH + PAD + MH + PAD + FH))
 LX=$((GX + 8 + FS / 2)); LY=$((GY + (BH - FS) / 2 - 1))
 MX=$((GX + PAD / 2)); MY=$((GY + BH + PAD / 2)); MW=$((GW - PAD))
-FX=$((GX + PAD)); FY=$((GY + GH - FH + (FH - FS) / 2 - 1)); GW2=$((GW / 2)); GW3=$((GW - 2 * PAD))
+FX=$((GX + PAD)); FY=$((GY + GH - FH + (FH - FS) / 2 - 3)); GW2=$((GW / 2)); GW3=$((GW - 2 * PAD))
 SEG=$((SH / 72)); [ $SEG -lt 14 ] && SEG=14
 export GW GH BH IH LBW FH FS SEG
 echo "  screen $RES, GRUB letters $FS px"
@@ -103,6 +103,13 @@ if want sddm; then
   run sudo cp -r "$TMP/sddm" /usr/share/sddm/themes/glyph
   run sudo mkdir -p /etc/sddm.conf.d
   if [ $DRY = 0 ]; then printf '[Theme]\nCurrent=glyph\n' | sudo tee /etc/sddm.conf.d/zz-glyph.conf >/dev/null; sudo rm -f /etc/sddm.conf.d/glyph.conf
+    # left over from the first try (when Glyph was called Retro 83)
+    sudo rm -f /etc/sddm.conf.d/zz-retro83.conf
+    for f in /etc/sddm.conf.d/*.conf; do
+      case "$f" in */zz-glyph.conf) continue ;; esac
+      [ "$(basename "$f")" \> "zz-glyph.conf" ] && grep -q '^[[:space:]]*Current=' "$f" &&
+        echo "  note: $f also chooses a sign-in theme and is read after Glyph's; remove it to use Glyph's"
+    done
     # /etc/sddm.conf is read last and wins: if it names a theme, point it to Glyph (and remember the old one)
     if [ -f /etc/sddm.conf ] && grep -q '^[[:space:]]*Current=' /etc/sddm.conf; then
       [ -f $STATE/sddm-current-before ] || grep -m1 '^[[:space:]]*Current=' /etc/sddm.conf | sudo tee $STATE/sddm-current-before >/dev/null
@@ -155,6 +162,7 @@ if want grub; then
       echo "GRUB_GFXMODE=$RES,auto"
       echo 'GRUB_GFXPAYLOAD_LINUX=keep'
       echo 'GRUB_TERMINAL_OUTPUT=gfxterm'
+      echo 'GRUB_BACKGROUND=/boot/grub/themes/glyph/bg.png'   # instead of Debian's blue picture
       [ -f "$TMP/grub/glyph-regular.pf2" ] && echo 'GRUB_FONT=/boot/grub/themes/glyph/glyph-regular.pf2'
       echo 'GRUB_TIMEOUT=5'
       echo 'GRUB_TIMEOUT_STYLE=menu'
