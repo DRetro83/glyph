@@ -1,5 +1,13 @@
 #!/bin/sh
-# glyph-lock - lock the screen in the Glyph colours.
-CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/swaylock/config"
+# glyph-lock - lock the screen in the Glyph look (like the prototype:
+# LOCKED, a big clock, the date, and "password, then Enter  UNLOCK ▸").
+# Uses gtklock; falls back to swaylock (only a ring) when gtklock is missing.
+G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+pgrep -x gtklock >/dev/null && exit 0
 pgrep -x swaylock >/dev/null && exit 0
-exec swaylock -f -C "$CONF"
+if command -v gtklock >/dev/null; then
+  [ -f "$G/gtklock/layout.ui" ] || glyph-theme >/dev/null 2>&1
+  exec gtklock -d -s "$G/gtklock/style.css" -x "$G/gtklock/layout.ui" \
+    -t "%H:%M" -D "%A %d %B %Y" "$@"
+fi
+exec swaylock -f -C "$G/swaylock/config"

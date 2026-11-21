@@ -613,7 +613,172 @@ paned > separator {{ background: {p['hi']}; min-width: 1px; }}
 """
 
 
+GTKLOCK_UI = """<?xml version="1.0" encoding="UTF-8"?>
+<!-- Glyph lock screen (gtklock) - made by glyph-theme, do not edit by hand. -->
+<interface>
+  <object class="GtkBox" id="window-box">
+    <property name="name">window-box</property>
+    <property name="orientation">vertical</property>
+    <property name="hexpand">1</property>
+    <property name="vexpand">1</property>
+    <child>
+      <object class="GtkBox">
+        <child><object class="GtkBox"><style><class name="corner"/><class name="c1"/></style></object></child>
+        <child><object class="GtkBox"><style><class name="corner"/><class name="c2"/></style></object><packing><property name="pack-type">end</property></packing></child>
+      </object>
+      <packing><property name="pack-type">start</property></packing>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="halign">center</property>
+        <property name="valign">center</property>
+        <property name="vexpand">1</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="label">L O C K E D</property>
+            <style><class name="locked"/></style>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="info-box">
+            <property name="name">info-box</property>
+            <property name="halign">center</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkBox" id="time-box">
+                <property name="name">time-box</property>
+                <property name="halign">center</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">6</property>
+                <child><object class="GtkLabel" id="clock-label"><property name="name">clock-label</property><property name="halign">center</property></object></child>
+                <child><object class="GtkLabel" id="date-label"><property name="name">date-label</property><property name="halign">center</property></object></child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkRevealer" id="body-revealer">
+            <property name="transition-type">none</property>
+            <property name="reveal-child">0</property>
+            <property name="halign">center</property>
+            <child>
+              <object class="GtkGrid" id="body-grid">
+                <property name="name">body-grid</property>
+                <property name="row-spacing">8</property>
+                <property name="column-spacing">6</property>
+                <property name="halign">center</property>
+                <child>
+                  <object class="GtkLabel" id="input-label">
+                    <property name="name">input-label</property>
+                    <property name="label"></property>
+                    <property name="no-show-all">1</property>
+                  </object>
+                  <packing><property name="left-attach">0</property><property name="top-attach">0</property></packing>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="input-field">
+                    <property name="name">input-field</property>
+                    <property name="width-request">300</property>
+                    <property name="visibility">0</property>
+                    <property name="caps-lock-warning">0</property>
+                    <property name="input-purpose">password</property>
+                    <property name="placeholder-text">password, then Enter</property>
+                    <signal name="activate" handler="window_pw_check"/>
+                  </object>
+                  <packing><property name="left-attach">1</property><property name="top-attach">0</property></packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="unlock-button">
+                    <property name="name">unlock-button</property>
+                    <property name="label">UNLOCK ▸</property>
+                    <signal name="clicked" handler="window_pw_check"/>
+                  </object>
+                  <packing><property name="left-attach">2</property><property name="top-attach">0</property></packing>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="halign">center</property>
+                    <property name="spacing">8</property>
+                    <child><object class="GtkLabel" id="warning-label"><property name="name">warning-label</property></object></child>
+                    <child><object class="GtkLabel" id="error-label"><property name="name">error-label</property></object></child>
+                  </object>
+                  <packing><property name="left-attach">1</property><property name="top-attach">1</property><property name="width">2</property></packing>
+                </child>
+                <child>
+                  <object class="GtkRevealer" id="message-revealer">
+                    <property name="transition-type">none</property>
+                    <property name="no-show-all">1</property>
+                    <child>
+                      <object class="GtkScrolledWindow" id="message-scrolled-window">
+                        <property name="hscrollbar-policy">never</property>
+                        <property name="max-content-height">200</property>
+                        <property name="propagate-natural-height">1</property>
+                        <child><object class="GtkViewport"><child>
+                          <object class="GtkBox" id="message-box">
+                            <property name="orientation">vertical</property>
+                            <property name="homogeneous">1</property>
+                          </object>
+                        </child></object></child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing><property name="left-attach">1</property><property name="top-attach">2</property><property name="width">2</property></packing>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <child><object class="GtkBox"><style><class name="corner"/><class name="c3"/></style></object></child>
+        <child><object class="GtkBox"><style><class name="corner"/><class name="c4"/></style></object><packing><property name="pack-type">end</property></packing></child>
+      </object>
+    </child>
+  </object>
+</interface>
+"""
+
+
+def gtklock_css(p):
+    light = is_light(p)
+    scan = "rgba(0,0,0,0.10)" if light else "rgba(0,0,0,0.28)"
+    return f"""/* Glyph lock screen (gtklock) - made by glyph-theme, do not edit by hand. */
+window {{
+  background-color: {p['panel']};
+  background-image: repeating-linear-gradient(to bottom, {scan} 0px, {scan} 1px, transparent 1px, transparent 3px);
+  color: {p['text']};
+}}
+window * {{ font-family: "IBM Plex Mono", monospace; }}
+#window-box {{ margin: 40px; }}
+.corner {{ min-width: 40px; min-height: 40px; border: 0 solid {p['tan']}; }}
+.c1 {{ border-top-width: 2px; border-left-width: 2px; }}
+.c2 {{ border-top-width: 2px; border-right-width: 2px; }}
+.c3 {{ border-bottom-width: 2px; border-left-width: 2px; }}
+.c4 {{ border-bottom-width: 2px; border-right-width: 2px; }}
+.locked {{ color: {p['dim']}; font-size: 12px; }}
+#clock-label {{ font-size: 180px; font-weight: bold; color: {p['text']}; padding: 0 12px 8px 12px; }}
+#date-label {{ font-size: 22px; color: {p['text']}; }}
+#body-grid {{ margin-top: 28px; }}
+#input-field {{ background: {p['view']}; color: {p['text']}; border: 1px solid {p['hi']}; border-radius: 0;
+  box-shadow: none; padding: 8px 12px; min-height: 22px; caret-color: {p['amber']}; font-size: 15px; }}
+#input-field:focus {{ border-color: {p['amber']}; }}
+#unlock-button {{ background: {p['view']}; background-image: none; color: {p['amber']}; border: 1px solid {p['amber']};
+  border-radius: 0; box-shadow: none; text-shadow: none; padding: 8px 16px; font-weight: bold; font-size: 15px; }}
+#unlock-button:hover {{ background: {p['hov']}; }}
+#error-label {{ color: {p['rosehi']}; font-size: 13px; }}
+#warning-label {{ color: {p['amber']}; font-size: 13px; }}
+"""
+
+
 def write_outputs(p):
+    gl = CONF_DIR / "gtklock"
+    gl.mkdir(parents=True, exist_ok=True)
+    (gl / "layout.ui").write_text(GTKLOCK_UI)
+    (gl / "style.css").write_text(gtklock_css(p))
     for sub, name, text in (("waybar", "style.css", waybar_css(p)),
                             ("fuzzel", "fuzzel.ini", fuzzel_ini(p)),
                             ("mako", "config", mako_conf(p)),
@@ -923,6 +1088,11 @@ def write_apps(p, conf):
     # LibreOffice draws its toolbars and documents itself and becomes hard to use with
     # the Glyph GTK theme: give it its standard light look (plain Adwaita).
     lo_theme = "Adwaita"   # LibreOffice's own standard colours, for now
+    # Use the GTK3 look when it is installed (libreoffice-gtk3); never let the KDE/Qt
+    # plug-in pick up half of the Glyph Qt colours (light bars, dark page area).
+    gtk3_plug = any(Path(d, "libvclplug_gtk3lo.so").exists() for d in ("/usr/lib/libreoffice/program", "/opt/libreoffice/program"))
+    lo_env = ("env -u QT_QPA_PLATFORMTHEME GTK_THEME=" + lo_theme +
+              (" SAL_USE_VCLPLUGIN=gtk3" if gtk3_plug else " QT_QPA_PLATFORMTHEME="))
     apps_dir = DATA_DIR / "applications"
     apps_dir.mkdir(parents=True, exist_ok=True)
     for src in Path("/usr/share/applications").glob("libreoffice*.desktop"):
@@ -932,7 +1102,7 @@ def write_apps(p, conf):
         out = []
         for line in src.read_text(errors="ignore").splitlines():
             if line.startswith("Exec=") and "GTK_THEME=" not in line:
-                line = "Exec=env GTK_THEME=" + lo_theme + " " + line[5:]
+                line = "Exec=" + lo_env + " " + line[5:]
             out.append(line)
         # the marker goes right under [Desktop Entry] (Debian's files start with comments)
         try:
