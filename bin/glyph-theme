@@ -22,6 +22,7 @@ Usage:
 import argparse
 import colorsys
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -144,6 +145,10 @@ def themerc(p, mode):
 # Change the look in ~/.config/glyph/theme.conf and run glyph-theme.
 
 border.width: 1
+window.active.shadow.size: 14
+window.inactive.shadow.size: 8
+window.active.shadow.color: {"#00000040" if mode == "light" else "#000000a0"}
+window.inactive.shadow.color: {"#00000028" if mode == "light" else "#00000070"}
 padding.height: 4
 titlebar.height: 28
 window.titlebar.padding.width: 2
@@ -434,12 +439,20 @@ def stripes_css(p):
             f"shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 3px)")
 
 
+def shadows_on():
+    return read_conf().get("shadows", "yes") != "no"
+
+
 def panel_css(p):
+    # hard shadow like the prototype: 8px down-right; the panel window keeps room for it
+    shcol = "rgba(0,0,0,0.25)" if is_light(p) else p['lo']
+    panel_shadow = (f"box-shadow: 8px 8px 0 0 {shcol}; margin: 0 8px 8px 0;" if shadows_on()
+                    else "box-shadow: none; margin: 0;")
     stripes = f"repeating-linear-gradient(to bottom, {p['title']} 0px, {p['title']} 2px, shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 4px)"
     return f"""/* Glyph quick settings and calendar - made by glyph-theme */
 #glyph-panel {{ background: transparent; }}
 .panel, .panel * {{ font-family: "IBM Plex Mono", monospace; }}
-.panel {{ font-size: 13px; background: {p['panel']}; color: {p['text']}; border: 1px solid {p['title']}; box-shadow: 6px 6px 0 0 {p['lo']}; }}
+.panel {{ font-size: 13px; background: {p['panel']}; color: {p['text']}; border: 1px solid {p['title']}; {panel_shadow} }}
 .ptitle {{ background-image: {stripes}; min-height: 24px; padding-left: 8px; }}
 .ptitle .pt {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; padding: 0 8px; border: 1px solid shade({p['title']}, 0.7); margin: 3px 0; letter-spacing: 1px; }}
 .ptitle .px {{ background: {p['title']}; color: {p['tink']}; border: none; border-left: 1px solid shade({p['title']}, 0.7); border-radius: 0; min-width: 28px; min-height: 0; padding: 0; margin: 0; font-weight: bold; box-shadow: none; }}
@@ -1181,6 +1194,22 @@ def write_apps(p, conf):
                         "default" if mode == "light" else "prefer-dark"], capture_output=True)
 
 
+def set_drop_shadows():
+    """Window shadows on or off in labwc's rc.xml (Settings -> Appearance)."""
+    rc = CONF_DIR / "labwc" / "rc.xml"
+    try:
+        text = rc.read_text()
+    except Exception:
+        return
+    want = "yes" if shadows_on() else "no"
+    if "<dropShadows>" in text:
+        new = re.sub(r"<dropShadows>\w*</dropShadows>", f"<dropShadows>{want}</dropShadows>", text)
+    else:
+        new = text.replace("<keepBorder>", f"<dropShadows>{want}</dropShadows>\n    <keepBorder>", 1)
+    if new != text:
+        rc.write_text(new)
+
+
 def reload_labwc(p):
     """Apply at once when Glyph is running: window colours and background."""
     if not os.environ.get("LABWC_PID"):
@@ -1198,6 +1227,7 @@ def main():
     ap.add_argument("--mode", choices=["dark", "light", "oled"])
     ap.add_argument("--colour", "--color", help="#rrggbb or a name: " + ", ".join(COLOURS))
     ap.add_argument("--accent", help="second colour, #rrggbb or a name: " + ", ".join(ACCENTS))
+    ap.add_argument("--shadows", choices=["yes", "no"], help="shadows under windows and menus")
     ap.add_argument("--print", action="store_true", help="show the palette and exit")
     a = ap.parse_args()
 
@@ -1216,6 +1246,8 @@ def main():
         if not (c.startswith("#") and len(c) == 7):
             sys.exit("glyph-theme: accent must look like #ffb340 or be one of: " + ", ".join(ACCENTS))
         conf["accent"] = c
+    if a.shadows:
+        conf["shadows"] = a.shadows
     if a.mode or a.colour:
         # a new system colour: the background follows it again (Settings -> Background)
         conf.pop("bgcolour", None)
@@ -1241,6 +1273,7 @@ def main():
     (CONF_DIR / "palette.env").write_text(
         "# Glyph palette for scripts - made by glyph-theme\n" +
         "".join(f"GLYPH_{k.upper()}={v}\n" for k, v in p.items()))
+    set_drop_shadows()
     reload_labwc(p)
     print(f"Glyph: {conf['mode']} mode, colour {conf['colour']}")
 

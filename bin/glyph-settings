@@ -229,6 +229,12 @@ class Settings(Gtk.Window):
         def done():
             if proc.poll() is None:
                 return True
+            # Start again on the same page with the new look. Swapping the styles inside
+            # a running window could make it close on some systems.
+            try:
+                os.execv(sys.executable, [sys.executable, os.path.realpath(sys.argv[0]), self.current])
+            except Exception:
+                pass
             try:
                 if getattr(self, "css2", None):
                     Gtk.StyleContext.remove_provider_for_screen(Gdk.Screen.get_default(), self.css2)
@@ -258,6 +264,9 @@ class Settings(Gtk.Window):
         p.pack_start(self.opts([(k, f'<span foreground="{h}">■</span> {n}') for k, h, n in accents],
                                next((k for k, h, n in accents if h == cur2), ""),
                                lambda v: self.theme("--accent", v)), False, False, 0)
+        p.pack_start(self.toggle("Shadows", "A shadow under windows, the start menu and the panels, like the prototype.",
+                                 t.get("shadows", "yes") != "no",
+                                 lambda on: self.theme("--shadows", "yes" if on else "no")), False, False, 0)
         p.pack_start(self.toggle("Colour Firefox and Vivaldi too", "They follow your mode and colour after a restart of the browser.",
                                  t.get("browsers", "yes") == "yes",
                                  lambda on: (write_kv(THEME, "browsers", "yes" if on else "no", "# Glyph look\n"), self.theme())), False, False, 0)
@@ -572,6 +581,13 @@ class Settings(Gtk.Window):
 
 
 if __name__ == "__main__":
+    import faulthandler
+    try:   # if Settings ever closes by itself, the reason is in this file
+        _log = open(Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-settings.log", "a")
+        faulthandler.enable(_log)
+        sys.stderr = _log
+    except Exception:
+        pass
     GLib.set_prgname("glyph-settings")
     win = Settings(sys.argv[1] if len(sys.argv) > 1 else "Appearance")
     win.connect("destroy", Gtk.main_quit)
