@@ -1,6 +1,7 @@
 #!/bin/sh
-# glyph-volume up|down|mute|mic-mute|set N - change the volume and show the bar.
-STEP=${GLYPH_VOLUME_STEP:-2}
+# glyph-volume up|down|mute|mic-mute|set N - change the volume by 1% and show the bar.
+# Another step: GLYPH_VOLUME_STEP=5 glyph-volume up
+STEP=${GLYPH_VOLUME_STEP:-1}
 case "$1" in
   up)       wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "$STEP%+" ;;
   down)     wpctl set-volume @DEFAULT_AUDIO_SINK@ "$STEP%-" ;;

@@ -1,7 +1,7 @@
 #!/bin/sh
 # glyph-bright up|down|set N - screen brightness (laptop backlight, or a monitor over
 # its cable with ddcutil) and show the bar.
-STEP=${GLYPH_BRIGHT_STEP:-5}
+STEP=${GLYPH_BRIGHT_STEP:-1}
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/glyph-ddc"
 if command -v brightnessctl >/dev/null 2>&1 && brightnessctl -l -c backlight 2>/dev/null | grep -q Device; then
   case "$1" in
