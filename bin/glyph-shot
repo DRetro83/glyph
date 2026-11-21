@@ -1,0 +1,14 @@
+#!/bin/sh
+# glyph-shot - take a screenshot and save it in Pictures.
+#   glyph-shot          the whole screen   (Print)
+#   glyph-shot area     drag a rectangle   (Shift+Print, Ctrl+Alt+P)
+DIR="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")"
+mkdir -p "$DIR"
+FILE="$DIR/Screenshot-$(date +%Y-%m-%d-%H%M%S).png"
+case "$1" in
+  area) GEO=$(slurp -b '#00000066' -c '#ffb340' -w 2) || exit 0
+        grim -g "$GEO" "$FILE" ;;
+  *)    grim "$FILE" ;;
+esac || exit 1
+command -v wl-copy >/dev/null && wl-copy < "$FILE"
+notify-send -a Screenshot "Screenshot" "Saved as $(basename "$FILE") in Pictures."

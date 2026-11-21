@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Glyph - install (step 1: the window manager, as an extra session next to KDE)
+# Glyph - install as an extra session next to KDE (or GNOME, XFCE)
 #
 # Safe: nothing in KDE is changed. At the login screen you choose
 # "Plasma" or "Glyph". Undo everything with ./uninstall.sh
@@ -26,6 +26,14 @@ PACKAGES=(
   librsvg2-common  # SVG title bar buttons
   brightnessctl    # brightness keys
   python3          # glyph-theme
+  waybar           # taskbar
+  fuzzel           # start menu and power menu
+  mako-notifier libnotify-bin   # notifications
+  swaylock swayidle             # lock screen, lock after 5 minutes
+  grim slurp wl-clipboard       # screenshots
+  wtype            # workspace buttons on the taskbar
+  wireplumber network-manager   # volume and network on the taskbar
+  xdg-user-dirs    # Pictures folder for screenshots
 )
 
 say()  { printf '\033[1;33m::\033[0m %s\n' "$*"; }
@@ -40,7 +48,7 @@ if [[ -r /etc/os-release ]]; then
   [[ "${ID:-}" == "debian" && "${VERSION_ID:-}" == "13" ]] || say "Made for Debian 13. Found: ${PRETTY_NAME:-unknown}. Going on anyway."
 fi
 
-say "Glyph step 1 - window manager next to your current desktop"
+say "Glyph - installing next to your current desktop"
 (( CHECK )) && say "CHECK MODE: nothing is changed"
 
 # 1. packages
@@ -57,6 +65,8 @@ if [[ -d "$GLYPH_CONF/labwc" ]] && (( ! CHECK )); then
 fi
 run mkdir -p "$GLYPH_CONF/labwc"
 run cp "$HERE"/config/labwc/{rc.xml,menu.xml,autostart,environment} "$GLYPH_CONF/labwc/"
+run mkdir -p "$GLYPH_CONF/waybar"
+run cp "$HERE/config/waybar/config.jsonc" "$GLYPH_CONF/waybar/"
 
 # keyboard layout: take the one Debian already uses
 if [[ -r /etc/default/keyboard ]] && (( ! CHECK )); then
@@ -71,7 +81,7 @@ fi
 ok "settings in $GLYPH_CONF/labwc"
 
 # 3. programs and the session entry for the login screen
-run sudo install -m 755 "$HERE/bin/glyph-session" "$HERE/bin/glyph-theme" "$HERE/bin/glyph-update" /usr/local/bin/
+run sudo install -m 755 "$HERE"/bin/glyph-* /usr/local/bin/
 run sudo install -m 644 "$HERE/share/wayland-sessions/glyph.desktop" /usr/share/wayland-sessions/glyph.desktop
 run mkdir -p "$CONF/xdg-desktop-portal"
 run cp "$HERE/share/xdg-desktop-portal/glyph-portals.conf" "$CONF/xdg-desktop-portal/"
@@ -87,5 +97,5 @@ ok "theme"
 echo
 say "Done. Log out, pick \"Glyph\" in the session list at the login screen"
 say "(bottom left in SDDM), and sign in. KDE stays as it is."
-echo "    Right-click the desktop for the menu.  Ctrl+Alt+T = terminal."
+echo "    Super or Ctrl+Space = start menu.  Ctrl+Alt+T = terminal.  Ctrl+Alt+L = lock."
 echo "    Undo everything: ./uninstall.sh"

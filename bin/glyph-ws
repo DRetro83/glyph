@@ -1,0 +1,5 @@
+#!/bin/sh
+# glyph-ws N - go to workspace N (used by the taskbar buttons 1-4).
+# labwc has no command for this, so it presses the shortcut Ctrl+Alt+N.
+case "$1" in 1|2|3|4) ;; *) echo "usage: glyph-ws 1-4" >&2; exit 1 ;; esac
+exec wtype -M ctrl -M alt "$1" -m alt -m ctrl

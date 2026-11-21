@@ -10,14 +10,13 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 [[ $EUID -eq 0 ]] && { echo "Run this as your normal user." >&2; exit 1; }
 
 echo ":: Removing the Glyph session (asks for your password)"
-sudo rm -f /usr/share/wayland-sessions/glyph.desktop \
-           /usr/local/bin/glyph-session /usr/local/bin/glyph-theme /usr/local/bin/glyph-update
+sudo rm -f /usr/share/wayland-sessions/glyph.desktop /usr/local/bin/glyph-*
 rm -rf "$CONF/glyph" "$DATA/themes/Glyph"
 rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf"
 
 if [[ "${1:-}" == "--packages" ]]; then
   echo ":: Removing the packages Glyph added"
-  sudo apt-get remove -y labwc swaybg xdg-desktop-portal-wlr brightnessctl
+  sudo apt-get remove -y labwc swaybg xdg-desktop-portal-wlr brightnessctl waybar fuzzel mako-notifier swaylock swayidle wtype
   echo "   (foot, thunar, mousepad and fonts-ibm-plex are kept: you may use them in KDE too)"
 fi
 echo " ✓ Glyph is removed. Next login: pick Plasma."

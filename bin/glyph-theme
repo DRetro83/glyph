@@ -2,10 +2,13 @@
 """glyph-theme: build the Glyph look from one small settings file.
 
 Reads   ~/.config/glyph/theme.conf   (mode=dark|light|oled, colour=#rrggbb)
-Writes  ~/.local/share/themes/Glyph/labwc/themerc  and the title bar buttons.
+Writes  ~/.local/share/themes/Glyph/labwc/themerc and the title bar buttons,
+        ~/.config/glyph/waybar/style.css   (taskbar)
+        ~/.config/glyph/fuzzel/fuzzel.ini  (start menu, power menu)
+        ~/.config/glyph/mako/config        (notifications)
+        ~/.config/glyph/swaylock/config    (lock screen)
 
-Later steps add more outputs here (waybar, gtk.css, foot, mako, Firefox,
-Vivaldi ...). Every output is made from the same palette, so the whole
+Later steps add more outputs here (gtk.css, foot, Firefox, Vivaldi ...). Every output is made from the same palette, so the whole
 desktop always matches.
 
 Usage:
@@ -223,11 +226,177 @@ def write_buttons(p):
         (LABWC_THEME / f"{kind}-inactive.svg").write_text(button_svg(kind, p["hov"], p["dim"]))
 
 
+
+def waybar_css(p):
+    return f"""/* Glyph taskbar - made by glyph-theme, do not edit by hand. */
+* {{ font-family: "IBM Plex Mono", monospace; font-size: 13px; border-radius: 0; min-height: 0; box-shadow: none; text-shadow: none; }}
+window#waybar {{ background: {p['panel']}; color: {p['text']}; border-top: 1px solid {p['hi']}; }}
+tooltip {{ background: {p['panel']}; border: 1px solid {p['title']}; }}
+tooltip label {{ color: {p['text']}; }}
+button {{ border: none; }}
+
+#custom-start {{ color: {p['amber']}; border: 1px solid {p['amber']}; background: {p['view']}; font-weight: bold; letter-spacing: 1px; padding: 0 14px; margin: 4px 6px 4px 6px; }}
+#custom-start:hover {{ background: {p['hov']}; }}
+
+#custom-ws1, #custom-ws2, #custom-ws3, #custom-ws4 {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 12px; margin: 4px 1px; font-weight: bold; }}
+#custom-ws1:hover, #custom-ws2:hover, #custom-ws3:hover, #custom-ws4:hover {{ background: {p['hov']}; }}
+#custom-ws4 {{ margin-right: 8px; }}
+
+#taskbar {{ border-left: 1px solid {p['hi']}; padding-left: 6px; }}
+#taskbar button {{ color: {p['dim']}; background: {p['view']}; border: 1px solid {p['hi']}; border-bottom: 2px solid {p['hi']}; padding: 0 12px; margin: 4px 2px; }}
+#taskbar button:hover {{ background: {p['hov']}; color: {p['text']}; }}
+#taskbar button.active {{ background: {p['hov']}; color: {p['text']}; border-bottom-color: {p['title']}; }}
+#taskbar button.minimized {{ color: {p['hi']}; }}
+
+#tray, #wireplumber, #network, #battery, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 10px; margin: 4px 0 4px -1px; }}
+#tray {{ margin-left: 0; }}
+#wireplumber.muted, #network.disconnected {{ color: {p['dim']}; }}
+#battery.warning {{ color: {p['amber']}; }}
+#battery.critical {{ color: {p['rosehi']}; border-color: {p['rose']}; }}
+#clock {{ font-weight: bold; font-size: 15px; padding: 0 14px; }}
+#custom-power {{ color: {p['amber']}; border: 1px solid {p['amber']}; background: {p['view']}; font-weight: bold; padding: 0 12px; margin: 4px 6px 4px 6px; }}
+#custom-power:hover, #wireplumber:hover, #network:hover, #clock:hover {{ background: {p['hov']}; }}
+"""
+
+
+def rgba(h, a="ff"):
+    return h.lstrip("#") + a
+
+
+def fuzzel_version():
+    try:
+        out = subprocess.run(["fuzzel", "--version"], capture_output=True, text=True).stdout
+        return tuple(int(x) for x in out.split("version:")[1].split()[0].split(".")[:2])
+    except Exception:
+        return (0, 0)
+
+
+def fuzzel_ini(p):
+    """Options that older fuzzel versions refuse are left out for them."""
+    v = fuzzel_version()
+    newer = (1, 12) if v == (0, 0) else v   # not installed yet: assume Debian 13 (1.12)
+    text = fuzzel_ini_full(p).splitlines()
+    drop = set()
+    if newer < (1, 10):
+        drop |= {"anchor", "x-margin", "y-margin"}
+    if newer < (1, 12):
+        drop |= {"prompt", "input", "placeholder", "counter"}
+    keep = [l for l in text if not (l.split("=", 1)[0] in drop and "=" in l and not l.startswith("prompt=\""))]
+    return "\n".join(keep) + "\n"
+
+
+def fuzzel_ini_full(p):
+    return f"""# Glyph start menu (fuzzel) - made by glyph-theme, do not edit by hand.
+[main]
+font=IBM Plex Mono:size=11
+prompt="▸ "
+icons-enabled=no
+terminal=foot -e
+width=44
+lines=14
+horizontal-pad=14
+vertical-pad=10
+inner-pad=8
+line-height=22
+letter-spacing=0
+anchor=bottom-left
+x-margin=6
+y-margin=46
+layer=overlay
+exit-on-keyboard-focus-loss=yes
+
+[colors]
+background={rgba(p['panel'])}
+text={rgba(p['text'])}
+prompt={rgba(p['amber'])}
+input={rgba(p['text'])}
+placeholder={rgba(p['dim'])}
+match={rgba(p['amber'])}
+selection={rgba(p['title'])}
+selection-text={rgba(p['tink'])}
+selection-match={rgba(p['tink'])}
+counter={rgba(p['dim'])}
+border={rgba(p['title'])}
+
+[border]
+width=1
+radius=0
+"""
+
+
+def mako_conf(p):
+    return f"""# Glyph notifications (mako) - made by glyph-theme, do not edit by hand.
+font=IBM Plex Mono 11
+background-color={p['panel']}
+text-color={p['text']}
+border-color={p['title']}
+progress-color=over {p['hov']}
+border-size=1
+border-radius=0
+padding=10,12
+margin=10
+width=380
+max-visible=4
+anchor=top-right
+default-timeout=5000
+icons=0
+format=<b>%s</b>\\n%b
+
+[urgency=high]
+border-color={p['rose']}
+border-size=2
+default-timeout=0
+"""
+
+
+def swaylock_conf(p):
+    return f"""# Glyph lock screen (swaylock) - made by glyph-theme, do not edit by hand.
+color={p['view'].lstrip('#')}
+font=IBM Plex Mono
+font-size=20
+indicator-radius=90
+indicator-thickness=8
+show-failed-attempts
+ignore-empty-password
+indicator-idle-visible
+inside-color={rgba(p['panel'])}
+inside-clear-color={rgba(p['panel'])}
+inside-ver-color={rgba(p['panel'])}
+inside-wrong-color={rgba(p['panel'])}
+ring-color={rgba(p['title'])}
+ring-clear-color={rgba(p['dim'])}
+ring-ver-color={rgba(p['amber'])}
+ring-wrong-color={rgba(p['rose'])}
+key-hl-color={rgba(p['amber'])}
+bs-hl-color={rgba(p['rose'])}
+line-color=00000000
+line-clear-color=00000000
+line-ver-color=00000000
+line-wrong-color=00000000
+separator-color=00000000
+text-color={rgba(p['text'])}
+text-clear-color={rgba(p['text'])}
+text-ver-color={rgba(p['amber'])}
+text-wrong-color={rgba(p['rosehi'])}
+"""
+
+
+def write_outputs(p):
+    for sub, name, text in (("waybar", "style.css", waybar_css(p)),
+                            ("fuzzel", "fuzzel.ini", fuzzel_ini(p)),
+                            ("mako", "config", mako_conf(p)),
+                            ("swaylock", "config", swaylock_conf(p))):
+        d = CONF_DIR / sub
+        d.mkdir(parents=True, exist_ok=True)
+        (d / name).write_text(text)
+
 def reload_labwc(p):
     """Apply at once when Glyph is running: window colours and background."""
     if not os.environ.get("LABWC_PID"):
         return
     subprocess.run(["labwc", "--reconfigure"], check=False)
+    subprocess.run(["pkill", "-SIGUSR2", "-x", "waybar"], check=False)   # reload taskbar style
+    subprocess.run(["makoctl", "reload"], capture_output=True, check=False)
     if subprocess.run(["pgrep", "-x", "swaybg"], capture_output=True).returncode == 0:
         subprocess.run(["pkill", "-x", "swaybg"], check=False)
         subprocess.Popen(["swaybg", "-c", p["view"]], stdout=subprocess.DEVNULL,
@@ -260,6 +429,7 @@ def main():
     LABWC_THEME.mkdir(parents=True, exist_ok=True)
     (LABWC_THEME / "themerc").write_text(themerc(p, conf["mode"]))
     write_buttons(p)
+    write_outputs(p)
     # labwc 0.7 looks in openbox-3/, newer versions in labwc/: offer both
     ob = LABWC_THEME.parent / "openbox-3"
     if not ob.exists():

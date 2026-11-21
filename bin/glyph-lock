@@ -1,0 +1,5 @@
+#!/bin/sh
+# glyph-lock - lock the screen in the Glyph colours.
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/swaylock/config"
+pgrep -x swaylock >/dev/null && exit 0
+exec swaylock -f -C "$CONF"

@@ -1,0 +1,73 @@
+// Glyph - taskbar (step 2). Colours come from style.css, made by glyph-theme.
+{
+  "layer": "top",
+  "position": "bottom",
+  "height": 40,
+  "spacing": 0,
+  "modules-left": ["custom/start", "custom/ws1", "custom/ws2", "custom/ws3", "custom/ws4", "wlr/taskbar"],
+  "modules-right": ["tray", "wireplumber", "network", "battery", "clock", "custom/power"],
+
+  "custom/start": {
+    "format": "▸ START",
+    "tooltip-format": "Start menu (Super or Ctrl+Space)",
+    "on-click": "glyph-menu"
+  },
+
+  // workspaces: click to go there (labwc 0.8 has no workspace list for waybar yet)
+  "custom/ws1": { "format": "1", "tooltip-format": "Workspace 1 (Ctrl+Alt+1)", "on-click": "glyph-ws 1" },
+  "custom/ws2": { "format": "2", "tooltip-format": "Workspace 2 (Ctrl+Alt+2)", "on-click": "glyph-ws 2" },
+  "custom/ws3": { "format": "3", "tooltip-format": "Workspace 3 (Ctrl+Alt+3)", "on-click": "glyph-ws 3" },
+  "custom/ws4": { "format": "4", "tooltip-format": "Workspace 4 (Ctrl+Alt+4)", "on-click": "glyph-ws 4" },
+
+  // open windows: text only, no icons
+  "wlr/taskbar": {
+    "format": "{name}",
+    "tooltip-format": "{title}",
+    "on-click": "minimize-raise",
+    "on-click-middle": "close",
+    "on-click-right": "maximize",
+    "ignore-list": ["waybar"]
+  },
+
+  "tray": { "icon-size": 16, "spacing": 8 },
+
+  "wireplumber": {
+    "format": "VOL {volume}%",
+    "format-muted": "VOL muted",
+    "tooltip-format": "{node_name}\nScroll: volume · Click: mute",
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "scroll-step": 5,
+    "max-volume": 100
+  },
+
+  "network": {
+    "format-wifi": "NET {essid}",
+    "format-ethernet": "NET wired",
+    "format-linked": "NET no IP",
+    "format-disconnected": "NET off",
+    "tooltip-format-wifi": "{essid} · signal {signalStrength}%\n{ipaddr}\nClick: choose a network",
+    "tooltip-format-ethernet": "{ifname} · {ipaddr}",
+    "max-length": 22,
+    "on-click": "foot -T Wi-Fi nmtui"
+  },
+
+  "battery": {
+    "format": "BAT {capacity}%",
+    "format-charging": "BAT {capacity}% +",
+    "format-plugged": "BAT {capacity}% +",
+    "states": { "warning": 20, "critical": 10 },
+    "tooltip-format": "{timeTo}"
+  },
+
+  "clock": {
+    "format": "{:%H:%M}",
+    "format-alt": "{:%a %d %b  %H:%M}",
+    "tooltip-format": "{:%A %d %B %Y}"
+  },
+
+  "custom/power": {
+    "format": "POWER",
+    "tooltip-format": "Lock, log out, restart, shut down",
+    "on-click": "glyph-power"
+  }
+}

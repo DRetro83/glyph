@@ -1,7 +1,18 @@
-# Glyph - programs that start with the session (step 1)
-# Plain background in the Glyph "view" colour. A picture comes later.
-. "${XDG_CONFIG_HOME:-$HOME/.config}/glyph/palette.env" 2>/dev/null
+# Glyph - programs that start with the session
+G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+. "$G/palette.env" 2>/dev/null
+
+# background in the Glyph "view" colour (a picture comes later)
 swaybg -c "${GLYPH_VIEW:-#221f1b}" >/dev/null 2>&1 &
 
-# Let portals (screenshots, file pickers) know which session this is
+# taskbar at the bottom
+waybar -c "$G/waybar/config.jsonc" -s "$G/waybar/style.css" >/dev/null 2>&1 &
+
+# notifications (top right)
+mako -c "$G/mako/config" >/dev/null 2>&1 &
+
+# lock after 5 minutes, and always before sleep
+swayidle -w timeout 300 'glyph-lock' before-sleep 'glyph-lock' >/dev/null 2>&1 &
+
+# let portals (screenshots, file pickers) know which session this is
 dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP >/dev/null 2>&1 &

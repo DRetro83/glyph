@@ -1,0 +1,6 @@
+#!/bin/sh
+# glyph-menu - the start menu: type to search apps, Enter starts one.
+# Press it again (or Esc) to close.
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/fuzzel/fuzzel.ini"
+if pkill -x fuzzel 2>/dev/null; then exit 0; fi
+exec fuzzel --config="$CONF" "$@"

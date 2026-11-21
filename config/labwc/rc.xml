@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-  Glyph - labwc settings (step 1: windows, shortcuts, snapping, workspaces)
+  Glyph - labwc settings (windows, shortcuts, snapping, workspaces)
   Every shortcut also works with Ctrl+Alt, like in the prototype.
   Reload after a change: right-click the desktop -> Reload Glyph
 -->
@@ -76,9 +76,22 @@
     <repeatDelay>500</repeatDelay>
     <numlock>on</numlock>
 
+    <!-- start menu: tap Super, or Ctrl+Space -->
+    <keybind key="Super_L" onRelease="yes"><action name="Execute" command="glyph-menu" /></keybind>
+    <keybind key="C-space"><action name="Execute" command="glyph-menu" /></keybind>
+    <keybind key="W-space"><action name="Execute" command="glyph-menu" /></keybind>
+
     <!-- apps -->
     <keybind key="C-A-t"><action name="Execute" command="foot" /></keybind>
     <keybind key="W-e"><action name="Execute" command="thunar" /></keybind>
+
+    <!-- lock, power menu, screenshots -->
+    <keybind key="C-A-l"><action name="Execute" command="glyph-lock" /></keybind>
+    <keybind key="W-l"><action name="Execute" command="glyph-lock" /></keybind>
+    <keybind key="C-A-Delete"><action name="Execute" command="glyph-power" /></keybind>
+    <keybind key="Print"><action name="Execute" command="glyph-shot" /></keybind>
+    <keybind key="S-Print"><action name="Execute" command="glyph-shot area" /></keybind>
+    <keybind key="C-A-p"><action name="Execute" command="glyph-shot area" /></keybind>
 
     <!-- windows -->
     <keybind key="C-A-w"><action name="Close" /></keybind>

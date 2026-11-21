@@ -1,0 +1,20 @@
+#!/bin/sh
+# glyph-power - Lock, Log out, Restart, Shut down, as a text menu.
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/fuzzel/fuzzel.ini"
+pkill -x fuzzel 2>/dev/null
+
+pick() { fuzzel --config="$CONF" --dmenu --lines="$1" --width=26 --prompt="$2"; }
+
+choice=$(printf 'Lock\nLog out\nRestart\nShut down\nSuspend\n' | pick 5 "POWER ▸ ")
+case "$choice" in
+  Lock)      exec glyph-lock ;;
+  Suspend)   exec systemctl suspend ;;
+  "Log out"|Restart|"Shut down")
+    ok=$(printf 'No, go back\nYes, %s\n' "$(echo "$choice" | tr '[:upper:]' '[:lower:]')" | pick 2 "$choice? ")
+    case "$ok" in Yes*) ;; *) exit 0 ;; esac
+    case "$choice" in
+      "Log out")   exec labwc --exit ;;
+      Restart)     exec systemctl reboot ;;
+      "Shut down") exec systemctl poweroff ;;
+    esac ;;
+esac

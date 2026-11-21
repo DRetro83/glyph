@@ -38,7 +38,7 @@ Glyph is a complete desktop for Debian, put together from small open-source part
 | Part | What it does |
 |---|---|
 | **Windows** | Square windows with a coloured title bar and **_ □ ×** buttons. Drag a window to an edge for half the screen, or to the top to maximize it. Four workspaces. |
-| **Taskbar** | At the bottom: ▸ START, workspaces, your open windows, the tray (SETTINGS ▴), the clock and the power button. |
+| **Taskbar** | At the bottom: ▸ START, workspaces, your open windows, volume, network, battery, the clock and POWER. |
 | **Start menu** | Categories on the left, apps on the right. One search box finds apps, settings and files. |
 | **Quick settings** | Wi-Fi, Bluetooth, mobile data, volume, brightness, power profile, night light, do not disturb and USB drives. |
 | **Settings** | Appearance, display, sound, keyboard, mouse, printers, power, disks, users, date, language, privacy, default apps, accessibility and updates. |
@@ -65,14 +65,22 @@ cd glyph
 
 Then log out. At the login screen, pick **Glyph** in the session list (in SDDM it is bottom left) and sign in. To go back, log out and pick your old desktop again.
 
-![Glyph step 1 running for real on labwc](docs/img/labwc-step1.png)
+![Glyph running for real: taskbar, start menu and a notification](docs/img/glyph-desktop.png)
 
-<sub>Step 1, running for real on labwc: Glyph title bars and buttons, IBM Plex Mono. The taskbar and start menu come in the next steps.</sub>
+<sub>Glyph running for real on labwc: the taskbar, the start menu (fuzzel) and a notification (mako). Thunar gets the Glyph look in step 6.</sub>
 
-### Keys (step 1)
+| Power menu | Lock screen |
+|---|---|
+| ![Power menu: Lock, Log out, Restart, Shut down, Suspend](docs/img/glyph-power.png) | ![Lock screen in the Glyph colours](docs/img/glyph-lock.png) |
+
+### Keys
 
 | Do this | Keys |
 |---|---|
+| Start menu | tap Super, or Ctrl+Space, or click ▸ START |
+| Power menu (lock, log out, restart, shut down) | click POWER, or Ctrl+Alt+Delete |
+| Lock the screen | Ctrl+Alt+L or Super+L |
+| Screenshot of the screen / an area | Print / Shift+Print (or Ctrl+Alt+P) |
 | Open the desktop menu | right-click the desktop, or Ctrl+Alt+M |
 | Terminal | Ctrl+Alt+T |
 | Files | Super+E |
@@ -91,9 +99,9 @@ Glyph is built in six steps. Each step is tested before the next one starts.
 | Step | What | Built with | Status |
 |---|---|---|---|
 | 1 | **Windows**: title bars, buttons, snapping, workspaces, right-click menu, the Glyph colours | labwc, glyph-theme | ✅ done |
-| 2 | **Taskbar** at the bottom | waybar | ⏳ next |
-| 3 | **Start menu, notifications, lock screen** | fuzzel / wofi, mako, swaylock / gtklock | |
-| 4 | **Quick settings and panels** | eww, NetworkManager, BlueZ, PipeWire, udisks2 | |
+| 2 | **Taskbar** at the bottom: START, workspaces, windows, volume, network, battery, clock, POWER | waybar | ✅ done |
+| 3 | **Start menu, power menu, notifications, lock screen, screenshots** | fuzzel, mako, swaylock + swayidle, grim + slurp | ✅ done |
+| 4 | **Quick settings and panels** | eww, NetworkManager, BlueZ, PipeWire, udisks2 | ⏳ next |
 | 5 | **Start-up and sign-in** | GRUB theme, Plymouth, greetd + tuigreet | |
 | 6 | **Your apps in the Glyph look** | gtk.css, Kvantum, Firefox and Vivaldi themes | |
 
@@ -127,14 +135,15 @@ glyph-update               # newest Glyph from GitHub; your look and settings ar
 | `~/.config/glyph/labwc/` | the window manager settings, only used in the Glyph session |
 | `~/.config/glyph/theme.conf` | your mode and colour |
 | `~/.local/share/themes/Glyph/` | the theme that glyph-theme makes |
-| `/usr/local/bin/glyph-*` | glyph-session, glyph-theme, glyph-update |
+| `~/.config/glyph/waybar/`, `fuzzel/`, `mako/`, `swaylock/` | taskbar, menus, notifications and lock screen; the colours are made by glyph-theme |
+| `/usr/local/bin/glyph-*` | glyph-session, glyph-theme, glyph-update, glyph-menu, glyph-power, glyph-lock, glyph-shot, glyph-ws |
 | `/usr/share/wayland-sessions/glyph.desktop` | the entry on the login screen |
 
 </details>
 
 ## Built with
 
-[labwc](https://labwc.github.io/) · [waybar](https://github.com/Alexays/Waybar) · [foot](https://codeberg.org/dnkl/foot) · [Thunar](https://docs.xfce.org/xfce/thunar/start) · [Mousepad](https://docs.xfce.org/apps/mousepad/start) · [IBM Plex Mono](https://www.ibm.com/plex/) · [Debian](https://www.debian.org/)
+[labwc](https://labwc.github.io/) · [waybar](https://github.com/Alexays/Waybar) · [fuzzel](https://codeberg.org/dnkl/fuzzel) · [mako](https://github.com/emersion/mako) · [swaylock](https://github.com/swaywm/swaylock) · [foot](https://codeberg.org/dnkl/foot) · [Thunar](https://docs.xfce.org/xfce/thunar/start) · [Mousepad](https://docs.xfce.org/apps/mousepad/start) · [IBM Plex Mono](https://www.ibm.com/plex/) · [Debian](https://www.debian.org/)
 
 ## Licence
 
