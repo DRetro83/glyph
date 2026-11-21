@@ -178,7 +178,10 @@ class Desk(Gtk.Window):
                 self.pix = None
 
     def c(self, key, a=1.0):
-        return rgb(self.pal.get("GLYPH_" + key.upper()), a)
+        col = rgb(self.pal.get("GLYPH_" + key.upper()), a)
+        if key == "tan" and self.theme.get("mode") == "light":
+            col = (col[0] * 0.6, col[1] * 0.6, col[2] * 0.6, col[3])   # darker on a light desktop
+        return col
 
     def background(self, w, h):
         surf = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
@@ -203,7 +206,8 @@ class Desk(Gtk.Window):
                 cr.restore()
         else:
             # fine scan lines, like an old screen
-            cr.set_source_rgba(*self.c("lo", 0.35))
+            light = self.theme.get("mode") == "light"
+            cr.set_source_rgba(*(self.c("hi", 0.18) if light else self.c("lo", 0.35)))
             for y in range(0, h, 3):
                 cr.rectangle(0, y, w, 1)
             cr.fill()
