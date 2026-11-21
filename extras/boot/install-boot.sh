@@ -22,6 +22,8 @@ done
 [ -n "$PARTS" ] || PARTS="sddm grub plymouth"
 [ "$(id -u)" = 0 ] && { echo "Run this as yourself, not as root. It asks for your password when needed."; exit 1; }
 run() { if [ $DRY = 1 ]; then echo "  would run: $*"; else "$@"; fi; }
+# system tools live in /usr/sbin, which is not in a normal user's PATH on Debian
+PATH="$PATH:/usr/sbin:/sbin"
 has() { command -v "$1" >/dev/null 2>&1; }
 want() { case " $PARTS " in *" $1 "*) return 0 ;; esac; return 1; }
 
@@ -76,7 +78,7 @@ if want plymouth; then
     "$HERE/plymouth/glyph/glyph.script.in" > "$TMP/plymouth/glyph.script"
   cp "$HERE/plymouth/glyph/glyph.plymouth" "$TMP/plymouth/"
   echo "- Plymouth start-up screen"
-  if [ $DRY = 0 ] && [ ! -f $STATE/plymouth-before ]; then plymouth-set-default-theme 2>/dev/null | sudo tee $STATE/plymouth-before >/dev/null || true; fi
+  if [ $DRY = 0 ] && [ ! -f $STATE/plymouth-before ]; then sudo plymouth-set-default-theme 2>/dev/null | sudo tee $STATE/plymouth-before >/dev/null || true; fi
   run sudo rm -rf /usr/share/plymouth/themes/glyph
   run sudo cp -r "$TMP/plymouth" /usr/share/plymouth/themes/glyph
   run sudo plymouth-set-default-theme -R glyph
