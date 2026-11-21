@@ -6,13 +6,21 @@
 #
 # Usage:  ./install.sh          install or update
 #         ./install.sh --check  only show what would happen
+#         ./install.sh --plain-titlebars   keep Debian's own labwc (no stripes)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
 GLYPH_CONF="$CONF/glyph"
 CHECK=0
-[[ "${1:-}" == "--check" ]] && CHECK=1
+PLAIN=0
+for a in "$@"; do
+  case "$a" in
+    --check) CHECK=1 ;;
+    --plain-titlebars) PLAIN=1 ;;
+  esac
+done
+LABWC_GLYPH_URL="https://github.com/DRetro83/glyph/releases/download/labwc-glyph/labwc_0.8.3-1%2Bglyph1_amd64.deb"
 
 PACKAGES=(
   labwc            # window manager (Wayland)
@@ -61,6 +69,27 @@ say "Installing packages (asks for your password)"
 run sudo apt-get update
 run sudo apt-get install -y "${PACKAGES[@]}"
 ok "packages"
+
+# 1b. labwc-glyph: Debian's labwc with Glyph's small titlebar patch (stripes and
+#     the boxed "■ TITLE"). Built on GitHub from Debian's own source. KDE does
+#     not use labwc, so nothing else changes. Skip with --plain-titlebars.
+if (( ! PLAIN )) && [[ "$(dpkg --print-architecture)" == "amd64" ]]; then
+  have=$(dpkg-query -W -f='${Version}' labwc 2>/dev/null || true)
+  if [[ "$have" == "0.8.3-1" ]]; then
+    TMPD=$(mktemp -d)
+    if run python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' \
+         "$LABWC_GLYPH_URL" "$TMPD/labwc_0.8.3-1+glyph1_amd64.deb"; then
+      run sudo apt-get install -y "$TMPD/labwc_0.8.3-1+glyph1_amd64.deb" && ok "labwc-glyph (striped title bars)"
+    else
+      say "Could not download labwc-glyph; keeping Debian's labwc (plain title bars)."
+    fi
+    rm -rf "$TMPD"
+  elif [[ "$have" == *glyph* ]]; then
+    ok "labwc-glyph already installed"
+  else
+    say "labwc $have is not the version the Glyph patch was made for; keeping it (plain title bars)."
+  fi
+fi
 
 # 2. your Glyph settings (old ones are kept as a backup)
 if [[ -d "$GLYPH_CONF/labwc" ]] && (( ! CHECK )); then

@@ -19,6 +19,12 @@ for f in "$CONF/qt5ct/qt5ct.conf" "$CONF/qt6ct/qt6ct.conf"; do grep -qs "Glyph.c
 grep -qs "Glyph colours come from" "$CONF/foot/foot.ini" && rm -f "$CONF/foot/foot.ini"
 for css in "$HOME"/.mozilla/firefox/*/chrome/userChrome.css; do head -c 8 "$css" 2>/dev/null | grep -q "glyph" && rm -f "$css"; done
 
+# labwc-glyph back to Debian's own labwc
+if dpkg-query -W -f='${Version}' labwc 2>/dev/null | grep -q glyph; then
+  echo ":: Putting back Debian's own labwc"
+  sudo apt-get install -y --allow-downgrades "labwc=0.8.3-1" || true
+fi
+
 if [[ "${1:-}" == "--packages" ]]; then
   echo ":: Removing the packages Glyph added"
   sudo apt-get remove -y labwc swaybg xdg-desktop-portal-wlr brightnessctl waybar fuzzel mako-notifier swaylock swayidle wtype

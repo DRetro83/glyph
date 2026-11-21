@@ -22,7 +22,7 @@ The design is the HTML prototype ("Glyph desktop"). The real desktop is built in
 
 ## Notes on labwc
 
-- A title bar can be a solid colour or a top-to-bottom gradient (Vertical or SplitVertical). The fine stripes of the prototype cannot be drawn by labwc, so Glyph uses solid title bars.
+- Standard labwc 0.8 draws only a solid title bar. Glyph therefore ships **labwc-glyph**: Debian's labwc 0.8.3 with a small patch (`extras/labwc/glyph-titlebar.patch`) for fine stripes, the boxed "■ TITLE" and capital titles. GitHub Actions builds and tests it from Debian's source; `install.sh` installs it (skip with `--plain-titlebars`), `uninstall.sh` puts Debian's labwc back.
 - Debian 13 ships labwc 0.8. labwc 0.7 looks for themes in `themes/<name>/openbox-3/` and 0.8 in `themes/<name>/labwc/`. glyph-theme fills both.
 
 ## Notes on steps 2 and 3

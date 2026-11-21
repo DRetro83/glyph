@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 · closer to the design · 2026-11-21
+
+- Own **start menu** (glyph-start): categories, letter tiles, favourites, search, power; KDE helper apps hidden
+- Own **desktop** (glyph-desk): scan lines, corner marks, big clock with date, uptime, battery, power and network
+- **Taskbar** as in the design: filled START, lit workspace, windows with letter tile and short name
+- **Title bars** with fine stripes and the boxed "■ TITLE", via labwc-glyph (Debian's labwc with a small patch)
+
 ## 0.3.0 · steps 4, 5 and 6 · 2026-11-21
 
 - **Quick settings** (SETTINGS ▴ on the taskbar): Wi-Fi with a network list and password, Bluetooth, mobile data, airplane mode, do not disturb, night light, volume, brightness, power profile, battery and USB drives (open, mount, eject)
