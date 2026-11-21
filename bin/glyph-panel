@@ -481,6 +481,17 @@ def run_panel(kind):
     foot.get_style_context().add_class("pfoot")
     outer.pack_start(foot, False, False, 0)
 
+    def endspace():
+        e = Gtk.Box()
+        e.get_style_context().add_class("endbtn")
+        return e
+
+    def short(lab, chars=16):
+        lab.set_ellipsize(3)
+        lab.set_max_width_chars(chars)
+        lab.set_width_chars(1)
+        return lab
+
     def tile_label(ch):
         t = Gtk.Label(label=ch)
         t.set_xalign(0.5)
@@ -627,7 +638,7 @@ def run_panel(kind):
                         r.get_style_context().add_class("row")
                         bars = "▮" * max(1, round(n["sig"] / 25)) + "▯" * (4 - max(1, round(n["sig"] / 25)))
                         r.pack_start(label(bars, "sig"), False, False, 0)
-                        nm = label(n["ssid"] + ("  ✓ connected" if n["cur"] else ""), "on" if n["cur"] else None)
+                        nm = short(label(n["ssid"] + ("  ✓" if n["cur"] else ""), "on" if n["cur"] else None), 22)
                         nm.set_ellipsize(3)
                         r.pack_start(nm, True, True, 0)
                         if n["ssid"] in state["busy"]:
@@ -689,7 +700,7 @@ def run_panel(kind):
                         r = Gtk.Box(spacing=8)
                         r.get_style_context().add_class("row")
                         r.pack_start(tile_label(d["name"][:1].upper()), False, False, 0)
-                        r.pack_start(label(d["name"] + ("  ✓ connected" if d["on"] else ""), "on" if d["on"] else None), True, True, 0)
+                        r.pack_start(short(label(d["name"] + ("  ✓" if d["on"] else ""), "on" if d["on"] else None), 22), True, True, 0)
                         if d["mac"] in state["busy"]:
                             r.pack_end(label("…", "amber"), False, False, 0)
                         else:
@@ -717,8 +728,8 @@ def run_panel(kind):
                     r.get_style_context().add_class("row")
                     r.pack_start(tile_label("U"), False, False, 0)
                     v2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    v2.pack_start(label(d["label"], "tn"), False, False, 0)
-                    v2.pack_start(label(f"{d['size']} · " + (d["mnt"] if d["mnt"] else "not mounted"), "ts"), False, False, 0)
+                    v2.pack_start(short(label(d["label"], "tn")), False, False, 0)
+                    v2.pack_start(short(label(f"{d['size']} · " + (Path(d["mnt"]).name if d["mnt"] else "not mounted"), "ts")), False, False, 0)
                     r.pack_start(v2, True, True, 0)
                     if d["path"] in state["busy"]:
                         r.pack_end(label("…", "amber"), False, False, 0)
@@ -788,7 +799,8 @@ def run_panel(kind):
                                                        val.set_text(f"{int(s.get_value())}%")))
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
-                row.pack_start(button("ON" if muted else "MUTE", lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)), "small"), False, False, 0)
+                mb = button("ON" if muted else "MUTE", lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)), "small endbtn")
+                row.pack_start(mb, False, False, 0)
                 body.pack_start(row, False, False, 0)
             br = brightness()
             if br is not None:
@@ -802,6 +814,7 @@ def run_panel(kind):
                 sc.connect("value-changed", lambda s: (sh(["brightnessctl", "-q", "set", f"{int(s.get_value())}%"]), val.set_text(f"{int(s.get_value())}%")))
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
+                row.pack_start(endspace(), False, False, 0)
                 body.pack_start(row, False, False, 0)
             elif has("ddcutil"):
                 # a desktop monitor: brightness over the cable (DDC/CI); slow, so in the background
@@ -833,6 +846,7 @@ def run_panel(kind):
                 sc.connect("value-changed", set_ddc)
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
+                row.pack_start(endspace(), False, False, 0)
                 body.pack_start(row, False, False, 0)
 
                 def read_real(sc=sc, val=val):
