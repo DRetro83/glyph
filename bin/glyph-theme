@@ -7,8 +7,10 @@ Writes  ~/.local/share/themes/Glyph/labwc/themerc and the title bar buttons,
         ~/.config/glyph/fuzzel/fuzzel.ini  (start menu, power menu)
         ~/.config/glyph/mako/config        (notifications)
         ~/.config/glyph/swaylock/config    (lock screen)
+        ~/.config/glyph/panel/panel.css    (quick settings, calendar)
 
-Later steps add more outputs here (gtk.css, foot, Firefox, Vivaldi ...). Every output is made from the same palette, so the whole
+Apps: the Glyph GTK theme (gtk-3.0, gtk-4.0), qt6ct/qt5ct colours, foot colours,
+and Firefox (userChrome.css) and Vivaldi (CSS) when browsers=yes in theme.conf. Every output is made from the same palette, so the whole
 desktop always matches.
 
 Usage:
@@ -20,6 +22,7 @@ Usage:
 import argparse
 import colorsys
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -123,10 +126,11 @@ def read_conf():
 
 def write_conf(conf):
     CONF_DIR.mkdir(parents=True, exist_ok=True)
+    extra = "".join(f"{k}={v}\n" for k, v in conf.items() if k not in ("mode", "colour"))
     THEME_CONF.write_text(
         "# Glyph look. Change it here or in Settings -> Appearance,\n"
         "# then run: glyph-theme\n"
-        f"mode={conf['mode']}\ncolour={conf['colour']}\n")
+        f"mode={conf['mode']}\ncolour={conf['colour']}\n" + extra)
 
 
 # ---------- outputs ----------
@@ -248,14 +252,16 @@ button {{ border: none; }}
 #taskbar button.active {{ background: {p['hov']}; color: {p['text']}; border-bottom-color: {p['title']}; }}
 #taskbar button.minimized {{ color: {p['hi']}; }}
 
-#tray, #wireplumber, #network, #battery, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 10px; margin: 4px 0 4px -1px; }}
+#tray, #custom-settings, #wireplumber, #network, #battery, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 10px; margin: 4px 0 4px -1px; }}
 #tray {{ margin-left: 0; }}
 #wireplumber.muted, #network.disconnected {{ color: {p['dim']}; }}
 #battery.warning {{ color: {p['amber']}; }}
 #battery.critical {{ color: {p['rosehi']}; border-color: {p['rose']}; }}
 #clock {{ font-weight: bold; font-size: 15px; padding: 0 14px; }}
 #custom-power {{ color: {p['amber']}; border: 1px solid {p['amber']}; background: {p['view']}; font-weight: bold; padding: 0 12px; margin: 4px 6px 4px 6px; }}
-#custom-power:hover, #wireplumber:hover, #network:hover, #clock:hover {{ background: {p['hov']}; }}
+#custom-power:hover, #custom-settings:hover, #wireplumber:hover, #network:hover, #clock:hover {{ background: {p['hov']}; }}
+#custom-settings {{ font-weight: bold; letter-spacing: 1px; padding: 0 12px; }}
+#custom-settings.low {{ color: {p['amber']}; }}
 """
 
 
@@ -346,6 +352,9 @@ format=<b>%s</b>\\n%b
 border-color={p['rose']}
 border-size=2
 default-timeout=0
+
+[mode=do-not-disturb]
+invisible=1
 """
 
 
@@ -381,14 +390,330 @@ text-wrong-color={rgba(p['rosehi'])}
 """
 
 
+def panel_css(p):
+    stripes = f"repeating-linear-gradient(to bottom, {p['title']} 0px, {p['title']} 2px, shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 4px)"
+    return f"""/* Glyph quick settings and calendar - made by glyph-theme */
+#glyph-panel {{ background: transparent; }}
+.panel, .panel * {{ font-family: "IBM Plex Mono", monospace; }}
+.panel {{ font-size: 13px; background: {p['panel']}; color: {p['text']}; border: 1px solid {p['title']}; box-shadow: 6px 6px 0 0 {p['lo']}; }}
+.ptitle {{ background-image: {stripes}; min-height: 28px; padding-left: 8px; }}
+.ptitle .pt {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; padding: 1px 8px; border: 1px solid shade({p['title']}, 0.7); margin: 4px 0; letter-spacing: 1px; }}
+.ptitle .px {{ background: {p['title']}; color: {p['tink']}; border: none; border-left: 1px solid shade({p['title']}, 0.7); border-radius: 0; min-width: 30px; padding: 0; font-weight: bold; box-shadow: none; }}
+.pbody {{ padding: 12px; }}
+.pfoot {{ padding: 8px 12px 12px 12px; border-top: 1px solid {p['hi']}; }}
+button {{ background: {p['view']}; color: {p['text']}; border: 1px solid {p['hi']}; border-radius: 0; box-shadow: none; text-shadow: none; padding: 6px 10px; min-height: 0; background-image: none; }}
+button:hover {{ background: {p['hov']}; }}
+button.amber {{ color: {p['amber']}; border-color: {p['amber']}; }}
+button.small {{ padding: 2px 10px; }}
+button.on, button.seg.on {{ border-color: {p['amber']}; color: {p['amber']}; background: {p['hov']}; }}
+.tog {{ padding: 8px 10px; min-height: 52px; }}
+.tog.on {{ background: {p['title']}; border-color: {p['title']}; }}
+.tog.on label {{ color: {p['tink']}; }}
+.tog .tn, .tn {{ font-weight: bold; }}
+.tog .ts, .ts {{ font-size: 11px; color: {p['dim']}; }}
+.tog.on .ts {{ color: {p['tink']}; }}
+.lab {{ font-size: 11px; color: {p['dim']}; letter-spacing: 2px; margin-top: 4px; }}
+.dim {{ color: {p['dim']}; }}
+.amber {{ color: {p['amber']}; }}
+.err {{ color: {p['rosehi']}; }}
+label.on {{ color: {p['greenhi']}; }}
+.sig {{ color: {p['tan']}; }}
+.list {{ border: 1px solid {p['hi']}; }}
+.list .row {{ padding: 6px 8px; border-bottom: 1px solid {p['hov']}; }}
+.tile {{ background: {p['tan']}; color: {p['tink']}; font-weight: bold; min-width: 24px; min-height: 24px; }}
+scale trough {{ background: {p['hov']}; border: none; border-radius: 0; min-height: 6px; }}
+scale highlight {{ background: {p['title']}; border-radius: 0; }}
+scale slider {{ background: {p['text']}; border: none; border-radius: 0; min-width: 12px; min-height: 18px; box-shadow: none; }}
+entry {{ background: {p['view']}; color: {p['text']}; border: 1px solid {p['hi']}; border-radius: 0; box-shadow: none; padding: 4px 8px; }}
+entry:focus {{ border-color: {p['amber']}; }}
+.bigclock {{ font-size: 40px; font-weight: bold; color: {p['tan']}; }}
+.day {{ padding: 4px 0; }}
+.day.today {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; }}
+scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
+/* Settings window */
+.settings {{ box-shadow: none; border: none; }}
+.settings .side {{ background: {p['panel']}; border-right: 1px solid {p['hi']}; padding: 6px 0; }}
+.settings .sidehead {{ padding: 10px 14px 2px 14px; }}
+.settings button.nav {{ border: none; border-left: 3px solid transparent; background: transparent; padding: 7px 12px; }}
+.settings button.nav:hover {{ background: {p['hov']}; }}
+.settings button.nav.cur {{ background: {p['hov']}; border-left-color: {p['title']}; }}
+.settings button.nav.cur label {{ font-weight: bold; }}
+.settings .page {{ padding: 18px 22px; background: {p['view']}; }}
+.settings .h3 {{ font-size: 20px; font-weight: bold; }}
+.settings .h1 {{ font-size: 24px; font-weight: bold; color: {p['tan']}; }}
+.settings button.togrow {{ padding: 10px 12px; }}
+.settings .state {{ padding: 2px 10px; background: {p['hov']}; color: {p['dim']}; font-weight: bold; }}
+.settings .state.on {{ background: {p['title']}; color: {p['tink']}; }}
+.settings .kv label {{ padding: 1px 0; }}
+.settings flowboxchild {{ padding: 0; }}
+"""
+
+
 def write_outputs(p):
     for sub, name, text in (("waybar", "style.css", waybar_css(p)),
                             ("fuzzel", "fuzzel.ini", fuzzel_ini(p)),
                             ("mako", "config", mako_conf(p)),
-                            ("swaylock", "config", swaylock_conf(p))):
+                            ("swaylock", "config", swaylock_conf(p)),
+                            ("panel", "panel.css", panel_css(p))):
         d = CONF_DIR / sub
         d.mkdir(parents=True, exist_ok=True)
         (d / name).write_text(text)
+
+# ---------- step 6: apps in the Glyph look ----------
+def gtk_css(p, mode, gtk4=False):
+    if gtk4:
+        base = "Default-light.css" if mode == "light" else "Default-dark.css"
+        imp = f'@import url("resource:///org/gtk/libgtk/theme/Default/{base}");'
+    else:
+        base = "gtk-contained.css" if mode == "light" else "gtk-contained-dark.css"
+        imp = f'@import url("resource:///org/gtk/libgtk/theme/Adwaita/{base}");'
+    return f"""/* Glyph GTK theme - made by glyph-theme, do not edit by hand. */
+{imp}
+
+* {{ border-radius: 0; font-family: "IBM Plex Mono", monospace; -gtk-outline-radius: 0; }}
+window, .background, dialog {{ background-color: {p['view']}; color: {p['text']}; }}
+headerbar, .titlebar, toolbar, .toolbar, actionbar {{ background: {p['panel']}; color: {p['text']}; border-color: {p['hi']}; box-shadow: none; }}
+menubar, .menubar {{ background: {p['panel']}; border-bottom: 1px solid {p['hi']}; }}
+menubar > menuitem:hover, menubar > item:hover {{ background: {p['title']}; color: {p['tink']}; box-shadow: none; }}
+menu, .menu, .context-menu, popover, popover.background, popover > contents {{ background: {p['panel']}; color: {p['text']}; border: 1px solid {p['title']}; box-shadow: none; }}
+menu menuitem:hover, modelbutton:hover, popover modelbutton:hover, menu menuitem:hover label, popover.menu box.inline-buttons button:hover {{ background: {p['title']}; color: {p['tink']}; }}
+button {{ background-image: none; background-color: {p['view']}; color: {p['text']}; border: 1px solid {p['hi']}; box-shadow: none; text-shadow: none; -gtk-icon-shadow: none; }}
+button:hover {{ background-color: {p['hov']}; }}
+button:active, button:checked {{ background-color: {p['hov']}; border-color: {p['amber']}; color: {p['amber']}; }}
+button.flat {{ border-color: transparent; background: transparent; }}
+button.flat:hover {{ background: {p['hov']}; }}
+button.suggested-action {{ background: {p['view']}; border-color: {p['amber']}; color: {p['amber']}; }}
+button.destructive-action {{ background: {p['view']}; border-color: {p['rose']}; color: {p['rosehi']}; }}
+button.titlebutton {{ border: none; }}
+entry, spinbutton, spinbutton entry {{ background: {p['panel']}; color: {p['text']}; border: 1px solid {p['hi']}; box-shadow: none; }}
+entry:focus, entry:focus-within {{ border-color: {p['amber']}; box-shadow: none; outline: none; }}
+.view, treeview.view, iconview, textview, textview text, list, listview, columnview, gridview, scrolledwindow viewport, .content-view {{ background-color: {p['view']}; color: {p['text']}; }}
+row:hover, .view:hover:not(:selected) {{ background-color: {p['hov']}; }}
+selection, *:selected, row:selected, treeview.view:selected, iconview:selected, .view:selected, .view text selection, flowboxchild:selected, label selection, entry selection, textview text selection {{ background-color: {p['title']}; color: {p['tink']}; }}
+.sidebar, placessidebar, placessidebar list, .navigation-sidebar, stacksidebar {{ background-color: {p['panel']}; border-color: {p['hi']}; }}
+placessidebar row:selected, .navigation-sidebar row:selected {{ background: {p['hov']}; color: {p['text']}; box-shadow: inset 3px 0 0 {p['title']}; }}
+treeview.view header button, columnview header button {{ background: {p['panel']}; color: {p['dim']}; border: none; border-bottom: 1px solid {p['hi']}; border-right: 1px solid {p['hov']}; }}
+notebook > header, notebook > header.top {{ background: {p['panel']}; border-color: {p['hi']}; box-shadow: none; }}
+notebook > header tab {{ border: none; color: {p['dim']}; }}
+notebook > header tab:checked {{ background: {p['view']}; color: {p['text']}; box-shadow: inset 0 2px 0 {p['title']}; }}
+notebook > stack:not(:only-child) {{ background-color: {p['view']}; }}
+scrollbar {{ background: transparent; border: none; }}
+scrollbar slider {{ background-color: {p['hi']}; min-width: 6px; min-height: 6px; border: none; }}
+scrollbar slider:hover {{ background-color: {p['tanlo']}; }}
+check, radio, checkbutton check, radiobutton radio {{ background: {p['panel']}; border: 1px solid {p['hi']}; color: {p['tink']}; box-shadow: none; background-image: none; }}
+check:checked, radio:checked {{ background: {p['title']}; border-color: {p['title']}; }}
+switch {{ background: {p['hov']}; border: 1px solid {p['hi']}; }}
+switch:checked {{ background: {p['title']}; }}
+switch slider {{ background: {p['text']}; border: none; box-shadow: none; }}
+scale trough, progressbar trough, levelbar trough {{ background: {p['hov']}; border: none; box-shadow: none; }}
+scale highlight, progressbar progress, levelbar block.filled {{ background: {p['title']}; border: none; }}
+scale slider {{ background: {p['text']}; border: none; box-shadow: none; }}
+tooltip, tooltip.background {{ background: {p['panel']}; border: 1px solid {p['title']}; box-shadow: none; }}
+tooltip label, tooltip * {{ color: {p['text']}; }}
+.dim-label, label.dim-label {{ color: {p['dim']}; opacity: 1; }}
+statusbar, .statusbar {{ background: {p['panel']}; border-top: 1px solid {p['hi']}; color: {p['dim']}; }}
+infobar, infobar > revealer > box {{ background: {p['hov']}; color: {p['text']}; border: none; }}
+infobar.warning > revealer > box, infobar.error > revealer > box {{ background: {p['rose']}; color: #ffffff; }}
+separator {{ background: {p['hi']}; }}
+frame > border, .frame {{ border-color: {p['hi']}; }}
+link, *:link {{ color: {p['amber']}; }}
+"""
+
+
+def qt_colors(p):
+    def c(h):
+        return "#ff" + h.lstrip("#")
+    # WindowText Button Light Midlight Dark Mid Text BrightText ButtonText Base Window Shadow Highlight
+    # HighlightedText Link LinkVisited AlternateBase NoRole ToolTipBase ToolTipText PlaceholderText
+    act = [p['text'], p['view'], p['hi'], p['hov'], p['lo'], p['hi'], p['text'], "#ffffff", p['text'], p['view'],
+           p['view'], p['lo'], p['title'], p['tink'], p['amber'], p['tanhi'], p['panel'], p['lo'], p['panel'], p['text'], p['dim']]
+    dis = [p['dim'] if i in (0, 6, 8) else v for i, v in enumerate(act)]
+    row = lambda lst: ", ".join(c(x) for x in lst)
+    return f"""[ColorScheme]
+active_colors={row(act)}
+disabled_colors={row(dis)}
+inactive_colors={row(act)}
+"""
+
+
+def qt_conf(colors_path, qt="qt6ct"):
+    font = '"IBM Plex Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"'
+    return f"""[Appearance]
+color_scheme_path={colors_path}
+custom_palette=true
+icon_theme=Adwaita
+standard_dialogs=default
+style=Fusion
+
+[Fonts]
+fixed={font}
+general={font}
+"""
+
+
+def foot_ini(p):
+    h = lambda x: x.lstrip("#")
+    return f"""# Glyph colours for foot - made by glyph-theme, do not edit by hand.
+[main]
+font=IBM Plex Mono:size=11
+pad=10x8
+
+[cursor]
+color={h(p['view'])} {h(p['amber'])}
+
+[colors]
+background={h(p['view'])}
+foreground={h(p['text'])}
+selection-background={h(p['title'])}
+selection-foreground={h(p['tink'])}
+regular0={h(p['lo'])}
+regular1={h(p['rose'])}
+regular2={h(p['green'])}
+regular3={h(p['amber'])}
+regular4=4a6a8a
+regular5=9a6a8a
+regular6=6a9a8a
+regular7={h(p['dim'])}
+bright0={h(p['hi'])}
+bright1={h(p['rosehi'])}
+bright2={h(p['greenhi'])}
+bright3={h(p['olivehi'])}
+bright4=8fb0c8
+bright5=c890b0
+bright6=90c8b8
+bright7={h(p['text'])}
+"""
+
+
+def firefox_css(p):
+    return f"""/* glyph - made by glyph-theme. Delete this file (or turn it off in Settings) to go back. */
+:root {{
+  --toolbar-bgcolor: {p['panel']} !important; --toolbar-color: {p['text']} !important;
+  --lwt-accent-color: {p['lo']} !important; --lwt-text-color: {p['text']} !important;
+  --tab-selected-bgcolor: {p['view']} !important; --tab-selected-textcolor: {p['text']} !important;
+  --toolbar-field-background-color: {p['view']} !important; --toolbar-field-color: {p['text']} !important;
+  --toolbar-field-focus-background-color: {p['view']} !important; --toolbar-field-focus-color: {p['text']} !important;
+  --toolbar-field-border-color: {p['hi']} !important; --toolbar-field-focus-border-color: {p['amber']} !important;
+  --arrowpanel-background: {p['panel']} !important; --arrowpanel-color: {p['text']} !important; --arrowpanel-border-color: {p['title']} !important;
+  --toolbarbutton-border-radius: 0 !important; --tab-border-radius: 0 !important; --arrowpanel-border-radius: 0 !important;
+  --urlbar-icon-border-radius: 0 !important; --toolbarbutton-icon-fill: {p['text']} !important;
+}}
+* {{ font-family: "IBM Plex Mono", monospace !important; }}
+#navigator-toolbox {{ background: {p['panel']} !important; border-bottom: 1px solid {p['hi']} !important; }}
+#TabsToolbar {{ background: {p['lo']} !important; }}
+.tab-background {{ border-radius: 0 !important; box-shadow: none !important; }}
+.tab-background:is([selected], [multiselected]) {{ background: {p['view']} !important; border-top: 2px solid {p['title']} !important; }}
+#urlbar-background, #searchbar {{ border-radius: 0 !important; }}
+menupopup, panel {{ --panel-border-radius: 0 !important; }}
+"""
+
+
+def vivaldi_css(p):
+    return f"""/* glyph - made by glyph-theme. Vivaldi: vivaldi://experiments -> Allow CSS modifications,
+   then Settings -> Appearance -> Custom UI modifications -> this folder. */
+#browser {{
+  --colorBg: {p['panel']}; --colorBgDark: {p['lo']}; --colorBgDarker: {p['lo']}; --colorBgLight: {p['view']}; --colorBgLighter: {p['hov']};
+  --colorBgIntense: {p['view']}; --colorFg: {p['text']}; --colorFgFaded: {p['dim']}; --colorFgIntense: {p['text']};
+  --colorAccentBg: {p['title']}; --colorAccentBgDark: {p['tanlo']}; --colorAccentFg: {p['tink']};
+  --colorHighlightBg: {p['title']}; --colorHighlightFg: {p['tink']}; --colorBorder: {p['hi']};
+  --radius: 0px; --radiusHalf: 0px; --radiusQuarter: 0px; --radiusRound: 0px; --radiusCap: 0px;
+  font-family: "IBM Plex Mono", monospace !important;
+}}
+.tab-position .tab.active {{ box-shadow: inset 0 2px 0 {p['title']} !important; }}
+"""
+
+
+def sourceview_xml(p):
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<!-- Glyph - made by glyph-theme, do not edit by hand. Used by Mousepad and other GtkSourceView editors. -->
+<style-scheme id="glyph" name="Glyph" version="1.0">
+  <author>glyph-theme</author>
+  <description>Glyph colours</description>
+  <style name="text" foreground="{p['text']}" background="{p['view']}"/>
+  <style name="selection" foreground="{p['tink']}" background="{p['title']}"/>
+  <style name="selection-unfocused" foreground="{p['tink']}" background="{p['tanlo']}"/>
+  <style name="cursor" foreground="{p['amber']}"/>
+  <style name="current-line" background="{p['panel']}"/>
+  <style name="line-numbers" foreground="{p['dim']}" background="{p['panel']}"/>
+  <style name="current-line-number" foreground="{p['amber']}" background="{p['panel']}" bold="true"/>
+  <style name="bracket-match" foreground="{p['tink']}" background="{p['amber']}"/>
+  <style name="search-match" foreground="{p['tink']}" background="{p['amber']}"/>
+  <style name="right-margin" foreground="{p['hi']}" background="{p['panel']}"/>
+  <style name="def:comment" foreground="{p['dim']}" italic="true"/>
+  <style name="def:string" foreground="{p['greenhi']}"/>
+  <style name="def:keyword" foreground="{p['amber']}" bold="true"/>
+  <style name="def:statement" foreground="{p['amber']}"/>
+  <style name="def:type" foreground="{p['tanhi']}"/>
+  <style name="def:constant" foreground="{p['olivehi']}"/>
+  <style name="def:number" foreground="{p['olivehi']}"/>
+  <style name="def:function" foreground="{p['tanhi']}"/>
+  <style name="def:preprocessor" foreground="{p['rosehi']}"/>
+  <style name="def:error" foreground="#ffffff" background="{p['rose']}"/>
+  <style name="def:heading" foreground="{p['amber']}" bold="true"/>
+</style-scheme>
+"""
+
+
+def write_apps(p, conf):
+    mode = conf["mode"]
+    g = DATA_DIR / "themes" / "Glyph"
+    (g / "gtk-3.0").mkdir(parents=True, exist_ok=True)
+    (g / "gtk-4.0").mkdir(parents=True, exist_ok=True)
+    (g / "gtk-3.0" / "gtk.css").write_text(gtk_css(p, mode))
+    (g / "gtk-4.0" / "gtk.css").write_text(gtk_css(p, mode, gtk4=True))
+    (g / "index.theme").write_text("[Desktop Entry]\nType=X-GNOME-Metatheme\nName=Glyph\nComment=Glyph, made by glyph-theme\n\n[X-GNOME-Metatheme]\nGtkTheme=Glyph\n")
+    # Qt: only read when QT_QPA_PLATFORMTHEME=qt6ct / qt5ct (set in the Glyph session only)
+    for qt in ("qt6ct", "qt5ct"):
+        qd = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / qt
+        (qd / "colors").mkdir(parents=True, exist_ok=True)
+        (qd / "colors" / "Glyph.conf").write_text(qt_colors(p))
+        cf = qd / f"{qt}.conf"
+        if not cf.exists() or "Glyph.conf" in cf.read_text():
+            cf.write_text(qt_conf(str(qd / "colors" / "Glyph.conf"), qt))
+    # editors (Mousepad, gedit ...): a GtkSourceView colour scheme called Glyph
+    for sv in ("gtksourceview-3.0", "gtksourceview-4", "gtksourceview-5"):
+        d = DATA_DIR / sv / "styles"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "glyph.xml").write_text(sourceview_xml(p))
+    if shutil.which("gsettings"):
+        subprocess.run(["gsettings", "set", "org.xfce.mousepad.preferences.view", "color-scheme", "glyph"], capture_output=True)
+    # foot: our colours in a file of our own, included from foot.ini
+    (CONF_DIR / "foot").mkdir(parents=True, exist_ok=True)
+    (CONF_DIR / "foot" / "glyph.ini").write_text(foot_ini(p))
+    fd = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "foot"
+    fi = fd / "foot.ini"
+    inc = f"include={CONF_DIR / 'foot' / 'glyph.ini'}\n"
+    if not fi.exists():
+        fd.mkdir(parents=True, exist_ok=True)
+        fi.write_text("# foot - Glyph colours come from the include below\n" + inc)
+    # browsers (Settings -> Appearance -> Colour Firefox and Vivaldi too)
+    want = conf.get("browsers", "yes") == "yes"
+    for prof in (HOME / ".mozilla" / "firefox").glob("*.*"):
+        if not (prof / "prefs.js").exists():
+            continue
+        css = prof / "chrome" / "userChrome.css"
+        ours = css.exists() and css.read_text().startswith("/* glyph")
+        if want and (ours or not css.exists()):
+            css.parent.mkdir(exist_ok=True)
+            css.write_text(firefox_css(p))
+            uj = prof / "user.js"
+            line = 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);\n'
+            if not uj.exists() or "legacyUserProfileCustomizations" not in uj.read_text():
+                with open(uj, "a") as f:
+                    f.write(line)
+        elif not want and ours:
+            css.unlink()
+    vd = CONF_DIR / "vivaldi"
+    vd.mkdir(parents=True, exist_ok=True)
+    if want:
+        (vd / "glyph.css").write_text(vivaldi_css(p))
+    elif (vd / "glyph.css").exists():
+        (vd / "glyph.css").unlink()
+    # dark or light for apps and websites that ask (via the GTK portal)
+    if shutil.which("gsettings"):
+        subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme",
+                        "default" if mode == "light" else "prefer-dark"], capture_output=True)
+
 
 def reload_labwc(p):
     """Apply at once when Glyph is running: window colours and background."""
@@ -398,8 +723,7 @@ def reload_labwc(p):
     subprocess.run(["pkill", "-SIGUSR2", "-x", "waybar"], check=False)   # reload taskbar style
     subprocess.run(["makoctl", "reload"], capture_output=True, check=False)
     if subprocess.run(["pgrep", "-x", "swaybg"], capture_output=True).returncode == 0:
-        subprocess.run(["pkill", "-x", "swaybg"], check=False)
-        subprocess.Popen(["swaybg", "-c", p["view"]], stdout=subprocess.DEVNULL,
+        subprocess.Popen(["glyph-bg"], stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=True)
 
 
@@ -430,6 +754,7 @@ def main():
     (LABWC_THEME / "themerc").write_text(themerc(p, conf["mode"]))
     write_buttons(p)
     write_outputs(p)
+    write_apps(p, conf)
     # labwc 0.7 looks in openbox-3/, newer versions in labwc/: offer both
     ob = LABWC_THEME.parent / "openbox-3"
     if not ob.exists():

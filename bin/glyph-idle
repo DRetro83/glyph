@@ -1,0 +1,11 @@
+#!/bin/sh
+# glyph-idle - lock after the time set in Settings -> Power & lock (default 5 minutes).
+G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+MIN=$(sed -n 's/^lock_after=//p' "$G/glyph.conf" 2>/dev/null)
+MIN=${MIN:-5}
+pkill -x swayidle 2>/dev/null
+if [ "$MIN" -gt 0 ] 2>/dev/null; then
+  exec swayidle -w timeout $((MIN * 60)) 'glyph-lock' before-sleep 'glyph-lock' >/dev/null 2>&1
+else
+  exec swayidle -w before-sleep 'glyph-lock' >/dev/null 2>&1
+fi

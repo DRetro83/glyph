@@ -34,6 +34,11 @@ PACKAGES=(
   wtype            # workspace buttons on the taskbar
   wireplumber network-manager   # volume and network on the taskbar
   xdg-user-dirs    # Pictures folder for screenshots
+  python3-gi gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1   # quick settings, calendar, Settings
+  udisks2 bluez power-profiles-daemon   # drives, Bluetooth, power profiles
+  wlr-randr wlsunset lxpolkit          # screen scale, night light, password prompts
+  pavucontrol blueman                  # volume per app, Bluetooth pairing
+  qt6ct qt5ct                          # Qt apps in the Glyph colours
 )
 
 say()  { printf '\033[1;33m::\033[0m %s\n' "$*"; }
@@ -83,6 +88,8 @@ ok "settings in $GLYPH_CONF/labwc"
 # 3. programs and the session entry for the login screen
 run sudo install -m 755 "$HERE"/bin/glyph-* /usr/local/bin/
 run sudo install -m 644 "$HERE/share/wayland-sessions/glyph.desktop" /usr/share/wayland-sessions/glyph.desktop
+run mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+run cp "$HERE/share/applications/glyph-settings.desktop" "${XDG_DATA_HOME:-$HOME/.local/share}/applications/"
 run mkdir -p "$CONF/xdg-desktop-portal"
 run cp "$HERE/share/xdg-desktop-portal/glyph-portals.conf" "$CONF/xdg-desktop-portal/"
 ok "Glyph added to the login screen"

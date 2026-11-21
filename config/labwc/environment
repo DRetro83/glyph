@@ -6,3 +6,6 @@ MOZ_ENABLE_WAYLAND=1
 QT_QPA_PLATFORM=wayland;xcb
 _JAVA_AWT_WM_NONREPARENTING=1
 # keyboard: install.sh copies your layout from /etc/default/keyboard below
+# apps in the Glyph look (only in this session)
+GTK_THEME=Glyph
+QT_QPA_PLATFORMTHEME=qt6ct

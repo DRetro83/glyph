@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+Comment=Glyph settings: look, background, display, sound, keyboard, power
+Exec=glyph-settings
+Terminal=false
+Categories=Settings;System;
+Keywords=glyph;appearance;colour;background;display;sound;keyboard;mouse;power;lock;
+OnlyShowIn=Glyph;
+StartupWMClass=glyph-settings

@@ -1,0 +1,450 @@
+#!/usr/bin/env python3
+"""glyph-settings - the Glyph Settings window.
+
+  glyph-settings              open on Appearance
+  glyph-settings Sound        open on a section
+
+Most pages change Glyph's own files (theme.conf, glyph.conf, labwc rc.xml).
+Pages for system things (network, Bluetooth, date) use the standard Debian
+tools and ask for your password where Debian needs it.
+"""
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+THEME = CONF / "theme.conf"
+GCONF = CONF / "glyph.conf"
+RCXML = CONF / "labwc" / "rc.xml"
+ENVF = CONF / "labwc" / "environment"
+COLOURS = [("Tan", "tan", "#a8957c"), ("Light tan", "light-tan", "#cdbb9f"), ("Cream", "cream", "#e6dac4"),
+           ("Amber", "amber", "#ffb340"), ("Olive", "olive", "#b5b03c"), ("Green", "green", "#8c9e3a"),
+           ("Rose", "rose", "#b8405c"), ("Blue", "blue", "#8fb0c8"), ("Dark blue", "dark-blue", "#4a6a8a"),
+           ("Dark tan", "dark-tan", "#6e5f4c")]
+LAYOUTS = [("us", "English (US)"), ("gb", "English (UK)"), ("be", "Belgian (AZERTY)"), ("fr", "French (AZERTY)"),
+           ("de", "German (QWERTZ)"), ("nl", "Dutch"), ("es", "Spanish"), ("it", "Italian"), ("pt", "Portuguese")]
+SECTIONS = [("PERSONAL", ["Appearance", "Background"]),
+            ("DEVICES", ["Display", "Sound", "Keyboard", "Mouse & touchpad", "Power & lock"]),
+            ("CONNECTIONS", ["Network", "Bluetooth"]),
+            ("SYSTEM", ["Date & time", "Updates", "About"])]
+
+
+def sh(cmd, timeout=5):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout
+    except Exception:
+        return ""
+
+
+def bg(cmd):
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    except Exception:
+        pass
+
+
+def has(p):
+    return shutil.which(p) is not None
+
+
+def read_kv(path):
+    d = {}
+    try:
+        for l in path.read_text().splitlines():
+            if "=" in l and not l.lstrip().startswith("#"):
+                k, v = l.split("=", 1)
+                d[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return d
+
+
+def write_kv(path, key, value, header="# Glyph settings\n"):
+    d = read_kv(path)
+    if value is None:
+        d.pop(key, None)
+    else:
+        d[key] = str(value)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(header + "".join(f"{k}={v}\n" for k, v in d.items()))
+
+
+def rc_set(tag, value):
+    """Set <tag>value</tag> inside the touchpad <device> block of rc.xml."""
+    try:
+        s = RCXML.read_text()
+    except Exception:
+        return False
+    if re.search(rf"<{tag}>.*?</{tag}>", s):
+        s = re.sub(rf"<{tag}>.*?</{tag}>", f"<{tag}>{value}</{tag}>", s, count=1)
+    else:
+        s = s.replace('<device category="touchpad">', f'<device category="touchpad">\n      <{tag}>{value}</{tag}>', 1)
+    RCXML.write_text(s)
+    bg(["labwc", "--reconfigure"])
+    return True
+
+
+def rc_get(tag, default=""):
+    try:
+        m = re.search(rf"<{tag}>(.*?)</{tag}>", RCXML.read_text())
+        return m.group(1) if m else default
+    except Exception:
+        return default
+
+
+class Settings(Gtk.Window):
+    def __init__(self, start):
+        super().__init__(title="Settings")
+        self.set_default_size(820, 600)
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        root = Gtk.Box()
+        root.get_style_context().add_class("panel")
+        root.get_style_context().add_class("settings")
+        self.add(root)
+        side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        side.get_style_context().add_class("side")
+        side.set_size_request(210, -1)
+        sscroll = Gtk.ScrolledWindow()
+        sscroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sscroll.add(side)
+        root.pack_start(sscroll, False, False, 0)
+        self.page_scroll = Gtk.ScrolledWindow()
+        self.page_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        root.pack_start(self.page_scroll, True, True, 0)
+        self.navbtn = {}
+        for group, items in SECTIONS:
+            side.pack_start(self.lab(group, "lab sidehead"), False, False, 0)
+            for name in items:
+                b = Gtk.Button(label=name)
+                b.get_style_context().add_class("nav")
+                b.get_child().set_xalign(0)
+                b.connect("clicked", lambda _b, n=name: self.show_page(n))
+                side.pack_start(b, False, False, 0)
+                self.navbtn[name] = b
+        self.connect("key-press-event", lambda w, e: self.close() if e.keyval == Gdk.KEY_Escape else False)
+        self.show_page(start if start in self.navbtn else "Appearance")
+
+    # ---------- small builders
+    def lab(self, text, cls=None, wrap=False):
+        l = Gtk.Label(label=text, xalign=0)
+        if wrap:
+            l.set_line_wrap(True)
+            l.set_max_width_chars(60)
+        for c in (cls or "").split():
+            l.get_style_context().add_class(c)
+        return l
+
+    def btn(self, text, cb, cls=None):
+        b = Gtk.Button(label=text)
+        for c in (cls or "").split():
+            b.get_style_context().add_class(c)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def opts(self, items, current, cb):
+        """A row of option buttons; items = [(value, label)]."""
+        box = Gtk.FlowBox()
+        box.set_selection_mode(Gtk.SelectionMode.NONE)
+        box.set_max_children_per_line(6)
+        box.set_column_spacing(6)
+        box.set_row_spacing(6)
+        for v, t in items:
+            b = self.btn(t, (lambda v=v: cb(v)), "seg on" if str(v) == str(current) else "seg")
+            if "<span" in t:
+                b.get_child().set_use_markup(True)
+            box.add(b)
+        return box
+
+    def toggle(self, title, desc, on, cb):
+        b = Gtk.Button()
+        b.get_style_context().add_class("togrow")
+        h = Gtk.Box(spacing=10)
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        v.pack_start(self.lab(title, "tn"), False, False, 0)
+        if desc:
+            v.pack_start(self.lab(desc, "ts", wrap=True), False, False, 0)
+        h.pack_start(v, True, True, 0)
+        st = self.lab("ON" if on else "OFF", "state on" if on else "state")
+        h.pack_end(st, False, False, 0)
+        b.add(h)
+        b.connect("clicked", lambda *_: cb(not on))
+        return b
+
+    def info(self, rows):
+        g = Gtk.Grid(column_spacing=16, row_spacing=4)
+        g.get_style_context().add_class("kv")
+        for i, (k, v) in enumerate(rows):
+            g.attach(self.lab(k, "dim"), 0, i, 1, 1)
+            vl = self.lab(v)
+            vl.set_selectable(True)
+            vl.set_line_wrap(True)
+            g.attach(vl, 1, i, 1, 1)
+        return g
+
+    def note(self, text):
+        return self.lab(text, "ts", wrap=True)
+
+    # ---------- pages
+    def show_page(self, name):
+        self.current = name
+        for n, b in self.navbtn.items():
+            ctx = b.get_style_context()
+            (ctx.add_class if n == name else ctx.remove_class)("cur")
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        page.get_style_context().add_class("page")
+        page.pack_start(self.lab(name, "h3"), False, False, 0)
+        getattr(self, "page_" + re.sub(r"\W+", "_", name.lower()).strip("_"))(page)
+        old = self.page_scroll.get_child()
+        if old:
+            self.page_scroll.remove(old)
+        self.page_scroll.add(page)
+        self.page_scroll.show_all()
+
+    def refresh(self):
+        GLib.timeout_add(250, lambda: (self.show_page(self.current), False)[1])
+
+    def theme(self, *args):
+        subprocess.run(["glyph-theme", *args], capture_output=True)
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1)
+        except Exception:
+            pass
+        self.refresh()
+
+    def page_appearance(self, p):
+        t = read_kv(THEME)
+        p.pack_start(self.lab("MODE", "lab"), False, False, 0)
+        p.pack_start(self.opts([("dark", "Dark"), ("oled", "OLED black"), ("light", "Light")], t.get("mode", "dark"),
+                               lambda v: self.theme("--mode", v)), False, False, 0)
+        p.pack_start(self.lab("SYSTEM COLOUR · colours the whole desktop", "lab"), False, False, 0)
+        cur = t.get("colour", "#a8957c").lower()
+        p.pack_start(self.opts([(c[1], f'<span foreground="{c[2]}">■</span> {c[0]}') for c in COLOURS], next((c[1] for c in COLOURS if c[2] == cur), ""),
+                               lambda v: self.theme("--colour", v)), False, False, 0)
+        p.pack_start(self.toggle("Colour Firefox and Vivaldi too", "They follow your mode and colour after a restart of the browser.",
+                                 t.get("browsers", "yes") == "yes",
+                                 lambda on: (write_kv(THEME, "browsers", "yes" if on else "no", "# Glyph look\n"), self.theme())), False, False, 0)
+        p.pack_start(self.note("Windows, the taskbar, menus and panels change at once. Apps such as Files and the text editor "
+                               "change when you open them again."), False, False, 0)
+
+    def page_background(self, p):
+        t = read_kv(THEME)
+        pic = t.get("background", "")
+        p.pack_start(self.lab("TYPE", "lab"), False, False, 0)
+        p.pack_start(self.opts([("plain", "Plain colour"), ("picture", "Your picture")], "picture" if pic else "plain",
+                               lambda v: (write_kv(THEME, "background", None if v == "plain" else (pic or None)), bg(["glyph-bg"]), self.refresh())), False, False, 0)
+        p.pack_start(self.lab("YOUR PICTURE", "lab"), False, False, 0)
+        fc = Gtk.FileChooserButton(title="Choose a picture")
+        flt = Gtk.FileFilter()
+        flt.add_mime_type("image/*")
+        fc.add_filter(flt)
+        if pic:
+            fc.set_filename(pic)
+        fc.connect("file-set", lambda f: (write_kv(THEME, "background", f.get_filename()), bg(["glyph-bg"]), self.refresh()))
+        p.pack_start(fc, False, False, 0)
+        p.pack_start(self.lab("FIT", "lab"), False, False, 0)
+        p.pack_start(self.opts([("fill", "Fill"), ("fit", "Fit"), ("center", "Centre"), ("tile", "Tile")], t.get("bgmode", "fill"),
+                               lambda v: (write_kv(THEME, "bgmode", v), bg(["glyph-bg"]), self.refresh())), False, False, 0)
+        p.pack_start(self.lab("COLOUR", "lab"), False, False, 0)
+        cb = Gtk.ColorButton()
+        rgba = Gdk.RGBA()
+        rgba.parse(t.get("bgcolour") or "#221f1b")
+        cb.set_rgba(rgba)
+
+        def set_col(b):
+            c = b.get_rgba()
+            write_kv(THEME, "bgcolour", "#%02x%02x%02x" % (int(c.red * 255), int(c.green * 255), int(c.blue * 255)))
+            bg(["glyph-bg"])
+        cb.connect("color-set", set_col)
+        row = Gtk.Box(spacing=8)
+        row.pack_start(cb, False, False, 0)
+        row.pack_start(self.btn("Use the Glyph colour", lambda: (write_kv(THEME, "bgcolour", None), bg(["glyph-bg"]), self.refresh()), "small"), False, False, 0)
+        p.pack_start(row, False, False, 0)
+
+    def page_display(self, p):
+        out = sh(["wlr-randr"]) if has("wlr-randr") else ""
+        outputs = re.findall(r"^(\S+) \"(.*?)\"", out, re.M)
+        if not outputs:
+            p.pack_start(self.note("Install wlr-randr to see your screens here: sudo apt install wlr-randr"), False, False, 0)
+        gconf = read_kv(GCONF)
+        for name, desc in outputs:
+            block = out.split(name + " ", 1)[1].split("\n\n")[0] if name in out else ""
+            cur = re.search(r"(\d+x\d+) px, ([\d.]+) Hz \(.*current", block)
+            scale = re.search(r"Scale: ([\d.]+)", block)
+            p.pack_start(self.lab(f"{name} · {desc}", "tn"), False, False, 0)
+            p.pack_start(self.info([("Resolution", f"{cur.group(1)} at {round(float(cur.group(2)))} Hz" if cur else "not reported"),
+                                    ("Scale", f"{round(float(scale.group(1)) * 100)}%" if scale else "100%")]), False, False, 0)
+            p.pack_start(self.lab("SCALE · makes everything bigger or smaller", "lab"), False, False, 0)
+            p.pack_start(self.opts([("1", "100%"), ("1.25", "125%"), ("1.5", "150%"), ("1.75", "175%"), ("2", "200%")],
+                                   gconf.get("scale_" + name, (scale.group(1).rstrip("0").rstrip(".") if scale else "1")),
+                                   lambda v, n=name: (sh(["wlr-randr", "--output", n, "--scale", v]), write_kv(GCONF, "scale_" + n, v), self.refresh())), False, False, 0)
+        if has("wdisplays"):
+            p.pack_start(self.btn("Arrange screens and resolution…", lambda: bg(["wdisplays"])), False, False, 0)
+        else:
+            p.pack_start(self.note("For more screens and resolutions: sudo apt install wdisplays"), False, False, 0)
+        p.pack_start(self.note("Glyph puts your scale back every time you sign in."), False, False, 0)
+
+    def page_sound(self, p):
+        st = sh(["wpctl", "status"])
+        sinks = []
+        if "Sinks:" in st:
+            part = st.split("Sinks:", 1)[1].split("Sources:", 1)[0].split("Filters:", 1)[0]
+            for l in part.splitlines():
+                m = re.search(r"(\*?)\s*(\d+)\.\s+(.+?)(?:\s+\[vol:.*)?$", l)
+                if m:
+                    sinks.append((m.group(2), m.group(3).strip(), bool(m.group(1))))
+        p.pack_start(self.lab("OUTPUT", "lab"), False, False, 0)
+        if sinks:
+            p.pack_start(self.opts([(i, n) for i, n, _ in sinks], next((i for i, n, d in sinks if d), ""),
+                                   lambda v: (sh(["wpctl", "set-default", v]), self.refresh())), False, False, 0)
+        else:
+            p.pack_start(self.note("No sound devices found (is PipeWire running?)."), False, False, 0)
+        vol = re.search(r"([\d.]+)", sh(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]))
+        if vol:
+            p.pack_start(self.lab("VOLUME", "lab"), False, False, 0)
+            sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 5)
+            sc.set_value(round(float(vol.group(1)) * 100))
+            sc.connect("value-changed", lambda s: sh(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{int(s.get_value())}%"]))
+            p.pack_start(sc, False, False, 0)
+        if has("pavucontrol"):
+            p.pack_start(self.btn("Volume per app and microphone…", lambda: bg(["pavucontrol"])), False, False, 0)
+        else:
+            p.pack_start(self.note("For volume per app and the microphone: sudo apt install pavucontrol"), False, False, 0)
+
+    def page_keyboard(self, p):
+        env = read_kv(ENVF)
+        cur = env.get("XKB_DEFAULT_LAYOUT", "us").split(",")[0]
+        p.pack_start(self.lab("LAYOUT", "lab"), False, False, 0)
+
+        def set_layout(v):
+            try:
+                lines = [l for l in ENVF.read_text().splitlines() if not l.startswith(("XKB_DEFAULT_LAYOUT=", "XKB_DEFAULT_VARIANT="))]
+                lines.append(f"XKB_DEFAULT_LAYOUT={v}")
+                ENVF.write_text("\n".join(lines) + "\n")
+            except Exception:
+                pass
+            self.refresh()
+        p.pack_start(self.opts(LAYOUTS, cur, set_layout), False, False, 0)
+        p.pack_start(self.note("A new layout works after you log out and sign in again."), False, False, 0)
+        p.pack_start(self.lab("TRY IT", "lab"), False, False, 0)
+        e = Gtk.Entry()
+        e.set_placeholder_text("type here to test: @ € é ñ ß …")
+        p.pack_start(e, False, False, 0)
+        p.pack_start(self.lab("SHORTCUTS", "lab"), False, False, 0)
+        p.pack_start(self.info([("Start menu", "Super or Ctrl+Space"), ("Terminal", "Ctrl+Alt+T"), ("Files", "Super+E"),
+                                ("Switch windows", "Alt+Tab"), ("Half screen / maximize", "Super+← → ↑"),
+                                ("Workspace 1–4", "Ctrl+Alt+1–4"), ("Close window", "Ctrl+Alt+W"), ("Lock", "Ctrl+Alt+L"),
+                                ("Power menu", "Ctrl+Alt+Delete"), ("Screenshot", "Print · area: Shift+Print")]), False, False, 0)
+
+    def page_mouse_touchpad(self, p):
+        p.pack_start(self.toggle("Tap to click", "Touchpad: a light tap is a click.", rc_get("tap", "yes") == "yes",
+                                 lambda on: (rc_set("tap", "yes" if on else "no"), self.refresh())), False, False, 0)
+        p.pack_start(self.toggle("Natural scrolling", "Content moves with your fingers, like on a phone.", rc_get("naturalScroll", "no") == "yes",
+                                 lambda on: (rc_set("naturalScroll", "yes" if on else "no"), self.refresh())), False, False, 0)
+        p.pack_start(self.toggle("Ignore the touchpad while typing", "", rc_get("disableWhileTyping", "yes") == "yes",
+                                 lambda on: (rc_set("disableWhileTyping", "yes" if on else "no"), self.refresh())), False, False, 0)
+        p.pack_start(self.lab("POINTER SPEED", "lab"), False, False, 0)
+        try:
+            spd = float(rc_get("pointerSpeed", "0"))
+        except ValueError:
+            spd = 0
+        sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, -1, 1, 0.1)
+        sc.set_value(spd)
+        sc.connect("button-release-event", lambda s, e: rc_set("pointerSpeed", f"{s.get_value():.1f}") and False)
+        p.pack_start(sc, False, False, 0)
+
+    def page_power_lock(self, p):
+        prof = sh(["powerprofilesctl", "get"]).strip() if has("powerprofilesctl") else ""
+        if prof:
+            p.pack_start(self.lab("POWER PROFILE", "lab"), False, False, 0)
+            p.pack_start(self.opts([("power-saver", "Power saver"), ("balanced", "Balanced"), ("performance", "Performance")], prof,
+                                   lambda v: (sh(["powerprofilesctl", "set", v]), self.refresh())), False, False, 0)
+        p.pack_start(self.lab("LOCK THE SCREEN AFTER", "lab"), False, False, 0)
+        p.pack_start(self.opts([("2", "2 min"), ("5", "5 min"), ("10", "10 min"), ("15", "15 min"), ("30", "30 min"), ("0", "Never")],
+                               read_kv(GCONF).get("lock_after", "5"),
+                               lambda v: (write_kv(GCONF, "lock_after", v), bg(["glyph-idle"]), self.refresh())), False, False, 0)
+        p.pack_start(self.note("The screen always locks before the computer goes to sleep."), False, False, 0)
+        p.pack_start(self.btn("Lock now", lambda: bg(["glyph-lock"])), False, False, 0)
+
+    def page_network(self, p):
+        rows = []
+        for l in sh(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "dev"]).splitlines():
+            f = l.split(":")
+            if len(f) >= 4 and f[1] in ("wifi", "ethernet", "gsm"):
+                rows.append((f"{f[0]} ({f[1]})", f[2] + (" · " + f[3] if f[3] else "")))
+        p.pack_start(self.info(rows or [("Network", "NetworkManager is not running")]), False, False, 0)
+        p.pack_start(self.btn("Wi-Fi and networks…", lambda: bg(["nm-connection-editor"] if has("nm-connection-editor") else ["foot", "-T", "Network", "nmtui"])), False, False, 0)
+        p.pack_start(self.note("Choose a Wi-Fi network quickly from SETTINGS ▴ on the taskbar."), False, False, 0)
+
+    def page_bluetooth(self, p):
+        show = sh(["bluetoothctl", "show"]) if has("bluetoothctl") else ""
+        if "Controller" not in show:
+            p.pack_start(self.note("No Bluetooth adapter found."), False, False, 0)
+            return
+        on = "Powered: yes" in show
+        p.pack_start(self.toggle("Bluetooth", "", on, lambda v: (sh(["bluetoothctl", "power", "on" if v else "off"]), self.refresh())), False, False, 0)
+        p.pack_start(self.btn("Pair a new device…", lambda: bg(["blueman-manager"] if has("blueman-manager") else ["foot", "-T", "Bluetooth", "bluetoothctl"])), False, False, 0)
+
+    def page_date_time(self, p):
+        td = sh(["timedatectl"])
+        get = lambda k: (re.search(rf"{k}:\s*(.+)", td).group(1).strip() if re.search(rf"{k}:\s*(.+)", td) else "?")
+        p.pack_start(self.info([("Local time", get("Local time")), ("Time zone", get("Time zone")),
+                                ("Set automatically", get("NTP service"))]), False, False, 0)
+        p.pack_start(self.lab("TIME ZONE", "lab"), False, False, 0)
+        zones = sh(["timedatectl", "list-timezones"]).split()
+        combo = Gtk.ComboBoxText.new_with_entry()
+        for z in zones:
+            combo.append_text(z)
+        combo.get_child().set_text(get("Time zone").split(" ")[0])
+        row = Gtk.Box(spacing=8)
+        row.pack_start(combo, True, True, 0)
+        row.pack_start(self.btn("Set", lambda: (sh(["timedatectl", "set-timezone", combo.get_child().get_text().strip()], 60), self.refresh()), "amber"), False, False, 0)
+        p.pack_start(row, False, False, 0)
+        p.pack_start(self.note("Debian asks for your password to change the time zone."), False, False, 0)
+
+    def page_updates(self, p):
+        p.pack_start(self.note("Debian and your apps: this opens a terminal that asks for your password, "
+                               "shows what will change and asks before it installs."), False, False, 0)
+        p.pack_start(self.btn("Check and install updates…", lambda: bg(["foot", "-T", "Updates", "sh", "-c",
+                     "sudo apt update && sudo apt upgrade; command -v flatpak >/dev/null && flatpak update; echo; read -p 'Press Enter to close ' x"]), "amber"), False, False, 0)
+        p.pack_start(self.lab("GLYPH", "lab"), False, False, 0)
+        p.pack_start(self.btn("Update Glyph from GitHub…", lambda: bg(["foot", "-T", "Glyph update", "sh", "-c", "glyph-update; echo; read -p 'Press Enter to close ' x"])), False, False, 0)
+
+    def page_about(self, p):
+        osr = read_kv(Path("/etc/os-release"))
+        mem = re.search(r"MemTotal:\s+(\d+)", Path("/proc/meminfo").read_text()) if Path("/proc/meminfo").exists() else None
+        cpu = re.search(r"model name\s*:\s*(.+)", Path("/proc/cpuinfo").read_text()) if Path("/proc/cpuinfo").exists() else None
+        gpu = re.search(r"(?:VGA|3D|Display)[^:]*: (.+)", sh(["lspci"]))
+        src = (CONF / "source").read_text().strip() if (CONF / "source").exists() else ""
+        ver = sh(["git", "-C", src, "describe", "--tags", "--always"]).strip() if src else ""
+        df = shutil.disk_usage("/")
+        p.pack_start(self.lab("GLYPH", "h1"), False, False, 0)
+        p.pack_start(self.lab("a light, text-first desktop", "dim"), False, False, 0)
+        p.pack_start(self.info([("System", osr.get("PRETTY_NAME", "Debian").strip('"')), ("Kernel", sh(["uname", "-r"]).strip()),
+                                ("Desktop", "Glyph " + (ver or "") + " · labwc"), ("Processor", cpu.group(1) if cpu else "?"),
+                                ("Memory", f"{int(mem.group(1)) // 1024 // 1024 + 1} GB" if mem else "?"),
+                                ("Graphics", gpu.group(1) if gpu else "?"),
+                                ("Disk", f"{df.used // 10**9} GB of {df.total // 10**9} GB used")]), False, False, 0)
+
+
+if __name__ == "__main__":
+    GLib.set_prgname("glyph-settings")
+    win = Settings(sys.argv[1] if len(sys.argv) > 1 else "Appearance")
+    win.connect("destroy", Gtk.main_quit)
+    win.show_all()
+    Gtk.main()

@@ -5,7 +5,7 @@
   "height": 40,
   "spacing": 0,
   "modules-left": ["custom/start", "custom/ws1", "custom/ws2", "custom/ws3", "custom/ws4", "wlr/taskbar"],
-  "modules-right": ["tray", "wireplumber", "network", "battery", "clock", "custom/power"],
+  "modules-right": ["tray", "custom/settings", "clock", "custom/power"],
 
   "custom/start": {
     "format": "▸ START",
@@ -30,6 +30,16 @@
   },
 
   "tray": { "icon-size": 16, "spacing": 8 },
+
+  // quick settings: Wi-Fi, Bluetooth, volume, brightness, power, drives
+  "custom/settings": {
+    "exec": "glyph-panel status",
+    "return-type": "json",
+    "interval": 5,
+    "on-click": "glyph-panel quick",
+    "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+",
+    "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+  },
 
   "wireplumber": {
     "format": "VOL {volume}%",
@@ -61,8 +71,8 @@
 
   "clock": {
     "format": "{:%H:%M}",
-    "format-alt": "{:%a %d %b  %H:%M}",
-    "tooltip-format": "{:%A %d %B %Y}"
+    "tooltip-format": "{:%A %d %B %Y}",
+    "on-click": "glyph-panel cal"
   },
 
   "custom/power": {

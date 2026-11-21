@@ -1,9 +1,12 @@
 # Glyph - programs that start with the session
 G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
-. "$G/palette.env" 2>/dev/null
 
-# background in the Glyph "view" colour (a picture comes later)
-swaybg -c "${GLYPH_VIEW:-#221f1b}" >/dev/null 2>&1 &
+# background: your picture or the Glyph colour (Settings -> Background)
+glyph-bg &
+
+# screen scale saved in Settings -> Display
+command -v wlr-randr >/dev/null && sed -n 's/^scale_\(.*\)=\(.*\)$/\1 \2/p' "$G/glyph.conf" 2>/dev/null |
+  while read -r out sc; do wlr-randr --output "$out" --scale "$sc"; done &
 
 # taskbar at the bottom
 waybar -c "$G/waybar/config.jsonc" -s "$G/waybar/style.css" >/dev/null 2>&1 &
@@ -11,8 +14,11 @@ waybar -c "$G/waybar/config.jsonc" -s "$G/waybar/style.css" >/dev/null 2>&1 &
 # notifications (top right)
 mako -c "$G/mako/config" >/dev/null 2>&1 &
 
-# lock after 5 minutes, and always before sleep
-swayidle -w timeout 300 'glyph-lock' before-sleep 'glyph-lock' >/dev/null 2>&1 &
+# lock after the time in Settings -> Power & lock, and always before sleep
+glyph-idle &
+
+# password prompts for system changes (mounting drives, time zone ...)
+command -v lxpolkit >/dev/null && lxpolkit >/dev/null 2>&1 &
 
 # let portals (screenshots, file pickers) know which session this is
 dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP >/dev/null 2>&1 &

@@ -1,0 +1,13 @@
+#!/bin/sh
+# glyph-bg - (re)start the background: a picture from theme.conf, or the Glyph colour.
+G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+. "$G/palette.env" 2>/dev/null
+PIC=$(sed -n 's/^background=//p' "$G/theme.conf" 2>/dev/null)
+MODE=$(sed -n 's/^bgmode=//p' "$G/theme.conf" 2>/dev/null)
+COL=$(sed -n 's/^bgcolour=//p' "$G/theme.conf" 2>/dev/null)
+pkill -x swaybg 2>/dev/null
+if [ -n "$PIC" ] && [ -f "$PIC" ]; then
+  exec swaybg -c "${COL:-${GLYPH_VIEW:-#221f1b}}" -i "$PIC" -m "${MODE:-fill}" >/dev/null 2>&1
+else
+  exec swaybg -c "${COL:-${GLYPH_VIEW:-#221f1b}}" >/dev/null 2>&1
+fi

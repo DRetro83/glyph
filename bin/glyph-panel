@@ -1,0 +1,685 @@
+#!/usr/bin/env python3
+"""glyph-panel - Glyph quick settings and calendar.
+
+  glyph-panel quick     Quick settings (click SETTINGS on the taskbar)
+  glyph-panel cal       Calendar and notifications (click the clock)
+  glyph-panel status    one line of JSON for the taskbar button
+
+Running the same panel again closes it. Esc closes it too.
+Uses only standard Debian tools: nmcli, bluetoothctl, wpctl, brightnessctl,
+powerprofilesctl, udisksctl, makoctl, wlsunset.
+"""
+import calendar
+import datetime
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+from pathlib import Path
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
+
+
+# ---------------------------------------------------------------- helpers
+def sh(cmd, timeout=4):
+    """Run a command, return its output ('' on any problem)."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout
+    except Exception:
+        return ""
+
+
+def bg(cmd):
+    """Start a command and forget about it."""
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    except Exception:
+        pass
+
+
+def has(prog):
+    return shutil.which(prog) is not None
+
+
+def nmcli_split(line):
+    """nmcli -t escapes ':' inside values as '\\:'."""
+    out, cur, esc = [], "", False
+    for ch in line:
+        if esc:
+            cur += ch
+            esc = False
+        elif ch == "\\":
+            esc = True
+        elif ch == ":":
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    out.append(cur)
+    return out
+
+
+# ---------------------------------------------------------------- system state
+def wifi_on():
+    return sh(["nmcli", "-t", "-f", "WIFI", "radio"]).strip() == "enabled"
+
+
+def wifi_current():
+    for l in sh(["nmcli", "-t", "-f", "ACTIVE,SSID", "dev", "wifi"]).splitlines():
+        f = nmcli_split(l)
+        if f and f[0] == "yes":
+            return f[1] if len(f) > 1 else ""
+    return ""
+
+
+def wired_up():
+    for l in sh(["nmcli", "-t", "-f", "TYPE,STATE", "dev"]).splitlines():
+        f = nmcli_split(l)
+        if len(f) > 1 and f[0] == "ethernet" and f[1].startswith("connected"):
+            return True
+    return False
+
+
+def wifi_list():
+    nets = {}
+    for l in sh(["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "dev", "wifi", "list", "--rescan", "no"]).splitlines():
+        f = nmcli_split(l)
+        if len(f) < 4 or not f[1]:
+            continue
+        ssid, sig = f[1], int(f[2] or 0)
+        cur = f[0].strip() == "*"
+        if ssid not in nets or sig > nets[ssid]["sig"] or cur:
+            nets[ssid] = {"ssid": ssid, "sig": sig, "lock": f[3] not in ("", "--"), "cur": cur or nets.get(ssid, {}).get("cur", False)}
+    known = set(sh(["nmcli", "-t", "-f", "NAME", "con", "show"]).splitlines())
+    lst = sorted(nets.values(), key=lambda n: (not n["cur"], n["ssid"] not in known, -n["sig"]))
+    for n in lst:
+        n["known"] = n["ssid"] in known
+    return lst[:10]
+
+
+def bt_present():
+    return has("bluetoothctl") and "Controller" in sh(["bluetoothctl", "list"])
+
+
+def bt_on():
+    return "Powered: yes" in sh(["bluetoothctl", "show"])
+
+
+def bt_devices():
+    out = sh(["bluetoothctl", "devices", "Paired"]) or sh(["bluetoothctl", "paired-devices"])
+    devs = []
+    for l in out.splitlines():
+        m = re.match(r"Device ([0-9A-F:]{17}) (.+)", l.strip())
+        if m:
+            info = sh(["bluetoothctl", "info", m.group(1)])
+            devs.append({"mac": m.group(1), "name": m.group(2), "on": "Connected: yes" in info})
+    return devs
+
+
+def modem_present():
+    return any(nmcli_split(l)[0] == "gsm" for l in sh(["nmcli", "-t", "-f", "TYPE", "dev"]).splitlines())
+
+
+def wwan_on():
+    return sh(["nmcli", "-t", "-f", "WWAN", "radio"]).strip() == "enabled"
+
+
+def dnd_on():
+    return "do-not-disturb" in sh(["makoctl", "mode"])
+
+
+def night_on():
+    return sh(["pgrep", "-x", "wlsunset"]).strip() != ""
+
+
+def airplane_on():
+    return sh(["nmcli", "-t", "-f", "WIFI", "radio"]).strip() == "disabled" and not (bt_present() and bt_on())
+
+
+def volume():
+    out = sh(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    m = re.search(r"([\d.]+)", out)
+    return (round(float(m.group(1)) * 100) if m else None), ("MUTED" in out)
+
+
+def brightness():
+    if not has("brightnessctl"):
+        return None
+    for l in sh(["brightnessctl", "-m", "-c", "backlight"]).splitlines():
+        f = l.split(",")
+        if len(f) >= 4:
+            return int(f[3].rstrip("%"))
+    return None
+
+
+def power_profile():
+    return sh(["powerprofilesctl", "get"]).strip() if has("powerprofilesctl") else ""
+
+
+def battery():
+    for b in sorted(Path("/sys/class/power_supply").glob("BAT*")):
+        try:
+            cap = int((b / "capacity").read_text())
+            st = (b / "status").read_text().strip()
+            return cap, st
+        except Exception:
+            pass
+    return None
+
+
+def drives():
+    try:
+        data = json.loads(sh(["lsblk", "-J", "-o", "NAME,PATH,LABEL,SIZE,MOUNTPOINT,RM,HOTPLUG,TYPE,FSTYPE,PKNAME"]))
+    except Exception:
+        return []
+    out = []
+
+    def walk(devs, parent_removable=False):
+        for d in devs:
+            removable = parent_removable or d.get("rm") in (True, "1") or d.get("hotplug") in (True, "1")
+            if removable and d.get("fstype") and d.get("type") in ("part", "disk"):
+                out.append({"path": d["path"], "label": d.get("label") or d["name"], "size": d.get("size", ""),
+                            "mnt": d.get("mountpoint"), "parent": "/dev/" + (d.get("pkname") or d["name"])})
+            walk(d.get("children", []), removable)
+    walk(data.get("blockdevices", []))
+    return out
+
+
+# ---------------------------------------------------------------- taskbar status
+def status():
+    txt = "SETTINGS ▴"
+    tips = []
+    usb = len([d for d in drives() if d["mnt"]])
+    if usb:
+        txt += f"  USB {usb}"
+    b = battery()
+    if b:
+        tips.append(f"Battery {b[0]}% · {b[1].lower()}")
+        if b[0] <= 20 and b[1] != "Charging":
+            txt += f"  BAT {b[0]}%"
+    w = wifi_current()
+    tips.append("Wi-Fi: " + (w if w else ("wired" if wired_up() else "not connected")))
+    v, m = volume()
+    if v is not None:
+        tips.append("Volume: " + ("muted" if m else f"{v}%"))
+    if dnd_on():
+        txt += "  DND"
+    print(json.dumps({"text": txt, "tooltip": "\n".join(tips), "class": "low" if (b and b[0] <= 20) else ""}))
+
+
+# ---------------------------------------------------------------- the panel window
+def run_panel(kind):
+    import gi
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("Gdk", "3.0")
+    gi.require_version("GtkLayerShell", "0.1")
+    from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
+    GLib.set_prgname("glyph-panel")
+
+    pidfile = RUN / f"glyph-panel-{kind}.pid"
+    other = RUN / f"glyph-panel-{'cal' if kind == 'quick' else 'quick'}.pid"
+    def panel_pid(f):
+        """The pid in f, but only if that process really is a glyph-panel."""
+        try:
+            pid = int(f.read_text())
+            if b"glyph-panel" in Path(f"/proc/{pid}/cmdline").read_bytes():
+                return pid
+        except Exception:
+            pass
+        f.unlink(missing_ok=True)
+        return None
+
+    for f, toggle in ((pidfile, True), (other, False)):
+        pid = panel_pid(f)
+        if pid:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except Exception:
+                pass
+            f.unlink(missing_ok=True)
+            if toggle:
+                return
+    pidfile.write_text(str(os.getpid()))
+
+    css = Gtk.CssProvider()
+    try:
+        css.load_from_path(str(CONF / "panel" / "panel.css"))
+    except Exception:
+        pass
+    screen = Gdk.Screen.get_default()
+    if screen is None:
+        pidfile.unlink(missing_ok=True)
+        sys.exit("glyph-panel: no display (is Glyph running?)")
+    Gtk.StyleContext.add_provider_for_screen(screen, css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 10)
+
+    win = Gtk.Window()
+    win.set_name("glyph-panel")
+    GtkLayerShell.init_for_window(win)
+    GtkLayerShell.set_namespace(win, "glyph-panel")
+    GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
+    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
+    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
+    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 46)
+    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 6)
+    try:
+        GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.ON_DEMAND)
+    except Exception:
+        GtkLayerShell.set_keyboard_interactivity(win, True)
+
+    def quit_(*_):
+        pidfile.unlink(missing_ok=True)
+        Gtk.main_quit()
+
+    win.connect("destroy", quit_)
+    win.connect("key-press-event", lambda w, e: quit_() if e.keyval == Gdk.KEY_Escape else False)
+    had_focus = {"v": False}
+
+    def on_focus_in(*_):
+        had_focus["v"] = True
+
+    def on_focus_out(*_):
+        if had_focus["v"]:
+            GLib.timeout_add(150, lambda: (quit_(), False)[1])
+    win.connect("focus-in-event", on_focus_in)
+    win.connect("focus-out-event", on_focus_out)
+    signal.signal(signal.SIGTERM, lambda *a: GLib.idle_add(quit_))
+
+    outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    outer.get_style_context().add_class("panel")
+    win.add(outer)
+    title = Gtk.Box()
+    title.get_style_context().add_class("ptitle")
+    lab = Gtk.Label(label="■ QUICK SETTINGS" if kind == "quick" else "■ CALENDAR")
+    lab.get_style_context().add_class("pt")
+    lab.set_valign(Gtk.Align.CENTER)
+    title.pack_start(lab, False, False, 0)
+    x = Gtk.Button(label="×")
+    x.get_style_context().add_class("px")
+    x.connect("clicked", quit_)
+    title.pack_end(x, False, False, 0)
+    outer.pack_start(title, False, False, 0)
+    scroll = Gtk.ScrolledWindow()
+    scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+    mon = Gdk.Display.get_default().get_monitor(0)
+    max_h = int(mon.get_geometry().height * 0.78) - 90 if mon else 700
+
+    def fit_height():
+        """Grow with the content up to most of the screen, then scroll."""
+        nat = body.get_preferred_height()[1]
+        scroll.set_min_content_height(min(nat, max_h))
+        return False
+    outer.pack_start(scroll, True, True, 0)
+    body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    body.get_style_context().add_class("pbody")
+    scroll.add(body)
+    foot = Gtk.Box(spacing=6, homogeneous=True)
+    foot.get_style_context().add_class("pfoot")
+    outer.pack_start(foot, False, False, 0)
+
+    def label(text, cls=None, xalign=0, wrap=False):
+        l = Gtk.Label(label=text, xalign=xalign)
+        if wrap:
+            l.set_line_wrap(True)
+            l.set_max_width_chars(40)
+        if cls:
+            for c in cls.split():
+                l.get_style_context().add_class(c)
+        return l
+
+    def button(text, cb, cls=None):
+        b = Gtk.Button(label=text)
+        if cls:
+            for c in cls.split():
+                b.get_style_context().add_class(c)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def clear(box):
+        for c in box.get_children():
+            box.remove(c)
+
+    def later(fn, ms=600):
+        GLib.timeout_add(ms, lambda: (fn(), False)[1])
+
+    def run_then(cmd, after=None):
+        """Run a command in the background; redraw when it finishes."""
+        try:
+            p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        except Exception:
+            return
+
+        def poll():
+            if p.poll() is None:
+                return True
+            if after:
+                after(p.returncode, p.stderr.read() if p.stderr else "")
+            return False
+        GLib.timeout_add(250, poll)
+
+    # ------------------------------------------------------------ quick settings
+    if kind == "quick":
+        win.set_size_request(400, -1)
+        state = {"open_net": False, "join": None, "msg": "", "busy": set()}
+
+        def toggle_tile(name, on, sub, cb, enabled=True):
+            b = Gtk.Button()
+            b.get_style_context().add_class("tog")
+            if on:
+                b.get_style_context().add_class("on")
+            v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            v.pack_start(label(name, "tn"), False, False, 0)
+            v.pack_start(label(sub, "ts"), False, False, 0)
+            b.add(v)
+            b.set_sensitive(enabled)
+            b.connect("clicked", lambda *_: cb())
+            return b
+
+        def draw():
+            clear(body)
+            # toggles
+            grid = Gtk.Grid(column_spacing=6, row_spacing=6, column_homogeneous=True)
+            tiles = []
+            w_on = wifi_on()
+            cur = wifi_current()
+            tiles.append(toggle_tile("Wi-Fi", w_on, (cur or ("wired" if wired_up() else "not connected")) if w_on else "off",
+                                     lambda: (sh(["nmcli", "radio", "wifi", "off" if w_on else "on"]), later(draw))))
+            if bt_present():
+                b_on = bt_on()
+                tiles.append(toggle_tile("Bluetooth", b_on, "on" if b_on else "off",
+                                         lambda: (sh(["bluetoothctl", "power", "off" if b_on else "on"]), later(draw))))
+            else:
+                tiles.append(toggle_tile("Bluetooth", False, "not found", lambda: None, False))
+            if modem_present():
+                m_on = wwan_on()
+                tiles.append(toggle_tile("Mobile data", m_on, "on" if m_on else "off",
+                                         lambda: (sh(["nmcli", "radio", "wwan", "off" if m_on else "on"]), later(draw))))
+            d_on = dnd_on()
+            tiles.append(toggle_tile("Do not disturb", d_on, "on" if d_on else "off",
+                                     lambda: (sh(["makoctl", "mode", "-t", "do-not-disturb"]), later(draw, 150))))
+            if has("wlsunset"):
+                n_on = night_on()
+                tiles.append(toggle_tile("Night light", n_on, "warm at night" if n_on else "off",
+                                         lambda: ((sh(["pkill", "-x", "wlsunset"]) if n_on else bg(["wlsunset", "-t", "3400", "-T", "6500", "-S", "07:00", "-s", "19:30"])), later(draw))))
+            a_on = airplane_on()
+
+            def airplane():
+                if a_on:
+                    sh(["nmcli", "radio", "all", "on"])
+                    if bt_present():
+                        sh(["bluetoothctl", "power", "on"])
+                else:
+                    sh(["nmcli", "radio", "all", "off"])
+                    if bt_present():
+                        sh(["bluetoothctl", "power", "off"])
+                later(draw)
+            tiles.append(toggle_tile("Airplane", a_on, "on" if a_on else "off", airplane))
+            for i, t in enumerate(tiles):
+                grid.attach(t, i % 3, i // 3, 1, 1)
+            body.pack_start(grid, False, False, 0)
+
+            # sliders
+            v, muted = volume()
+            if v is not None:
+                row = Gtk.Box(spacing=8)
+                row.pack_start(label("VOL", "lab"), False, False, 0)
+                sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 5)
+                sc.set_draw_value(False)
+                sc.set_value(v)
+                val = label("muted" if muted else f"{v}%", "dim")
+                val.set_width_chars(6)
+                sc.connect("value-changed", lambda s: (sh(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{int(s.get_value())}%"]),
+                                                       val.set_text(f"{int(s.get_value())}%")))
+                row.pack_start(sc, True, True, 0)
+                row.pack_start(val, False, False, 0)
+                row.pack_start(button("ON" if muted else "MUTE", lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)), "small"), False, False, 0)
+                body.pack_start(row, False, False, 0)
+            br = brightness()
+            if br is not None:
+                row = Gtk.Box(spacing=8)
+                row.pack_start(label("BRI", "lab"), False, False, 0)
+                sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 5)
+                sc.set_draw_value(False)
+                sc.set_value(br)
+                val = label(f"{br}%", "dim")
+                val.set_width_chars(6)
+                sc.connect("value-changed", lambda s: (sh(["brightnessctl", "-q", "set", f"{int(s.get_value())}%"]), val.set_text(f"{int(s.get_value())}%")))
+                row.pack_start(sc, True, True, 0)
+                row.pack_start(val, False, False, 0)
+                body.pack_start(row, False, False, 0)
+
+            # power profile + battery
+            prof = power_profile()
+            if prof:
+                body.pack_start(label("POWER PROFILE", "lab"), False, False, 0)
+                row = Gtk.Box(spacing=4, homogeneous=True)
+                for key, name in (("power-saver", "Saver"), ("balanced", "Balanced"), ("performance", "Performance")):
+                    b = button(name, (lambda k=key: (sh(["powerprofilesctl", "set", k]), later(draw, 200))), "seg on" if prof == key else "seg")
+                    row.pack_start(b, True, True, 0)
+                body.pack_start(row, False, False, 0)
+            bat = battery()
+            if bat:
+                body.pack_start(label(f"BATTERY  {bat[0]}% · {bat[1].lower()}", "dim"), False, False, 0)
+
+            # Wi-Fi networks
+            hdr = Gtk.Box(spacing=6)
+            hdr.pack_start(label("WI-FI NETWORKS", "lab"), True, True, 0)
+            hdr.pack_start(button("Hide ▴" if state["open_net"] else "Show ▾", lambda: (state.update(open_net=not state["open_net"]), draw()), "small"), False, False, 0)
+            body.pack_start(hdr, False, False, 0)
+            if state["open_net"]:
+                if not w_on:
+                    body.pack_start(label("Wi-Fi is off.", "dim"), False, False, 0)
+                else:
+                    sh(["nmcli", "dev", "wifi", "rescan"], timeout=2)
+                    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    box.get_style_context().add_class("list")
+                    for n in wifi_list():
+                        r = Gtk.Box(spacing=8)
+                        r.get_style_context().add_class("row")
+                        bars = "▮" * max(1, round(n["sig"] / 25)) + "▯" * (4 - max(1, round(n["sig"] / 25)))
+                        r.pack_start(label(bars, "sig"), False, False, 0)
+                        nm = label(n["ssid"] + ("  ✓ connected" if n["cur"] else ""), "on" if n["cur"] else None)
+                        nm.set_ellipsize(3)
+                        r.pack_start(nm, True, True, 0)
+                        if n["ssid"] in state["busy"]:
+                            r.pack_end(label("…", "amber"), False, False, 0)
+                        elif n["cur"]:
+                            def disc(s=n["ssid"]):
+                                state["busy"].add(s)
+                                run_then(["nmcli", "con", "down", "id", s], lambda rc, err, s=s: (state["busy"].discard(s), draw()))
+                                draw()
+                            r.pack_end(button("Disconnect", disc, "small"), False, False, 0)
+                        else:
+                            def connect(n=n):
+                                if n["known"] or not n["lock"]:
+                                    state["busy"].add(n["ssid"])
+                                    cmd = ["nmcli", "con", "up", "id", n["ssid"]] if n["known"] else ["nmcli", "dev", "wifi", "connect", n["ssid"]]
+                                    run_then(cmd, lambda rc, err, s=n["ssid"]: (state["busy"].discard(s), state.update(msg="" if rc == 0 else "Could not connect to " + s), draw()))
+                                else:
+                                    state["join"] = n["ssid"]
+                                draw()
+                            r.pack_end(button("Connect", connect, "small"), False, False, 0)
+                        box.pack_start(r, False, False, 0)
+                        if state["join"] == n["ssid"]:
+                            jr = Gtk.Box(spacing=6)
+                            ent = Gtk.Entry()
+                            ent.set_visibility(False)
+                            ent.set_placeholder_text("password for " + n["ssid"])
+
+                            def join(e=ent, s=n["ssid"]):
+                                pw = e.get_text()
+                                if not pw:
+                                    return
+                                state["busy"].add(s)
+                                state["join"] = None
+                                run_then(["nmcli", "dev", "wifi", "connect", s, "password", pw],
+                                         lambda rc, err, s=s: (state["busy"].discard(s), state.update(msg="" if rc == 0 else "Wrong password or no signal: " + s), draw()))
+                                draw()
+                            ent.connect("activate", lambda *_: join())
+                            jr.pack_start(ent, True, True, 0)
+                            jr.pack_start(button("Join", join, "small amber"), False, False, 0)
+                            jr.pack_start(button("×", lambda: (state.update(join=None), draw()), "small"), False, False, 0)
+                            box.pack_start(jr, False, False, 0)
+                            GLib.idle_add(ent.grab_focus)
+                    body.pack_start(box, False, False, 0)
+                    if state["msg"]:
+                        body.pack_start(label(state["msg"], "err", wrap=True), False, False, 0)
+                    more = "nm-connection-editor" if has("nm-connection-editor") else None
+                    body.pack_start(button("All network settings…", lambda: (bg([more] if more else ["foot", "-T", "Network", "nmtui"]), quit_()), "small"), False, False, 0)
+
+            # Bluetooth devices
+            if bt_present() and bt_on():
+                body.pack_start(label("BLUETOOTH · PAIRED DEVICES", "lab"), False, False, 0)
+                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                box.get_style_context().add_class("list")
+                devs = bt_devices()
+                if not devs:
+                    box.pack_start(label("No paired devices yet.", "dim"), False, False, 0)
+                for d in devs:
+                    r = Gtk.Box(spacing=8)
+                    r.get_style_context().add_class("row")
+                    r.pack_start(label(d["name"][:1].upper(), "tile"), False, False, 0)
+                    r.pack_start(label(d["name"] + ("  ✓ connected" if d["on"] else ""), "on" if d["on"] else None), True, True, 0)
+                    if d["mac"] in state["busy"]:
+                        r.pack_end(label("…", "amber"), False, False, 0)
+                    else:
+                        act = "disconnect" if d["on"] else "connect"
+
+                        def bt_act(m=d["mac"], a=act):
+                            state["busy"].add(m)
+                            run_then(["bluetoothctl", a, m], lambda rc, err, m=m: (state["busy"].discard(m), draw()))
+                            draw()
+                        r.pack_end(button(act.capitalize(), bt_act, "small"), False, False, 0)
+                    box.pack_start(r, False, False, 0)
+                body.pack_start(box, False, False, 0)
+                bm = "blueman-manager" if has("blueman-manager") else None
+                body.pack_start(button("Pair a new device…", lambda: (bg([bm] if bm else ["foot", "-T", "Bluetooth", "bluetoothctl"]), quit_()), "small"), False, False, 0)
+
+            # drives
+            body.pack_start(label("DRIVES · USB", "lab"), False, False, 0)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            box.get_style_context().add_class("list")
+            dl = drives()
+            if not dl:
+                box.pack_start(label("No USB drives plugged in.", "dim"), False, False, 0)
+            for d in dl:
+                r = Gtk.Box(spacing=8)
+                r.get_style_context().add_class("row")
+                r.pack_start(label("U", "tile"), False, False, 0)
+                v2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                v2.pack_start(label(d["label"], "tn"), False, False, 0)
+                v2.pack_start(label(f"{d['size']} · " + (d["mnt"] if d["mnt"] else "not mounted"), "ts"), False, False, 0)
+                r.pack_start(v2, True, True, 0)
+                if d["path"] in state["busy"]:
+                    r.pack_end(label("…", "amber"), False, False, 0)
+                else:
+                    def eject(d=d):
+                        state["busy"].add(d["path"])
+                        draw()
+                        cmd = ["sh", "-c", f"udisksctl unmount -b '{d['path']}' >/dev/null 2>&1; udisksctl power-off -b '{d['parent']}'"]
+                        run_then(cmd, lambda rc, err, p=d["path"], l=d["label"]: (state["busy"].discard(p),
+                                 bg(["notify-send", "-a", "Drives", "Drives", f"{l} can now be removed safely." if rc == 0 else f"{l} is still in use. Close the files on it and try again."]), draw()))
+                    r.pack_end(button("Eject", eject, "small amber"), False, False, 0)
+                    if d["mnt"]:
+                        r.pack_end(button("Open", (lambda m=d["mnt"]: (bg(["thunar", m]), quit_())), "small"), False, False, 0)
+                    else:
+                        def mount(p=d["path"]):
+                            state["busy"].add(p)
+                            run_then(["udisksctl", "mount", "-b", p], lambda rc, err, p=p: (state["busy"].discard(p), draw()))
+                            draw()
+                        r.pack_end(button("Mount", mount, "small"), False, False, 0)
+                box.pack_start(r, False, False, 0)
+            body.pack_start(box, False, False, 0)
+            body.show_all()
+            GLib.idle_add(fit_height)
+
+        clear(foot)
+        foot.pack_start(button("Settings", lambda: (bg(["glyph-settings"]), quit_())), True, True, 0)
+        foot.pack_start(button("Lock", lambda: (bg(["glyph-lock"]), quit_())), True, True, 0)
+        foot.pack_start(button("Power", lambda: (bg(["glyph-power"]), quit_()), "amber"), True, True, 0)
+        draw()
+        GLib.timeout_add_seconds(5, lambda: (draw() if not state["join"] else None, True)[1])
+
+    # ------------------------------------------------------------ calendar
+    else:
+        win.set_size_request(360, -1)
+        today = datetime.date.today()
+        view = {"y": today.year, "m": today.month}
+
+        def draw():
+            clear(body)
+            now = datetime.datetime.now()
+            body.pack_start(label(now.strftime("%H:%M"), "bigclock", xalign=0.5), False, False, 0)
+            body.pack_start(label(now.strftime("%A %d %B %Y"), "dim", xalign=0.5), False, False, 0)
+            nav = Gtk.Box(spacing=6)
+            nav.pack_start(button("‹", lambda: (view.update(y=view["y"] - (view["m"] == 1), m=12 if view["m"] == 1 else view["m"] - 1), draw()), "small"), False, False, 0)
+            nav.pack_start(label(datetime.date(view["y"], view["m"], 1).strftime("%B %Y").upper(), "lab", xalign=0.5), True, True, 0)
+            nav.pack_start(button("›", lambda: (view.update(y=view["y"] + (view["m"] == 12), m=1 if view["m"] == 12 else view["m"] + 1), draw()), "small"), False, False, 0)
+            body.pack_start(nav, False, False, 0)
+            g = Gtk.Grid(column_homogeneous=True, row_spacing=2, column_spacing=2)
+            for i, d in enumerate(["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]):
+                g.attach(label(d, "dim", xalign=0.5), i, 0, 1, 1)
+            for r, week in enumerate(calendar.Calendar(0).monthdayscalendar(view["y"], view["m"])):
+                for c, day in enumerate(week):
+                    if day:
+                        cls = "day today" if datetime.date(view["y"], view["m"], day) == today else "day"
+                        g.attach(label(str(day), cls, xalign=0.5), c, r + 1, 1, 1)
+            body.pack_start(g, False, False, 0)
+            # notifications
+            hdr = Gtk.Box(spacing=6)
+            hdr.pack_start(label("NOTIFICATIONS", "lab"), True, True, 0)
+            d_on = dnd_on()
+            hdr.pack_start(button("DND on" if d_on else "DND off", lambda: (sh(["makoctl", "mode", "-t", "do-not-disturb"]), draw()), "small on" if d_on else "small"), False, False, 0)
+            body.pack_start(hdr, False, False, 0)
+            items = []
+            raw = sh(["makoctl", "history"])
+            try:
+                data = json.loads(raw)
+                for n in data.get("data", [[]])[0][:8]:
+                    items.append((n.get("app-name", {}).get("data", ""), n.get("summary", {}).get("data", ""), n.get("body", {}).get("data", "")))
+            except Exception:
+                cur = None
+                for l in raw.splitlines():
+                    m = re.match(r"Notification \d+: (.*)", l)
+                    if m:
+                        cur = ["", m.group(1), ""]
+                        items.append(cur)
+                    elif cur is not None and l.strip().startswith("App name:"):
+                        cur[0] = l.split(":", 1)[1].strip()
+                items = items[:8]
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            box.get_style_context().add_class("list")
+            if not items:
+                box.pack_start(label("No notifications.", "dim"), False, False, 0)
+            for app, summ, bod in items:
+                r = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                r.get_style_context().add_class("row")
+                r.pack_start(label((app.upper() + " · " if app else "") + summ, "tn"), False, False, 0)
+                if bod:
+                    r.pack_start(label(bod, "ts", wrap=True), False, False, 0)
+                box.pack_start(r, False, False, 0)
+            body.pack_start(box, False, False, 0)
+            body.show_all()
+            GLib.idle_add(fit_height)
+
+        clear(foot)
+        foot.pack_start(button("Today", lambda: (view.update(y=today.year, m=today.month), draw())), True, True, 0)
+        foot.pack_start(button("Clear", lambda: (sh(["makoctl", "dismiss", "--all"]), sh(["makoctl", "history", "--clear"]), draw())), True, True, 0)
+        draw()
+        GLib.timeout_add_seconds(20, lambda: (draw(), True)[1])
+
+    win.show_all()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    what = sys.argv[1] if len(sys.argv) > 1 else "quick"
+    if what == "status":
+        status()
+    elif what in ("quick", "cal"):
+        run_panel(what)
+    else:
+        print(__doc__)
