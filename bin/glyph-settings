@@ -446,7 +446,8 @@ class Settings(Gtk.Window):
             p.pack_start(self.info(rows), False, False, 0)
         p.pack_start(self.lab("WI-FI", "lab"), False, False, 0)
         self.embed(p, "glyph-wifi", "WifiView")
-        p.pack_start(self.btn("Advanced: VPN, wired, fixed IP…", lambda: bg(["nm-connection-editor"] if has("nm-connection-editor") else ["foot", "-T", "Network", "nmtui"])), False, False, 0)
+        if has("nm-connection-editor"):
+            p.pack_start(self.btn("Advanced: VPN, wired, fixed IP…", lambda: bg(["nm-connection-editor"])), False, False, 0)
 
     def page_bluetooth(self, p):
         self.embed(p, "glyph-bluetooth", "BluetoothView")

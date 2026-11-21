@@ -722,8 +722,7 @@ def run_panel(kind):
                     body.pack_start(box, False, False, 0)
                     if state["msg"]:
                         body.pack_start(label(state["msg"], "err", wrap=True), False, False, 0)
-                    more = "nm-connection-editor" if has("nm-connection-editor") else None
-                    body.pack_start(button("All network settings…", lambda: (bg([more] if more else ["foot", "-T", "Network", "nmtui"]), quit_()), "small"), False, False, 0)
+                    body.pack_start(button("All networks in Settings…", lambda: (bg(["glyph-settings", "Network"]), quit_()), "small"), False, False, 0)
 
             # Bluetooth devices
             if bt_present() and bt_on():
