@@ -105,8 +105,58 @@ class Desk(Gtk.Window):
         self.cache = None
         self.load()
         self.connect("draw", self.draw)
-        self.connect("realize", lambda *_: self.get_window().input_shape_combine_region(cairo.Region(), 0, 0))
+        # right-click on the desktop: the Glyph menu
+        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.connect("button-press-event", self.on_click)
         self.connect("size-allocate", lambda *_: setattr(self, "cache", None))
+
+    def on_click(self, w, e):
+        if e.button != 3:
+            return False
+        m = Gtk.Menu()
+        m.get_style_context().add_class("deskmenu")
+
+        def item(menu, text, cmd=None, sub=None):
+            it = Gtk.MenuItem(label=text)
+            if sub:
+                it.set_submenu(sub)
+            elif cmd:
+                it.connect("activate", lambda *_: run(cmd))
+            menu.append(it)
+
+        def run(cmd):
+            try:
+                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            except Exception:
+                pass
+        item(m, "Start menu", ["glyph-menu"])
+        m.append(Gtk.SeparatorMenuItem())
+        item(m, "Terminal", ["glyph-term"])
+        item(m, "Files", ["glyph-files"])
+        item(m, "Text editor", ["mousepad"])
+        item(m, "Music", ["glyph-music"])
+        m.append(Gtk.SeparatorMenuItem())
+        look = Gtk.Menu()
+        for t, mode in (("Dark", "dark"), ("OLED black", "oled"), ("Light", "light")):
+            item(look, t, ["glyph-theme", "--mode", mode])
+        look.append(Gtk.SeparatorMenuItem())
+        for t, c in (("Tan", "tan"), ("Light tan", "light-tan"), ("Cream", "cream"), ("Amber", "amber"), ("Olive", "olive"),
+                     ("Green", "green"), ("Rose", "rose"), ("Blue", "blue"), ("Dark blue", "dark-blue"), ("Dark tan", "dark-tan")):
+            item(look, t, ["glyph-theme", "--colour", c])
+        item(m, "Look", sub=look)
+        item(m, "Background…", ["glyph-settings", "Background"])
+        item(m, "Settings", ["glyph-settings"])
+        m.append(Gtk.SeparatorMenuItem())
+        item(m, "Screenshot", ["glyph-shot"])
+        item(m, "Screenshot of an area", ["glyph-shot", "area"])
+        m.append(Gtk.SeparatorMenuItem())
+        item(m, "Lock", ["glyph-lock"])
+        item(m, "Power…", ["glyph-power"])
+        m.show_all()
+        m.attach_to_widget(self, None)
+        m.popup_at_pointer(e)
+        self.menu = m
+        return True
 
     def load(self):
         self.pal = kv(CONF / "palette.env")

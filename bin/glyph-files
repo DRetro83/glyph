@@ -880,7 +880,7 @@ class Files(Gtk.Window):
 
     def terminal(self):
         p = self.cwd.get_path() if self.cwd else None
-        self.spawn(["foot", "-D", p] if p else ["foot"])
+        self.spawn(["glyph-term", p] if p else ["glyph-term"])
 
     # ---------- mouse and keys
     def on_button(self, w, e):

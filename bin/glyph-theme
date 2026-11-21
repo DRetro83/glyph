@@ -821,6 +821,23 @@ def write_apps(p, conf):
         (d / "glyph.xml").write_text(sourceview_xml(p))
     if shutil.which("gsettings"):
         subprocess.run(["gsettings", "set", "org.xfce.mousepad.preferences.view", "color-scheme", "glyph"], capture_output=True)
+    # xfce4-terminal (Glyph's terminal with a right-click menu): colours and font via xfconf
+    if shutil.which("xfconf-query") and shutil.which("xfce4-terminal"):
+        pal16 = [p['lo'], p['rose'], p['green'], p['amber'], "#4a6a8a", "#9a6a8a", "#6a9a8a", p['dim'],
+                 p['hi'], p['rosehi'], p['greenhi'], p['olivehi'], "#8fb0c8", "#c890b0", "#90c8b8", p['text']]
+        props = [("/color-use-theme", "bool", "false"), ("/color-foreground", "string", p['text']),
+                 ("/color-background", "string", p['view']), ("/color-cursor", "string", p['amber']),
+                 ("/color-cursor-use-default", "bool", "false"), ("/color-selection", "string", p['tink']),
+                 ("/color-selection-background", "string", p['title']), ("/color-selection-use-default", "bool", "false"),
+                 ("/color-bold-use-default", "bool", "true"), ("/color-palette", "string", ";".join(pal16)),
+                 ("/font-use-system", "bool", "false"), ("/font-name", "string", "IBM Plex Mono 11"),
+                 ("/misc-menubar-default", "bool", "false"), ("/misc-toolbar-default", "bool", "false"),
+                 ("/misc-borders-default", "bool", "true"), ("/scrolling-bar", "string", "TERMINAL_SCROLLBAR_NONE"),
+                 ("/misc-cursor-shape", "string", "TERMINAL_CURSOR_SHAPE_BLOCK"), ("/misc-default-geometry", "string", "100x30"),
+                 ("/misc-show-unsafe-paste-dialog", "bool", "false")]
+        for prop, typ, val in props:
+            subprocess.run(["xfconf-query", "-c", "xfce4-terminal", "-p", prop, "-n", "-t", typ, "-s", val],
+                           capture_output=True, timeout=5)
     # foot: our colours in a file of our own, included from foot.ini
     (CONF_DIR / "foot").mkdir(parents=True, exist_ok=True)
     (CONF_DIR / "foot" / "glyph.ini").write_text(foot_ini(p))

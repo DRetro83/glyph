@@ -1,0 +1,10 @@
+#!/bin/sh
+# glyph-term [FOLDER] - open the Glyph terminal.
+# xfce4-terminal has a right-click menu (copy, paste, new tab ...) and gets the
+# Glyph colours; foot is the light fallback.
+if command -v xfce4-terminal >/dev/null 2>&1; then
+  if [ -n "$1" ]; then exec xfce4-terminal --working-directory="$1"; fi
+  exec xfce4-terminal
+fi
+if [ -n "$1" ]; then exec foot -D "$1"; fi
+exec foot

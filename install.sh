@@ -47,6 +47,7 @@ PACKAGES=(
   wlr-randr wlsunset lxpolkit          # screen scale, night light, password prompts
   pavucontrol blueman                  # volume per app, Bluetooth pairing
   qt6ct qt5ct                          # Qt apps in the Glyph colours
+  xfce4-terminal                       # terminal with a right-click menu (foot stays as the light one)
   mpv ristretto atril xfce4-taskmanager   # video, pictures, PDF, system monitor
   gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-good gstreamer1.0-plugins-base gstreamer1.0-libav   # Glyph music player
 )

@@ -6,7 +6,7 @@
   <menu id="root-menu" label="GLYPH">
     <item label="Start menu"><action name="Execute" command="glyph-menu" /></item>
     <separator />
-    <item label="Terminal"><action name="Execute" command="foot" /></item>
+    <item label="Terminal"><action name="Execute" command="glyph-term" /></item>
     <item label="Files"><action name="Execute" command="glyph-files" /></item>
     <item label="Text editor"><action name="Execute" command="mousepad" /></item>
     <separator />

@@ -28,7 +28,7 @@ HIDDEN = CONF / "menu-hidden"
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 PIDFILE = RUN / "glyph-start.pid"
 
-DEFAULT_FAVS = ["foot.desktop", "glyph-files.desktop", "glyph-music.desktop", "firefox-esr.desktop", "firefox.desktop",
+DEFAULT_FAVS = ["xfce4-terminal.desktop", "foot.desktop", "glyph-files.desktop", "glyph-music.desktop", "firefox-esr.desktop", "firefox.desktop",
                 "org.xfce.mousepad.desktop", "glyph-settings.desktop"]
 # KDE helpers that make no sense in Glyph (they stay in KDE)
 HIDE_IDS = {"org.kde.drkonqi.coredump.gui.desktop", "org.kde.kaddressbook.themeeditor.desktop",
@@ -48,7 +48,8 @@ CATS = [("Development", ["Development"]), ("Education", ["Education"]), ("Games"
         ("Office", ["Office"]), ("Science", ["Science"]), ("Settings", ["Settings"]), ("System", ["System"]),
         ("Utilities", ["Utility"]), ("Wine", ["Wine"])]
 # a few clearer names and descriptions, like in the design
-NICE = {"foot.desktop": ("Terminal", "command line"), "glyph-files.desktop": ("Files", "file manager, USB drives, trash"),
+NICE = {"xfce4-terminal.desktop": ("Terminal", "command line, right-click for copy and paste"),
+        "foot.desktop": ("Foot", "light terminal, keys only"), "glyph-files.desktop": ("Files", "file manager, USB drives, trash"),
         "thunar.desktop": ("Thunar", "advanced file manager"),
         "org.xfce.mousepad.desktop": ("Text editor", "notes and config files"),
         "glyph-settings.desktop": ("Settings", "look, display, sound, keyboard, power"),
@@ -126,6 +127,8 @@ class Start(Gtk.Window):
             favs = [f for f in DEFAULT_FAVS if f in ids]
             if "firefox-esr.desktop" in favs and "firefox.desktop" in favs:
                 favs.remove("firefox.desktop")
+            if "xfce4-terminal.desktop" in favs and "foot.desktop" in favs:
+                favs.remove("foot.desktop")
         self.favs = favs
         self.cat = "Favorites" if self.favs else "All"
         self.had_focus = False

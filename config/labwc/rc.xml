@@ -82,7 +82,7 @@
     <keybind key="W-space"><action name="Execute" command="glyph-menu" /></keybind>
 
     <!-- apps -->
-    <keybind key="C-A-t"><action name="Execute" command="foot" /></keybind>
+    <keybind key="C-A-t"><action name="Execute" command="glyph-term" /></keybind>
     <keybind key="W-e"><action name="Execute" command="glyph-files" /></keybind>
 
     <!-- lock, power menu, screenshots -->
