@@ -163,8 +163,15 @@ class Settings(Gtk.Window):
         box.set_max_children_per_line(6)
         box.set_column_spacing(6)
         box.set_row_spacing(6)
+        def pick(v, b):
+            # light the chosen button at once; the change itself may take a moment
+            for child in box.get_children():
+                child.get_child().get_style_context().remove_class("on")
+            b.get_style_context().add_class("on")
+            cb(v)
         for v, t in items:
-            b = self.btn(t, (lambda v=v: cb(v)), "seg on" if str(v) == str(current) else "seg")
+            b = self.btn(t, lambda: None, "seg on" if str(v) == str(current) else "seg")
+            b.connect("clicked", lambda bb, v=v: pick(v, bb))
             if "<span" in t:
                 b.get_child().set_use_markup(True)
             box.add(b)
@@ -236,12 +243,6 @@ class Settings(Gtk.Window):
         def done():
             if proc.poll() is None:
                 return True
-            # Start again on the same page with the new look. Swapping the styles inside
-            # a running window could make it close on some systems.
-            try:
-                os.execv(sys.executable, [sys.executable, os.path.realpath(sys.argv[0]), self.current])
-            except Exception:
-                pass
             try:
                 if getattr(self, "css2", None):
                     Gtk.StyleContext.remove_provider_for_screen(Gdk.Screen.get_default(), self.css2)
