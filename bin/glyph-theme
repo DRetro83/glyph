@@ -875,8 +875,8 @@ def write_apps(p, conf):
             if r.returncode == 0:
                 mark.write_text("flatpak override --user --filesystem=~/.themes:ro\n")
     # LibreOffice draws its toolbars and documents itself and becomes hard to use with
-    # the Glyph GTK theme: give it plain Adwaita (dark or light, like Glyph).
-    lo_theme = "Adwaita" if mode == "light" else "Adwaita:dark"
+    # the Glyph GTK theme: give it its standard light look (plain Adwaita).
+    lo_theme = "Adwaita"   # LibreOffice's own standard colours, for now
     apps_dir = DATA_DIR / "applications"
     apps_dir.mkdir(parents=True, exist_ok=True)
     for src in Path("/usr/share/applications").glob("libreoffice*.desktop"):

@@ -13,6 +13,7 @@ powerprofilesctl, udisksctl, makoctl, wlsunset.
 import calendar
 import datetime
 import json
+import time
 import threading
 import os
 import re
@@ -214,6 +215,50 @@ def device_batteries():
     return out
 
 
+CLEARED = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-notif-cleared"
+
+
+def cleared_ids():
+    try:
+        return set(CLEARED.read_text().split())
+    except Exception:
+        return set()
+
+
+def notif_history():
+    """[(id, app, summary, body)]: the notifications on screen now, then mako's history."""
+    seen, out = set(), []
+    for cmd in ("list", "history"):
+        for it in _mako_items(sh(["makoctl", cmd])):
+            if str(it[0]) not in seen:
+                seen.add(str(it[0]))
+                out.append(it)
+    out.sort(key=lambda i: -int(i[0]) if str(i[0]).isdigit() else 0)
+    return out
+
+
+def _mako_items(raw):
+    items = []
+    try:
+        data = json.loads(raw)
+        lst = data.get("data", [[]])[0] if isinstance(data, dict) else data
+        for n in lst:
+            g = lambda k: (n.get(k, {}).get("data", "") if isinstance(n.get(k), dict) else n.get(k, ""))
+            items.append((g("id"), g("app-name") or g("app_name"), g("summary"), g("body")))
+    except Exception:
+        cur = None
+        for l in raw.splitlines():
+            m = re.match(r"Notification (\d+): (.*)", l)
+            if m:
+                cur = [m.group(1), "", m.group(2), ""]
+                items.append(cur)
+            elif cur is not None and l.strip().startswith("App name:"):
+                cur[1] = l.split(":", 1)[1].strip()
+            elif cur is not None and l.strip().startswith("Body:"):
+                cur[3] = l.split(":", 1)[1].strip()
+    return [tuple(i) for i in items]
+
+
 DDC_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "glyph-ddc"
 
 
@@ -302,6 +347,12 @@ def run_panel(kind):
 
     for f, toggle in [(pidfile, True)] + [(o, False) for o in others]:
         pid = panel_pid(f)
+        if pid and toggle:
+            try:
+                if time.time() - f.stat().st_mtime < 1.5:
+                    return          # it is still opening: ignore the double click
+            except Exception:
+                pass
         if pid:
             try:
                 os.kill(pid, signal.SIGTERM)
@@ -757,7 +808,8 @@ def run_panel(kind):
         foot.pack_start(button("Settings", lambda: (bg(["glyph-settings"]), quit_())), True, True, 0)
         foot.pack_start(button("Lock", lambda: (bg(["glyph-lock"]), quit_())), True, True, 0)
         foot.pack_start(button("Power", lambda: (bg(["glyph-power"]), quit_()), "amber"), True, True, 0)
-        draw()
+        body.pack_start(label("…", "dim"), False, False, 0)
+        GLib.timeout_add(30, lambda: (draw(), False)[1])
         GLib.timeout_add_seconds(5, lambda: (draw() if not state["join"] else None, True)[1])
 
     # ------------------------------------------------------------ power
@@ -834,27 +886,14 @@ def run_panel(kind):
             d_on = dnd_on()
             hdr.pack_start(button("DND on" if d_on else "DND off", lambda: (sh(["makoctl", "mode", "-t", "do-not-disturb"]), draw()), "small on" if d_on else "small"), False, False, 0)
             body.pack_start(hdr, False, False, 0)
-            items = []
-            raw = sh(["makoctl", "history"])
-            try:
-                data = json.loads(raw)
-                for n in data.get("data", [[]])[0][:8]:
-                    items.append((n.get("app-name", {}).get("data", ""), n.get("summary", {}).get("data", ""), n.get("body", {}).get("data", "")))
-            except Exception:
-                cur = None
-                for l in raw.splitlines():
-                    m = re.match(r"Notification \d+: (.*)", l)
-                    if m:
-                        cur = ["", m.group(1), ""]
-                        items.append(cur)
-                    elif cur is not None and l.strip().startswith("App name:"):
-                        cur[0] = l.split(":", 1)[1].strip()
-                items = items[:8]
+            items = notif_history()
+            hidden = cleared_ids()
+            items = [i for i in items if str(i[0]) not in hidden][:8]
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             box.get_style_context().add_class("list")
             if not items:
                 box.pack_start(label("No notifications.", "dim"), False, False, 0)
-            for app, summ, bod in items:
+            for _nid, app, summ, bod in items:
                 r = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                 r.get_style_context().add_class("row")
                 r.pack_start(label((app.upper() + " · " if app else "") + summ, "tn"), False, False, 0)
@@ -866,8 +905,21 @@ def run_panel(kind):
             GLib.idle_add(fit_height)
 
         clear(foot)
-        foot.pack_start(button("Today", lambda: (view.update(y=today.year, m=today.month), draw())), True, True, 0)
-        foot.pack_start(button("Clear", lambda: (sh(["makoctl", "dismiss", "--all"]), sh(["makoctl", "history", "--clear"]), draw())), True, True, 0)
+        def go_today():
+            view.update(y=today.year, m=today.month)
+            draw()
+            scroll.get_vadjustment().set_value(0)
+
+        def clear_all():
+            sh(["makoctl", "dismiss", "--all"])
+            ids = cleared_ids() | {str(i[0]) for i in notif_history()}
+            try:
+                CLEARED.write_text(" ".join(sorted(ids)[-500:]))
+            except Exception:
+                pass
+            draw()
+        foot.pack_start(button("Today", go_today), True, True, 0)
+        foot.pack_start(button("Clear", clear_all), True, True, 0)
         draw()
         GLib.timeout_add_seconds(20, lambda: (draw(), True)[1])
 
