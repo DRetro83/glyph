@@ -353,6 +353,16 @@ class Settings(Gtk.Window):
                                 ("Switch windows", "Alt+Tab"), ("Half screen / maximize", "Super+← → ↑"),
                                 ("Workspace 1–4", "Ctrl+Alt+1–4"), ("Close window", "Ctrl+Alt+W"), ("Lock", "Ctrl+Alt+L"),
                                 ("Power menu", "Ctrl+Alt+Delete"), ("Screenshot", "Print · area: Shift+Print")]), False, False, 0)
+        p.pack_start(self.lab("TERMINAL", "lab"), False, False, 0)
+        p.pack_start(self.info([("Copy", "select text (copies by itself) or Ctrl+Shift+C"), ("Paste", "Ctrl+V, Ctrl+Shift+V or middle click"),
+                                ("Stop a program", "Ctrl+C"), ("Search the output", "Ctrl+Shift+F"),
+                                ("Bigger / smaller text", "Ctrl+plus / Ctrl+minus · Ctrl+0 back"),
+                                ("Open a link", "Ctrl+Shift+O, then the letters shown"), ("New terminal", "Ctrl+Shift+N"),
+                                ("Scroll back", "Shift+Page Up / Page Down")]), False, False, 0)
+        p.pack_start(self.lab("FILES", "lab"), False, False, 0)
+        p.pack_start(self.info([("Copy / cut / paste", "Ctrl+C / Ctrl+X / Ctrl+V"), ("Rename", "F2"), ("To the trash", "Delete"),
+                                ("New folder", "Ctrl+Shift+N"), ("Hidden files", "Ctrl+H"), ("Type a path", "Ctrl+L"),
+                                ("Back / up", "Backspace / Alt+Up"), ("Terminal here", "F4")]), False, False, 0)
 
     def page_mouse_touchpad(self, p):
         p.pack_start(self.toggle("Tap to click", "Touchpad: a light tap is a click.", rc_get("tap", "yes") == "yes",

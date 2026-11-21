@@ -647,6 +647,21 @@ def foot_ini(p):
 [main]
 font=IBM Plex Mono:size=11
 pad=10x8
+# selecting text copies it, so Ctrl+V (or a middle click) pastes it
+selection-target=both
+
+[key-bindings]
+clipboard-copy=Control+Shift+c XF86Copy
+clipboard-paste=Control+Shift+v Control+v XF86Paste
+search-start=Control+Shift+r Control+Shift+f
+font-increase=Control+plus Control+equal Control+KP_Add
+font-decrease=Control+minus Control+KP_Subtract
+font-reset=Control+0 Control+KP_0
+spawn-terminal=Control+Shift+n
+show-urls-launch=Control+Shift+o
+
+[mouse-bindings]
+primary-paste=BTN_MIDDLE
 
 [cursor]
 color={h(p['view'])} {h(p['amber'])}

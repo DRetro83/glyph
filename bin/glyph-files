@@ -248,6 +248,7 @@ class Files(Gtk.Window):
         self.connect("key-press-event", self.on_key)
         self.build_side()
         self.go(start, remember=False)
+        self.tree.grab_focus()
 
     # ---------- small widgets
     def btn(self, text, cb, cls=""):
@@ -479,6 +480,8 @@ class Files(Gtk.Window):
 
     # ---------- listing
     def load(self):
+        self.tree.get_selection().unselect_all()
+        self.icons.unselect_all()
         self.store.clear()
         name = self.title_of(self.cwd)
         self.path_lab.set_text(name.upper())
@@ -506,6 +509,8 @@ class Files(Gtk.Window):
         sel = {self.sorted[p][1] for p in self.selected_paths()}
         self.reload_pending = False
         self.keep_sel = sel
+        self.tree.get_selection().unselect_all()
+        self.icons.unselect_all()
         self.store.clear()
         gen = object()
         self.gen = gen
@@ -699,21 +704,60 @@ class Files(Gtk.Window):
 
     # ---------- file actions
     def copy(self, cut=False):
+        """Put the files on the real clipboard, so other Files windows,
+        Thunar and other apps can paste them too."""
         files = self.selected_files()
-        if files:
-            CLIP["op"] = "cut" if cut else "copy"
-            CLIP["files"] = files
-            uris = "\n".join(f.get_uri() for f in files)
-            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(uris, -1)
-            self.say(f"{len(files)} {'cut' if cut else 'copied'} · paste with Ctrl+V")
+        if not files:
+            return
+        op = "cut" if cut else "copy"
+        CLIP["op"], CLIP["files"] = op, files
+        uris = "\n".join(f.get_uri() for f in files)
+        # the same text format GNOME Files uses: header, operation, one URI per line
+        Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(f"x-special/nautilus-clipboard\n{op}\n{uris}\n", -1)
+        Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).store()
+        self.say(f"{len(files)} {'cut' if cut else 'copied'} · paste with Ctrl+V")
+
+    def clipboard_files(self):
+        """(operation, [Gio.File]) from the clipboard, in any common format."""
+        cb = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        try:
+            sd = cb.wait_for_contents(Gdk.Atom.intern("x-special/gnome-copied-files", False))
+            if sd and sd.get_length() > 0:
+                lines = bytes(sd.get_data()).decode(errors="ignore").splitlines()
+                if lines and lines[0] in ("copy", "cut"):
+                    return lines[0], [Gio.File.new_for_uri(u) for u in lines[1:] if u.strip()]
+        except Exception:
+            pass
+        text = cb.wait_for_text() or ""
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        if lines and lines[0] == "x-special/nautilus-clipboard":
+            return lines[1] if len(lines) > 1 else "copy", [Gio.File.new_for_uri(u) for u in lines[2:]]
+        try:
+            uris = cb.wait_for_uris()
+            if uris:
+                return "copy", [Gio.File.new_for_uri(u) for u in uris]
+        except Exception:
+            pass
+        if lines and all(l.startswith(("file://", "/")) for l in lines):
+            files = [Gio.File.new_for_uri(l) if l.startswith("file://") else Gio.File.new_for_path(l) for l in lines]
+            if all(f.query_exists(None) for f in files):
+                return "copy", files
+        if CLIP["files"]:
+            return CLIP["op"], list(CLIP["files"])
+        return None, []
 
     def paste(self):
-        if not CLIP["files"] or not self.cwd.get_path():
+        if not self.cwd.get_path():
+            self.say("You cannot paste here.")
+            return
+        op, files = self.clipboard_files()
+        if not files:
+            self.say("Nothing to paste: copy or cut files first.")
             return
         dest = Path(self.cwd.get_path())
-        files, op = list(CLIP["files"]), CLIP["op"]
         if op == "cut":
             CLIP["files"] = []
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text("", -1)
         self.say(f"{'Moving' if op == 'cut' else 'Copying'} {len(files)}…")
 
         def work():
@@ -879,8 +923,6 @@ class Files(Gtk.Window):
                 continue
             mi = Gtk.MenuItem(label=it[0])
             mi.connect("activate", lambda _i, f=it[1]: f())
-            if it[0].startswith("Paste") and not CLIP["files"]:
-                mi.set_sensitive(False)
             m.append(mi)
         m.show_all()
         m.attach_to_widget(w, None)
