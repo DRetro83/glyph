@@ -664,7 +664,7 @@ def run_panel(kind):
             body.pack_start(grid, False, False, 0)
 
             # Wi-Fi networks
-            if section("WI-FI NETWORKS", "net", cur if w_on and cur else ("off" if not w_on else ""), ("All…", ["glyph-settings", "Network"])):
+            if section("WI-FI NETWORKS", "net", cur if w_on and cur else ("off" if not w_on else "")):
                 if not w_on:
                     body.pack_start(label("Wi-Fi is off.", "dim"), False, False, 0)
                 else:
@@ -728,7 +728,7 @@ def run_panel(kind):
             if bt_present() and bt_on():
                 devs = bt_devices()
                 nconn = len([d for d in devs if d["on"]])
-                if section("BLUETOOTH · PAIRED", "bt", f"{nconn} connected" if nconn else f"{len(devs)} paired", ("All…", ["glyph-settings", "Bluetooth"])):
+                if section("BLUETOOTH · PAIRED", "bt", f"{nconn} connected" if nconn else f"{len(devs)} paired"):
                     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                     box.get_style_context().add_class("list")
                     if not devs:
