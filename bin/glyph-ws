@@ -15,6 +15,11 @@ case "$1" in
       *) exit 1 ;;
     esac
     echo "$n" > "$F"
+    # workspaces with their own colour (Settings -> Taskbar): all of Glyph takes it on
+    if grep -q '^ws_colours=own' "${XDG_CONFIG_HOME:-$HOME/.config}/glyph/theme.conf" 2>/dev/null; then
+      pkill -f "glyph-theme --quick" 2>/dev/null
+      glyph-theme --quick >/dev/null 2>&1 &
+    fi
     pkill -RTMIN+8 -x waybar 2>/dev/null
     pkill -HUP -f "bin/glyph-desk" 2>/dev/null; exit 0 ;;
   state)

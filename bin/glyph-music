@@ -84,6 +84,22 @@ def collect(paths):
     return out
 
 
+
+def follow_css(css):
+    """Reload the Glyph style when it changes (a new colour, or another workspace colour)."""
+    from gi.repository import Gio
+    path = CONF / "panel" / "panel.css"
+    mon = Gio.File.new_for_path(str(path)).monitor_file(Gio.FileMonitorFlags.NONE, None)
+
+    def changed(*_):
+        try:
+            css.load_from_path(str(path))
+        except Exception:
+            pass
+    mon.connect("changed", lambda m, f, o, ev: GLib.timeout_add(150, lambda: (changed(), False)[1])
+                if ev in (Gio.FileMonitorEvent.CHANGES_DONE_HINT, Gio.FileMonitorEvent.CREATED) else None)
+    css._glyph_monitor = mon      # keep it alive
+
 class Music(Gtk.Window):
     def __init__(self, args):
         super().__init__(title="Music")
@@ -130,6 +146,7 @@ class Music(Gtk.Window):
         except Exception:
             pass
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        follow_css(css)
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         root.get_style_context().add_class("panel")

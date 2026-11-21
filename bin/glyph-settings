@@ -102,6 +102,22 @@ def rc_get(tag, default=""):
         return default
 
 
+
+def follow_css(css):
+    """Reload the Glyph style when it changes (a new colour, or another workspace colour)."""
+    from gi.repository import Gio
+    path = CONF / "panel" / "panel.css"
+    mon = Gio.File.new_for_path(str(path)).monitor_file(Gio.FileMonitorFlags.NONE, None)
+
+    def changed(*_):
+        try:
+            css.load_from_path(str(path))
+        except Exception:
+            pass
+    mon.connect("changed", lambda m, f, o, ev: GLib.timeout_add(150, lambda: (changed(), False)[1])
+                if ev in (Gio.FileMonitorEvent.CHANGES_DONE_HINT, Gio.FileMonitorEvent.CREATED) else None)
+    css._glyph_monitor = mon      # keep it alive
+
 class Settings(Gtk.Window):
     def __init__(self, start):
         super().__init__(title="Settings")
@@ -112,6 +128,7 @@ class Settings(Gtk.Window):
         except Exception:
             pass
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        follow_css(css)
         root = Gtk.Box()
         root.get_style_context().add_class("panel")
         root.get_style_context().add_class("settings")
@@ -189,7 +206,13 @@ class Settings(Gtk.Window):
         st = self.lab("ON" if on else "OFF", "state on" if on else "state")
         h.pack_end(st, False, False, 0)
         b.add(h)
-        b.connect("clicked", lambda *_: cb(not on))
+
+        def flip(*_):
+            # show the new state at once; the change itself may take a moment
+            st.set_text("OFF" if on else "ON")
+            (st.get_style_context().remove_class if on else st.get_style_context().add_class)("on")
+            cb(not on)
+        b.connect("clicked", flip)
         return b
 
     def info(self, rows):

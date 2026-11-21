@@ -276,9 +276,29 @@ def ws_colours(p):
     out = {}
     for n in "1234":
         v = c.get("ws" + n, WS_DEFAULT[n]).lower()
-        col = p["title"] if v == "system" else COLOURS.get(v, v if v.startswith("#") and len(v) == 7 else p["title"])
+        base = c["colour"]
+        col = base if v == "system" else COLOURS.get(v, v if v.startswith("#") and len(v) == 7 else base)
         out[n] = (col, "#111111" if lum(col) > 0.28 else "#ffffff")
     return out
+
+
+def current_workspace():
+    try:
+        n = (Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "glyph-ws").read_text().strip()
+        return n if n in ("1", "2", "3", "4") else "1"
+    except Exception:
+        return "1"
+
+
+def current_colour(conf):
+    """The system colour, or the colour of the workspace you are on when workspaces
+    have their own colour (Settings -> Taskbar): then all of Glyph takes it on."""
+    if conf.get("ws_colours", "same") != "own":
+        return conf["colour"]
+    v = conf.get("ws" + current_workspace(), WS_DEFAULT[current_workspace()]).lower()
+    if v == "system":
+        return conf["colour"]
+    return COLOURS.get(v, v if v.startswith("#") and len(v) == 7 else conf["colour"])
 
 
 def ws_own_css(p):
@@ -1252,6 +1272,7 @@ def main():
     ap.add_argument("--colour", "--color", help="#rrggbb or a name: " + ", ".join(COLOURS))
     ap.add_argument("--accent", help="second colour, #rrggbb or a name: " + ", ".join(ACCENTS))
     ap.add_argument("--shadows", choices=["yes", "no"], help="shadows under windows and menus")
+    ap.add_argument("--quick", action="store_true", help="skip the slow parts (used on a workspace switch)")
     ap.add_argument("--print", action="store_true", help="show the palette and exit")
     a = ap.parse_args()
 
@@ -1275,7 +1296,7 @@ def main():
     if a.mode or a.colour:
         # a new system colour: the background follows it again (Settings -> Background)
         conf.pop("bgcolour", None)
-    p = make_palette(conf["colour"], conf["mode"])
+    p = make_palette(current_colour(conf), conf["mode"])
     acc2 = conf.get("accent")
     if acc2:
         p["amber"] = shade(acc2, 0.6) if conf["mode"] == "light" else acc2
@@ -1290,7 +1311,8 @@ def main():
     write_outputs(p)
     write_apps(p, conf)
     remove_libreoffice_changes()
-    letter_icons(p)
+    if not a.quick:
+        letter_icons(p)
     # labwc 0.7 looks in openbox-3/, newer versions in labwc/: offer both
     ob = LABWC_THEME.parent / "openbox-3"
     if not ob.exists():
