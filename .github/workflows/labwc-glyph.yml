@@ -62,7 +62,9 @@ jobs:
         run: |
           exec > >(tee out/test.log) 2>&1
           set -x
-          apt-get install -y --no-install-recommends ./out/labwc_*.deb grim foot fonts-ibm-plex python3 dbus-x11 librsvg2-common xwayland || true
+          apt-get update
+          apt-get install -y --no-install-recommends ./out/labwc_*.deb grim foot python3 dbus-x11 librsvg2-common fontconfig || true
+          apt-get install -y --no-install-recommends fonts-ibm-plex || apt-get install -y --no-install-recommends fonts-dejavu-core || true
           export HOME=/root XDG_RUNTIME_DIR=/tmp/xdg WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 LANG=C.UTF-8 LC_ALL=C.UTF-8
           mkdir -p $XDG_RUNTIME_DIR && chmod 700 $XDG_RUNTIME_DIR
           mkdir -p $HOME/.config/glyph/labwc
