@@ -71,8 +71,8 @@ say "Glyph - installing next to your current desktop"
 say "Installing packages (asks for your password)"
 run sudo apt-get update
 run sudo apt-get install -y "${PACKAGES[@]}"
-# optional helpers that not every Debian has: window count on the taskbar, monitor brightness
-for extra in lswt wlrctl ddcutil upower; do
+# optional helpers that not every Debian has: monitor brightness, batteries
+for extra in ddcutil upower; do
   run sudo apt-get install -y "$extra" >/dev/null 2>&1 || say "($extra not available, skipped)"
 done
 if command -v ddcutil >/dev/null 2>&1 && (( ! CHECK )); then

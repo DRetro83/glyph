@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""glyph-toplevel - list, focus and close windows. No extra packages needed.
+
+  glyph-toplevel list               JSON: [{"app_id", "title", "state"}]
+  glyph-toplevel focus APP TITLE    bring that window to the front
+  glyph-toplevel close APP TITLE    close that window
+  glyph-toplevel close-all
+
+Talks to labwc directly over the Wayland socket, using the
+wlr-foreign-toplevel-management protocol (the one the taskbar uses too).
+Written in plain Python, so Glyph needs neither lswt nor wlrctl.
+"""
+import json
+import os
+import socket
+import struct
+import sys
+
+HIDE = ("glyph-desk", "glyph-panel", "glyph-start", "glyph-osd-bar", "waybar")
+
+
+class Wayland:
+    def __init__(self):
+        name = os.environ.get("WAYLAND_DISPLAY", "wayland-0")
+        path = name if name.startswith("/") else os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), name)
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.connect(path)
+        self.next_id = 2            # 1 is wl_display
+        self.kind = {1: "display"}
+        self.buf = b""
+        self.globals = {}
+        self.manager = self.seat = None
+        self.tops = {}              # id -> dict
+        self.done_cb = set()
+        self.registry = self.new("registry")
+        self.send(1, 1, self.u(self.registry))          # wl_display.get_registry
+        self.roundtrip()
+
+    # ---------- wire format
+    @staticmethod
+    def u(v):
+        return struct.pack("<I", v)
+
+    @staticmethod
+    def s(text):
+        b = text.encode() + b"\0"
+        return struct.pack("<I", len(b)) + b + b"\0" * (-len(b) % 4)
+
+    def new(self, kind):
+        i = self.next_id
+        self.next_id += 1
+        self.kind[i] = kind
+        return i
+
+    def send(self, obj, op, args=b""):
+        self.sock.sendall(struct.pack("<II", obj, ((8 + len(args)) << 16) | op) + args)
+
+    def roundtrip(self):
+        cb = self.new("callback")
+        self.send(1, 0, self.u(cb))                     # wl_display.sync
+        while cb not in self.done_cb:
+            self.read()
+
+    def read(self):
+        data = self.sock.recv(65536)
+        if not data:
+            raise ConnectionError("Wayland closed the connection")
+        self.buf += data
+        while len(self.buf) >= 8:
+            obj, word = struct.unpack_from("<II", self.buf)
+            size, op = word >> 16, word & 0xFFFF
+            if len(self.buf) < size:
+                break
+            self.event(obj, op, self.buf[8:size])
+            self.buf = self.buf[size:]
+
+    @staticmethod
+    def get_str(a, pos):
+        n = struct.unpack_from("<I", a, pos)[0]
+        text = a[pos + 4:pos + 4 + n - 1].decode("utf-8", "replace") if n else ""
+        return text, pos + 4 + n + (-n % 4)
+
+    def event(self, obj, op, a):
+        k = self.kind.get(obj)
+        if k == "callback" and op == 0:
+            self.done_cb.add(obj)
+        elif k == "display" and op == 0:
+            raise RuntimeError("Wayland error: " + self.get_str(a, 8)[0])
+        elif k == "registry" and op == 0:
+            name = struct.unpack_from("<I", a)[0]
+            iface, pos = self.get_str(a, 4)
+            ver = struct.unpack_from("<I", a, pos)[0]
+            self.globals[iface] = (name, ver)
+        elif k == "manager" and op == 0:                # new toplevel
+            tid = struct.unpack_from("<I", a)[0]
+            self.kind[tid] = "top"
+            self.tops[tid] = {"app_id": "", "title": "", "state": []}
+        elif k == "top":
+            t = self.tops.get(obj)
+            if t is None:
+                return
+            if op == 0:
+                t["title"] = self.get_str(a, 0)[0]
+            elif op == 1:
+                t["app_id"] = self.get_str(a, 0)[0]
+            elif op == 4:
+                n = struct.unpack_from("<I", a)[0]
+                t["state"] = list(struct.unpack_from(f"<{n // 4}I", a, 4))
+            elif op == 6:                               # closed
+                self.tops.pop(obj, None)
+
+    def bind(self, iface, kind, version):
+        name, ver = self.globals[iface]
+        i = self.new(kind)
+        self.send(self.registry, 0, self.u(name) + self.s(iface) + self.u(min(ver, version)) + self.u(i))
+        return i
+
+    def windows(self):
+        if "zwlr_foreign_toplevel_manager_v1" not in self.globals:
+            raise RuntimeError("this compositor does not share its window list")
+        self.manager = self.bind("zwlr_foreign_toplevel_manager_v1", "manager", 3)
+        if "wl_seat" in self.globals:
+            self.seat = self.bind("wl_seat", "seat", 1)
+        self.roundtrip()
+        self.roundtrip()
+        return self.tops
+
+
+def state_name(st):
+    return "on screen" if 2 in st else "minimized" if 1 in st else "behind"
+
+
+def main():
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "list"
+    try:
+        w = Wayland()
+        tops = w.windows()
+    except Exception as e:
+        print(f"glyph-toplevel: {e}", file=sys.stderr)
+        if cmd == "list":
+            print("null")
+        sys.exit(1)
+    shown = {i: t for i, t in tops.items() if t["app_id"].lower() not in HIDE}
+    if cmd == "list":
+        print(json.dumps([{"app_id": t["app_id"], "title": t["title"], "state": state_name(t["state"])}
+                          for t in shown.values()]))
+        return
+    if cmd == "count":
+        print(len(shown))
+        return
+    if cmd == "close-all":
+        targets = list(shown)
+    else:
+        app = sys.argv[2] if len(sys.argv) > 2 else ""
+        title = sys.argv[3] if len(sys.argv) > 3 else ""
+        targets = [i for i, t in shown.items() if t["app_id"] == app and (not title or t["title"] == title)][:1]
+        if not targets:
+            targets = [i for i, t in shown.items() if t["app_id"] == app][:1]
+    for i in targets:
+        if cmd in ("close", "close-all"):
+            w.send(i, 5)                                # close
+        elif cmd == "focus":
+            if 1 in shown[i]["state"]:
+                w.send(i, 3)                            # unset_minimized
+            if w.seat:
+                w.send(i, 4, w.u(w.seat))               # activate
+    w.roundtrip()
+    sys.exit(0 if targets else 1)
+
+
+if __name__ == "__main__":
+    main()

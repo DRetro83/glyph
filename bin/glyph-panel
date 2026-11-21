@@ -369,32 +369,20 @@ def refresh_cache():
     return changed
 
 
-HIDE_APPS = ("glyph-desk", "glyph-panel", "glyph-start", "glyph-osd-bar", "waybar")
-
-
 def open_windows():
     """[(app_id, title, state)] with state 'on screen', 'minimized' or 'behind'.
-    Uses lswt. GLYPH_FAKE_WINDOWS='app|title|state;...' is for testing."""
+    Uses glyph-toplevel. GLYPH_FAKE_WINDOWS='app|title|state;...' is for testing."""
     fake = os.environ.get("GLYPH_FAKE_WINDOWS")
     if fake:
         return [tuple(x.split("|")) for x in fake.split(";") if x]
-    if not has("lswt"):
-        return None
     try:
-        data = json.loads(sh(["lswt", "-j"], 3) or "[]")
+        data = json.loads(sh(["glyph-toplevel", "list"], 3) or "null")
     except Exception:
         return None
-    items = data.get("toplevels", []) if isinstance(data, dict) else data
-    out = []
-    for t in items if isinstance(items, list) else []:
-        if not isinstance(t, dict):
-            continue
-        app = t.get("app-id") or t.get("app_id") or ""
-        if app.lower() in HIDE_APPS:
-            continue
-        st = "on screen" if t.get("activated") else "minimized" if t.get("minimized") else "behind"
-        out.append((app, t.get("title") or app or "window", st))
-    out.sort(key=lambda w: ("on screen", "behind", "minimized").index(w[2]))
+    if data is None:
+        return None
+    out = [(t.get("app_id", ""), t.get("title") or t.get("app_id") or "window", t.get("state", "behind")) for t in data]
+    out.sort(key=lambda w: ("on screen", "behind", "minimized").index(w[2]) if w[2] in ("on screen", "behind", "minimized") else 1)
     return out
 
 
@@ -409,15 +397,8 @@ def app_name(app, title):
 
 
 def window_do(action, app, title):
-    """focus or close one window with wlrctl."""
-    if not has("wlrctl"):
-        return False
-    m = []
-    if app:
-        m.append("app_id:" + app)
-    if title:
-        m.append("title:" + title)
-    bg(["wlrctl", "toplevel", action] + m)
+    """focus or close one window."""
+    bg(["glyph-toplevel", action, app, title])
     return True
 
 
@@ -1047,7 +1028,7 @@ def run_panel(kind):
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             box.get_style_context().add_class("ovlist")
             if wins is None:
-                box.pack_start(label("Install lswt and wlrctl to see your windows here:\nsudo apt install lswt wlrctl", "dim", wrap=True), False, False, 0)
+                box.pack_start(label("The window list is not available right now.", "dim", wrap=True), False, False, 0)
             elif not wins:
                 box.pack_start(label("No windows open. Press ▸ START to open an app.", "dim", wrap=True), False, False, 0)
             for app, wtitle, st in wins or []:
@@ -1083,8 +1064,7 @@ def run_panel(kind):
             GLib.idle_add(fit_height)
 
         def close_all():
-            for app, wtitle, _st in open_windows() or []:
-                window_do("close", app, wtitle)
+            bg(["glyph-toplevel", "close-all"])
             quit_()
         foot.pack_start(button("▸ START", lambda: (quit_(), bg(["glyph-start"]))), True, True, 0)
         foot.pack_start(button("Close all", close_all), True, True, 0)
