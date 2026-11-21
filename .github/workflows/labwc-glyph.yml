@@ -57,17 +57,23 @@ jobs:
           cp build.log out/ 2>/dev/null || true
           ls -la out
       - name: Test headless
+        if: always()
+        shell: bash
         run: |
-          apt-get install -y --no-install-recommends ./out/labwc_*.deb grim foot fonts-ibm-plex python3 dbus-x11 librsvg2-common
-          export HOME=/root XDG_RUNTIME_DIR=/tmp/xdg WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 LANG=C.UTF-8
+          exec > >(tee out/test.log) 2>&1
+          set -x
+          apt-get install -y --no-install-recommends ./out/labwc_*.deb grim foot fonts-ibm-plex python3 dbus-x11 librsvg2-common xwayland || true
+          export HOME=/root XDG_RUNTIME_DIR=/tmp/xdg WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 LANG=C.UTF-8 LC_ALL=C.UTF-8
           mkdir -p $XDG_RUNTIME_DIR && chmod 700 $XDG_RUNTIME_DIR
-          python3 bin/glyph-theme --colour tan
           mkdir -p $HOME/.config/glyph/labwc
           cp config/labwc/rc.xml config/labwc/menu.xml $HOME/.config/glyph/labwc/
+          python3 bin/glyph-theme --colour tan || true
+          cat $HOME/.local/share/themes/Glyph/labwc/themerc | head -40 || true
           printf 'foot -T "notes.txt - Text editor" &\nsleep 1\nfoot -T "Home - Files" &\n' > $HOME/.config/glyph/labwc/autostart
-          eval $(dbus-launch --sh-syntax)
+          eval $(dbus-launch --sh-syntax) || true
           labwc -C $HOME/.config/glyph/labwc > out/labwc-test.log 2>&1 &
-          sleep 6
+          sleep 8
+          ls $XDG_RUNTIME_DIR
           WAYLAND_DISPLAY=wayland-0 grim out/screenshot.png || true
           ls -la out
       - uses: actions/upload-artifact@v4
