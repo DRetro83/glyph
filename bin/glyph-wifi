@@ -81,10 +81,10 @@ class Bars(Gtk.DrawingArea):
         return False
 
 
-class Wifi(Gtk.Window):
+class WifiView(Gtk.Box):
+    """The Wi-Fi list; used in its own window and as a page in Settings."""
     def __init__(self):
-        super().__init__(title="Wi-Fi")
-        self.set_default_size(480, 560)
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.pal = {}
         try:
             for l in (CONF / "palette.env").read_text().splitlines():
@@ -102,7 +102,7 @@ class Wifi(Gtk.Window):
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         root.get_style_context().add_class("panel")
         root.get_style_context().add_class("netapp")
-        self.add(root)
+        self.pack_start(root, True, True, 0)
         top = Gtk.Box(spacing=6)
         top.get_style_context().add_class("ntop")
         self.search = Gtk.Entry()
@@ -122,9 +122,10 @@ class Wifi(Gtk.Window):
         sw.add(self.list)
         root.pack_start(sw, True, True, 0)
         self.nets, self.open_pw, self.busy, self.msg = [], None, None, {}
-        self.connect("key-press-event", lambda w, e: self.close() if e.keyval == Gdk.KEY_Escape else False)
         self.load(False)
-        GLib.timeout_add_seconds(10, lambda: (self.load(False) if not self.busy and not self.open_pw else None, True)[1])
+        self.dead = False
+        self.connect("destroy", lambda *_: setattr(self, "dead", True))
+        GLib.timeout_add_seconds(10, lambda: (self.load(False) if not self.busy and not self.open_pw and not self.dead else None, not self.dead)[1])
 
     def load(self, rescan):
         self.b_ref.set_sensitive(False)
@@ -136,6 +137,8 @@ class Wifi(Gtk.Window):
         threading.Thread(target=work, daemon=True).start()
 
     def loaded(self, nets):
+        if getattr(self, "dead", False):
+            return False
         self.nets = nets
         self.b_ref.set_sensitive(True)
         self.b_ref.set_label("Refresh")
@@ -233,6 +236,14 @@ class Wifi(Gtk.Window):
                 return False
             GLib.idle_add(done)
         threading.Thread(target=work, daemon=True).start()
+
+
+class Wifi(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="Wi-Fi")
+        self.set_default_size(500, 580)
+        self.add(WifiView())
+        self.connect("key-press-event", lambda w, e: self.close() if e.keyval == Gdk.KEY_Escape else False)
 
 
 if __name__ == "__main__":

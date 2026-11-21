@@ -211,6 +211,7 @@ class Settings(Gtk.Window):
         old = self.page_scroll.get_child()
         if old:
             self.page_scroll.remove(old)
+            old.destroy()
         self.page_scroll.add(page)
         self.page_scroll.show_all()
 
@@ -417,25 +418,38 @@ class Settings(Gtk.Window):
         p.pack_start(self.note("The screen always locks before the computer goes to sleep."), False, False, 0)
         p.pack_start(self.btn("Lock now", lambda: bg(["glyph-lock"])), False, False, 0)
 
+    def embed(self, p, script, cls):
+        """Show the Wi-Fi or Bluetooth window right inside this page."""
+        path = shutil.which(script)
+        if not path:
+            p.pack_start(self.note(f"{script} is missing: run glyph-update."), False, False, 0)
+            return None
+        try:
+            from importlib.machinery import SourceFileLoader
+            mod = SourceFileLoader(script.replace("-", "_"), path).load_module()
+            view = getattr(mod, cls)()
+        except Exception as e:
+            p.pack_start(self.note(f"Could not show this page: {e}"), False, False, 0)
+            return None
+        view.set_size_request(-1, 470)
+        view.get_style_context().add_class("embedded")
+        p.pack_start(view, True, True, 0)
+        return view
+
     def page_network(self, p):
         rows = []
         for l in sh(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "dev"]).splitlines():
             f = l.split(":")
-            if len(f) >= 4 and f[1] in ("wifi", "ethernet", "gsm"):
+            if len(f) >= 4 and f[1] in ("ethernet", "gsm"):
                 rows.append((f"{f[0]} ({f[1]})", f[2] + (" · " + f[3] if f[3] else "")))
-        p.pack_start(self.info(rows or [("Network", "NetworkManager is not running")]), False, False, 0)
-        p.pack_start(self.btn("All Wi-Fi networks…", lambda: bg(["glyph-wifi"])), False, False, 0)
-        p.pack_start(self.btn("Advanced (VPN, wired, fixed IP)…", lambda: bg(["nm-connection-editor"] if has("nm-connection-editor") else ["foot", "-T", "Network", "nmtui"])), False, False, 0)
-        p.pack_start(self.note("Choose a Wi-Fi network quickly from SETTINGS ▴ on the taskbar."), False, False, 0)
+        if rows:
+            p.pack_start(self.info(rows), False, False, 0)
+        p.pack_start(self.lab("WI-FI", "lab"), False, False, 0)
+        self.embed(p, "glyph-wifi", "WifiView")
+        p.pack_start(self.btn("Advanced: VPN, wired, fixed IP…", lambda: bg(["nm-connection-editor"] if has("nm-connection-editor") else ["foot", "-T", "Network", "nmtui"])), False, False, 0)
 
     def page_bluetooth(self, p):
-        show = sh(["bluetoothctl", "show"]) if has("bluetoothctl") else ""
-        if "Controller" not in show:
-            p.pack_start(self.note("No Bluetooth adapter found."), False, False, 0)
-            return
-        on = "Powered: yes" in show
-        p.pack_start(self.toggle("Bluetooth", "", on, lambda v: (sh(["bluetoothctl", "power", "on" if v else "off"]), self.refresh())), False, False, 0)
-        p.pack_start(self.btn("All devices · search and pair…", lambda: bg(["glyph-bluetooth"])), False, False, 0)
+        self.embed(p, "glyph-bluetooth", "BluetoothView")
 
     def page_date_time(self, p):
         td = sh(["timedatectl"])

@@ -532,6 +532,7 @@ paned > separator {{ background: {p['hi']}; min-width: 1px; }}
 .osd .seg.on {{ background-image: {stripes_css(p)}; border-color: {p['title']}; }}
 .osd .seg.muted {{ background: {p['hov']}; border-color: {p['hi']}; }}
 /* Wi-Fi and Bluetooth windows */
+.embedded .panel {{ box-shadow: none; border: 1px solid {p['hi']}; }}
 .netapp {{ background: {p['win']}; }}
 .netapp .ntop {{ padding: 10px; border-bottom: 1px solid {p['hi']}; background: {p['panel']}; }}
 .netapp .ntop entry:focus {{ border-color: {p['amber']}; }}

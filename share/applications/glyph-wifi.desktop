@@ -2,7 +2,7 @@
 Type=Application
 Name=Wi-Fi
 Comment=all networks, search and connect
-Exec=glyph-wifi
+Exec=glyph-settings Network
 Icon=network-wireless
 Terminal=false
 Categories=Settings;Network;

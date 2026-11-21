@@ -2,7 +2,7 @@
 Type=Application
 Name=Bluetooth
 Comment=all devices, search and pair
-Exec=glyph-bluetooth
+Exec=glyph-settings Bluetooth
 Icon=bluetooth
 Terminal=false
 Categories=Settings;
