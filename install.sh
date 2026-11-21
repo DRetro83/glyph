@@ -34,7 +34,7 @@ PACKAGES=(
   wtype            # workspace buttons on the taskbar
   wireplumber network-manager   # volume and network on the taskbar
   xdg-user-dirs    # Pictures folder for screenshots
-  python3-gi gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1   # quick settings, calendar, Settings
+  python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1   # start menu, desktop, panels, Settings
   udisks2 bluez power-profiles-daemon   # drives, Bluetooth, power profiles
   wlr-randr wlsunset lxpolkit          # screen scale, night light, password prompts
   pavucontrol blueman                  # volume per app, Bluetooth pairing

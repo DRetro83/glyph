@@ -234,34 +234,32 @@ def write_buttons(p):
 def waybar_css(p):
     return f"""/* Glyph taskbar - made by glyph-theme, do not edit by hand. */
 * {{ font-family: "IBM Plex Mono", monospace; font-size: 13px; border-radius: 0; min-height: 0; box-shadow: none; text-shadow: none; }}
-window#waybar {{ background: {p['panel']}; color: {p['text']}; border-top: 1px solid {p['hi']}; }}
+window#waybar {{ background: {p['lo']}; color: {p['text']}; border-top: 1px solid {p['hi']}; }}
 tooltip {{ background: {p['panel']}; border: 1px solid {p['title']}; }}
 tooltip label {{ color: {p['text']}; }}
 button {{ border: none; }}
 
-#custom-start {{ color: {p['amber']}; border: 1px solid {p['amber']}; background: {p['view']}; font-weight: bold; letter-spacing: 1px; padding: 0 14px; margin: 4px 6px 4px 6px; }}
-#custom-start:hover {{ background: {p['hov']}; }}
+#custom-start {{ color: {p['tink']}; background: {p['amber']}; border: 2px solid shade({p['amber']}, 0.6); font-weight: bold; letter-spacing: 1px; padding: 0 22px; margin: 4px 6px 4px 8px; }}
+#custom-start:hover {{ background: shade({p['amber']}, 1.1); }}
 
-#custom-ws1, #custom-ws2, #custom-ws3, #custom-ws4 {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 12px; margin: 4px 1px; font-weight: bold; }}
-#custom-ws1:hover, #custom-ws2:hover, #custom-ws3:hover, #custom-ws4:hover {{ background: {p['hov']}; }}
+#custom-ws1, #custom-ws2, #custom-ws3, #custom-ws4 {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; min-width: 40px; padding: 0; margin: 4px 2px; font-weight: bold; }}
+#custom-ws1.active, #custom-ws2.active, #custom-ws3.active, #custom-ws4.active {{ background: {p['text']}; color: {p['tink']}; border-color: {p['text']}; }}
+#custom-ws1:hover, #custom-ws2:hover, #custom-ws3:hover, #custom-ws4:hover {{ border-color: {p['title']}; }}
 #custom-ws4 {{ margin-right: 8px; }}
 
 #taskbar {{ border-left: 1px solid {p['hi']}; padding-left: 6px; }}
-#taskbar button {{ color: {p['dim']}; background: {p['view']}; border: 1px solid {p['hi']}; border-bottom: 2px solid {p['hi']}; padding: 0 12px; margin: 4px 2px; }}
-#taskbar button:hover {{ background: {p['hov']}; color: {p['text']}; }}
-#taskbar button.active {{ background: {p['hov']}; color: {p['text']}; border-bottom-color: {p['title']}; }}
-#taskbar button.minimized {{ color: {p['hi']}; }}
+#taskbar button {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; border-bottom: 3px solid {p['hi']}; padding: 0 14px 0 8px; margin: 4px 2px; min-width: 100px; }}
+#taskbar button:hover {{ background: {p['hov']}; }}
+#taskbar button.active {{ background: {p['hov']}; border-bottom-color: {p['title']}; }}
+#taskbar button.minimized {{ color: {p['dim']}; }}
 
-#tray, #custom-settings, #wireplumber, #network, #battery, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 10px; margin: 4px 0 4px -1px; }}
-#tray {{ margin-left: 0; }}
-#wireplumber.muted, #network.disconnected {{ color: {p['dim']}; }}
-#battery.warning {{ color: {p['amber']}; }}
-#battery.critical {{ color: {p['rosehi']}; border-color: {p['rose']}; }}
-#clock {{ font-weight: bold; font-size: 15px; padding: 0 14px; }}
-#custom-power {{ color: {p['amber']}; border: 1px solid {p['amber']}; background: {p['view']}; font-weight: bold; padding: 0 12px; margin: 4px 6px 4px 6px; }}
-#custom-power:hover, #custom-settings:hover, #wireplumber:hover, #network:hover, #clock:hover {{ background: {p['hov']}; }}
-#custom-settings {{ font-weight: bold; letter-spacing: 1px; padding: 0 12px; }}
+#tray, #custom-settings, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 14px; margin: 4px 0 4px -1px; }}
+#tray {{ margin-right: 8px; }}
+#custom-settings {{ font-weight: bold; letter-spacing: 1px; }}
 #custom-settings.low {{ color: {p['amber']}; }}
+#clock {{ font-weight: bold; font-size: 16px; padding: 0 22px; letter-spacing: 1px; }}
+#custom-power {{ color: {p['amber']}; background: {p['view']}; border: 1px solid {p['hi']}; font-size: 18px; padding: 0 14px; margin: 4px 8px 4px 6px; }}
+#custom-power:hover, #custom-settings:hover, #clock:hover {{ background: {p['hov']}; }}
 """
 
 
@@ -430,6 +428,32 @@ entry:focus {{ border-color: {p['amber']}; }}
 .day {{ padding: 4px 0; }}
 .day.today {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; }}
 scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
+/* Start menu */
+#glyph-start {{ background: transparent; }}
+.start .sside {{ background: {p['panel']}; border-right: 1px solid {p['hi']}; padding: 4px 0; }}
+.start button.scat {{ border: none; border-left: 3px solid transparent; background: transparent; padding: 7px 12px 7px 13px; }}
+.start button.scat:hover {{ background: {p['hov']}; }}
+.start button.scat.cur {{ background: {p['hov']}; border-left-color: {p['title']}; }}
+.start button.scat.cur label {{ font-weight: bold; }}
+.start button.scat .dim {{ font-size: 11px; }}
+.start .ssep {{ background: {p['hi']}; margin: 6px 12px; min-height: 1px; }}
+.start .smain {{ background: {p['win']}; padding: 0 6px 0 6px; }}
+.start .shead {{ font-size: 11px; color: {p['dim']}; letter-spacing: 2px; padding: 14px 8px 10px 8px; }}
+.start list.slist, .start .slist {{ background: transparent; }}
+.start row.srow {{ padding: 8px 8px; border-bottom: 1px solid {p['hov']}; background: transparent; }}
+.start row.srow:hover {{ background: {p['hov']}; }}
+.start row.srow:selected, .start row.srow:selected:hover {{ background: {p['title']}; }}
+.start row.srow:selected label {{ color: {p['tink']}; }}
+.start row.srow:selected .ltile {{ background: {p['tink']}; color: {p['title']}; }}
+.start .ltile {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; min-width: 26px; min-height: 26px; font-size: 12px; }}
+.start .sdesc {{ font-size: 11px; color: {p['dim']}; padding-right: 4px; }}
+.start button.star {{ border: none; background: transparent; color: {p['dim']}; padding: 0 6px; }}
+.start button.star.on {{ color: {p['amber']}; }}
+.start row.srow:selected button.star {{ color: {p['tink']}; }}
+.start .sfoot {{ padding: 10px 12px; border-top: 1px solid {p['hi']}; background: {p['panel']}; }}
+.start .utile {{ border: 1px solid {p['dim']}; min-width: 28px; min-height: 28px; font-weight: bold; }}
+.start .sfoot entry {{ border-color: {p['amber']}; padding: 6px 10px; background: {p['panel']}; }}
+.start button.spower {{ min-width: 34px; color: {p['amber']}; border-color: {p['hi']}; }}
 /* Settings window */
 .settings {{ box-shadow: none; border: none; }}
 .settings .side {{ background: {p['panel']}; border-right: 1px solid {p['hi']}; padding: 6px 0; }}
@@ -654,6 +678,45 @@ def sourceview_xml(p):
 """
 
 
+def letter_icons(p):
+    """A letter-tile icon for every app, so the taskbar shows F for Files, T for Terminal ..."""
+    nice = {"thunar": "F", "org.xfce.thunar": "F", "foot": "T", "utilities-terminal": "T", "org.xfce.mousepad": "E",
+            "glyph-settings": "S", "preferences-system": "S", "firefox-esr": "W", "firefox": "W"}
+    d = DATA_DIR / "icons" / "GlyphLetters"
+    out = d / "scalable" / "apps"
+    out.mkdir(parents=True, exist_ok=True)
+    (d / "index.theme").write_text("[Icon Theme]\nName=GlyphLetters\nComment=Letter tiles, made by glyph-theme\n"
+                                   "Inherits=hicolor\nDirectories=scalable/apps\n\n[scalable/apps]\nSize=48\nMinSize=8\n"
+                                   "MaxSize=512\nType=Scalable\nContext=Applications\n")
+    dirs = [DATA_DIR / "applications"] + [Path(x) / "applications" for x in
+            os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":")]
+    dirs.append(Path("/var/lib/flatpak/exports/share/applications"))
+    dirs.append(HOME / ".local/share/flatpak/exports/share/applications")
+    done = set()
+    for dd in dirs:
+        for f in dd.glob("*.desktop") if dd.is_dir() else []:
+            try:
+                txt = f.read_text(errors="ignore")
+            except Exception:
+                continue
+            icon = name = ""
+            for l in txt.split("[Desktop Action")[0].splitlines():
+                if l.startswith("Icon=") and not icon:
+                    icon = l[5:].strip()
+                elif l.startswith("Name=") and not name:
+                    name = l[5:].strip()
+            if not icon or "/" in icon or icon in done:
+                continue
+            done.add(icon)
+            ch = nice.get(icon) or nice.get(f.stem) or (name[:1] or "?").upper()
+            ch = {"&": "&amp;", "<": "&lt;", ">": "&gt;"}.get(ch, ch)
+            (out / f"{icon}.svg").write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">'
+                f'<rect width="24" height="24" fill="{p['title']}"/>'
+                f'<text x="12" y="17" text-anchor="middle" font-family="IBM Plex Mono" font-weight="bold" '
+                f'font-size="14" fill="{p['tink']}">{ch}</text></svg>\n')
+
+
 def write_apps(p, conf):
     mode = conf["mode"]
     g = DATA_DIR / "themes" / "Glyph"
@@ -722,7 +785,7 @@ def reload_labwc(p):
     subprocess.run(["labwc", "--reconfigure"], check=False)
     subprocess.run(["pkill", "-SIGUSR2", "-x", "waybar"], check=False)   # reload taskbar style
     subprocess.run(["makoctl", "reload"], capture_output=True, check=False)
-    if subprocess.run(["pgrep", "-x", "swaybg"], capture_output=True).returncode == 0:
+    if subprocess.run(["pgrep", "-f", "swaybg|glyph-desk"], capture_output=True).returncode == 0:
         subprocess.Popen(["glyph-bg"], stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=True)
 
@@ -755,6 +818,7 @@ def main():
     write_buttons(p)
     write_outputs(p)
     write_apps(p, conf)
+    letter_icons(p)
     # labwc 0.7 looks in openbox-3/, newer versions in labwc/: offer both
     ob = LABWC_THEME.parent / "openbox-3"
     if not ob.exists():

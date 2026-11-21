@@ -1,11 +1,17 @@
 #!/bin/sh
-# glyph-bg - (re)start the background: a picture from theme.conf, or the Glyph colour.
+# glyph-bg - (re)start the desktop background.
+# glyph-desk draws the Glyph background (lines, corner marks, clock and info);
+# swaybg is the plain fallback when GTK layer-shell is missing.
 G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
+pkill -x swaybg 2>/dev/null
+pkill -f "bin/glyph-desk" 2>/dev/null
+if python3 -c 'import gi; gi.require_version("GtkLayerShell", "0.1")' 2>/dev/null; then
+  exec glyph-desk >/dev/null 2>&1
+fi
 . "$G/palette.env" 2>/dev/null
 PIC=$(sed -n 's/^background=//p' "$G/theme.conf" 2>/dev/null)
 MODE=$(sed -n 's/^bgmode=//p' "$G/theme.conf" 2>/dev/null)
 COL=$(sed -n 's/^bgcolour=//p' "$G/theme.conf" 2>/dev/null)
-pkill -x swaybg 2>/dev/null
 if [ -n "$PIC" ] && [ -f "$PIC" ]; then
   exec swaybg -c "${COL:-${GLYPH_VIEW:-#221f1b}}" -i "$PIC" -m "${MODE:-fill}" >/dev/null 2>&1
 else

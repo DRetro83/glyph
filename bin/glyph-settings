@@ -248,6 +248,9 @@ class Settings(Gtk.Window):
         p.pack_start(self.lab("TYPE", "lab"), False, False, 0)
         p.pack_start(self.opts([("plain", "Plain colour"), ("picture", "Your picture")], "picture" if pic else "plain",
                                lambda v: (write_kv(THEME, "background", None if v == "plain" else (pic or None)), bg(["glyph-bg"]), self.refresh())), False, False, 0)
+        p.pack_start(self.toggle("Clock and info on the desktop", "Big clock, date, uptime, battery, power and network at the bottom right, and corner marks.",
+                                 t.get("desk", "info") != "clean",
+                                 lambda on: (write_kv(THEME, "desk", "info" if on else "clean"), bg(["glyph-bg"]), self.refresh())), False, False, 0)
         p.pack_start(self.lab("YOUR PICTURE", "lab"), False, False, 0)
         fc = Gtk.FileChooserButton(title="Choose a picture")
         flt = Gtk.FileFilter()

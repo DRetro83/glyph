@@ -263,7 +263,7 @@ def run_panel(kind):
     GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
     GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
     GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
-    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 46)
+    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 52)
     GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 6)
     try:
         GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.ON_DEMAND)

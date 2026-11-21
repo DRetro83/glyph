@@ -1,5 +1,23 @@
 #!/bin/sh
-# glyph-ws N - go to workspace N (used by the taskbar buttons 1-4).
-# labwc has no command for this, so it presses the shortcut Ctrl+Alt+N.
-case "$1" in 1|2|3|4) ;; *) echo "usage: glyph-ws 1-4" >&2; exit 1 ;; esac
-exec wtype -M ctrl -M alt "$1" -m alt -m ctrl
+# glyph-ws - workspaces for the taskbar.
+#   glyph-ws N          go to workspace N (presses Ctrl+Alt+N, as labwc has no command for it)
+#   glyph-ws mark N     remember N (or "right") as the current workspace and update the taskbar
+#   glyph-ws state N    print the taskbar button for workspace N (JSON for waybar)
+F="${XDG_RUNTIME_DIR:-/tmp}/glyph-ws"
+cur=$(cat "$F" 2>/dev/null); cur=${cur:-1}
+case "$1" in
+  1|2|3|4) exec wtype -M ctrl -M alt "$1" -m alt -m ctrl ;;
+  mark)
+    case "$2" in
+      right) n=$((cur % 4 + 1)) ;;
+      left) n=$(((cur + 2) % 4 + 1)) ;;
+      1|2|3|4) n=$2 ;;
+      *) exit 1 ;;
+    esac
+    echo "$n" > "$F"
+    pkill -RTMIN+8 -x waybar 2>/dev/null; exit 0 ;;
+  state)
+    if [ "$2" = "$cur" ]; then cls=active; else cls=idle; fi
+    printf '{"text":"%s","class":"%s","tooltip":"Workspace %s (Ctrl+Alt+%s)"}\n' "$2" "$cls" "$2" "$2" ;;
+  *) echo "usage: glyph-ws 1-4 | mark N|right|left | state N" >&2; exit 1 ;;
+esac

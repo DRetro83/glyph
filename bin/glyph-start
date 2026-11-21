@@ -1,0 +1,406 @@
+#!/usr/bin/env python3
+"""glyph-start - the Glyph start menu, as in the design.
+
+  glyph-start        open (or close, when it is already open)
+
+Categories on the left, apps on the right with a letter tile, search at the
+bottom. Type to search, arrows to move, Enter to start, Esc to close.
+Click the star to add or remove a favourite. Right-click an app to hide it.
+Favourites: ~/.config/glyph/favorites   hidden apps: ~/.config/glyph/menu-hidden
+"""
+import os
+import pwd
+import signal
+import sys
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, Gio, GLib, Gtk, GtkLayerShell  # noqa: E402
+
+GLib.set_prgname("glyph-start")
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+FAVS = CONF / "favorites"
+HIDDEN = CONF / "menu-hidden"
+RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
+PIDFILE = RUN / "glyph-start.pid"
+
+DEFAULT_FAVS = ["foot.desktop", "thunar.desktop", "firefox-esr.desktop", "firefox.desktop",
+                "org.xfce.mousepad.desktop", "glyph-settings.desktop"]
+# KDE helpers that make no sense in Glyph (they stay in KDE)
+HIDE_IDS = {"org.kde.drkonqi.coredump.gui.desktop", "org.kde.kaddressbook.themeeditor.desktop",
+            "org.kde.kontact.themeeditor.desktop", "org.kde.contactprintthemeeditor.desktop",
+            "org.kde.contactthemeeditor.desktop", "blueman-adapters.desktop", "org.kde.kinfocenter.desktop",
+            "org.kde.kmenuedit.desktop", "org.kde.plasma-systemmonitor.desktop", "org.kde.khelpcenter.desktop",
+            "org.kde.kwalletmanager5.desktop", "org.kde.kwalletmanager.desktop", "systemsettings.desktop",
+            "kdesystemsettings.desktop", "org.kde.plasma.emojier.desktop", "org.kde.kuserfeedback-console.desktop",
+            "org.kde.discover.desktop", "org.kde.plasma.themeexplorer.desktop", "org.kde.klipper.desktop",
+            "xdg-desktop-portal-kde.desktop", "foot-server.desktop", "footclient.desktop",
+            "thunar-settings.desktop", "thunar-volman-settings.desktop", "qt5ct.desktop", "qt6ct.desktop",
+            "nm-connection-editor.desktop", "lxpolkit.desktop", "debian-uxterm.desktop", "debian-xterm.desktop",
+            "display-im6.q16.desktop", "org.gnome.Extensions.desktop", "kvantummanager.desktop"}
+# name, freedesktop categories
+CATS = [("Development", ["Development"]), ("Education", ["Education"]), ("Games", ["Game"]),
+        ("Graphics", ["Graphics"]), ("Internet", ["Network"]), ("Multimedia", ["AudioVideo", "Audio", "Video"]),
+        ("Office", ["Office"]), ("Science", ["Science"]), ("Settings", ["Settings"]), ("System", ["System"]),
+        ("Utilities", ["Utility"]), ("Wine", ["Wine"])]
+# a few clearer names and descriptions, like in the design
+NICE = {"foot.desktop": ("Terminal", "command line"), "thunar.desktop": ("Files", "file manager, USB drives, trash"),
+        "org.xfce.mousepad.desktop": ("Text editor", "notes and config files"),
+        "glyph-settings.desktop": ("Settings", "look, display, sound, keyboard, power"),
+        "firefox-esr.desktop": ("Firefox", "web browser"), "firefox.desktop": ("Firefox", "web browser"),
+        "pavucontrol.desktop": ("Volume control", "per app and microphone"),
+        "blueman-manager.desktop": ("Bluetooth", "pair devices"), "mpv.desktop": ("Video player", "mpv"),
+        "org.xfce.ristretto.desktop": ("Image viewer", "photos and pictures"),
+        "gparted.desktop": ("Partitions", "GParted, disks and partitions")}
+
+
+def read_list(p):
+    try:
+        return [l.strip() for l in p.read_text().splitlines() if l.strip() and not l.startswith("#")]
+    except Exception:
+        return None
+
+
+def write_list(p, items):
+    CONF.mkdir(parents=True, exist_ok=True)
+    p.write_text("".join(i + "\n" for i in items))
+
+
+def is_kde_helper(a):
+    cats = (a.get_categories() or "").split(";")
+    return "KDE" in cats and ("Settings" in cats or "System" in cats) and "Game" not in cats
+
+
+def load_apps():
+    hidden = set(read_list(HIDDEN) or [])
+    apps = []
+    seen = set()
+    for a in Gio.AppInfo.get_all():
+        if not isinstance(a, Gio.DesktopAppInfo) or not a.should_show():
+            continue
+        aid = a.get_id() or ""
+        if aid in HIDE_IDS or aid in hidden or is_kde_helper(a):
+            continue
+        name, desc = NICE.get(aid, (a.get_display_name() or a.get_name(), a.get_description() or a.get_generic_name() or ""))
+        if name.lower() in seen:
+            continue
+        seen.add(name.lower())
+        cats = set((a.get_categories() or "").split(";"))
+        ex = (a.get_executable() or "").lower()
+        if "wine" in ex or any("wine" in c.lower() for c in cats):
+            cats.add("Wine")
+        apps.append({"id": aid, "app": a, "name": name, "desc": desc.split("\n")[0], "cats": cats,
+                     "kw": " ".join([name, desc, a.get_generic_name() or "", " ".join(a.get_keywords() or []), ex]).lower()})
+    apps.sort(key=lambda x: x["name"].lower())
+    return apps
+
+
+class Start(Gtk.Window):
+    def __init__(self):
+        super().__init__()
+        self.set_name("glyph-start")
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_namespace(self, "glyph-start")
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 52)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, 8)
+        try:
+            GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+        except Exception:
+            GtkLayerShell.set_keyboard_interactivity(self, True)
+        self.apps = load_apps()
+        favs = read_list(FAVS)
+        if favs is None:
+            ids = {a["id"] for a in self.apps}
+            favs = [f for f in DEFAULT_FAVS if f in ids]
+            if "firefox-esr.desktop" in favs and "firefox.desktop" in favs:
+                favs.remove("firefox.desktop")
+        self.favs = favs
+        self.cat = "Favorites" if self.favs else "All"
+        self.had_focus = False
+        self.connect("focus-in-event", lambda *_: setattr(self, "had_focus", True))
+        self.connect("focus-out-event", lambda *_: self.had_focus and GLib.timeout_add(150, self.quit))
+        self.connect("key-press-event", self.on_key)
+
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        outer.get_style_context().add_class("panel")
+        outer.get_style_context().add_class("start")
+        self.add(outer)
+        title = Gtk.Box()
+        title.get_style_context().add_class("ptitle")
+        t = Gtk.Label(label="■ START")
+        t.get_style_context().add_class("pt")
+        t.set_valign(Gtk.Align.CENTER)
+        title.pack_start(t, False, False, 0)
+        x = Gtk.Button(label="×")
+        x.get_style_context().add_class("px")
+        x.connect("clicked", lambda *_: self.quit())
+        title.pack_end(x, False, False, 0)
+        outer.pack_start(title, False, False, 0)
+
+        mid = Gtk.Box()
+        outer.pack_start(mid, True, True, 0)
+        self.side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.side.get_style_context().add_class("sside")
+        self.side.set_size_request(170, -1)
+        mid.pack_start(self.side, False, False, 0)
+        right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        right.get_style_context().add_class("smain")
+        mid.pack_start(right, True, True, 0)
+        self.head = Gtk.Label(xalign=0)
+        self.head.get_style_context().add_class("shead")
+        right.pack_start(self.head, False, False, 0)
+        sc = Gtk.ScrolledWindow()
+        sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        right.pack_start(sc, True, True, 0)
+        self.list = Gtk.ListBox()
+        self.list.get_style_context().add_class("slist")
+        self.list.set_activate_on_single_click(True)
+        self.list.connect("row-activated", lambda lb, row: self.launch(row.app))
+        sc.add(self.list)
+        self.scroll = sc
+
+        foot = Gtk.Box(spacing=10)
+        foot.get_style_context().add_class("sfoot")
+        u = pwd.getpwuid(os.getuid())
+        uname = (u.pw_gecos.split(",")[0] or u.pw_name) if u else "user"
+        tile = Gtk.Label(label=uname[:1].upper())
+        tile.get_style_context().add_class("utile")
+        foot.pack_start(tile, False, False, 0)
+        ul = Gtk.Label(label=u.pw_name if u else "user")
+        foot.pack_start(ul, False, False, 0)
+        self.search = Gtk.Entry()
+        self.search.set_placeholder_text("search for an app…")
+        self.search.connect("changed", lambda *_: self.fill())
+        self.search.connect("activate", lambda *_: self.launch_first())
+        foot.pack_start(self.search, True, True, 0)
+        pw = Gtk.Button(label="⏻")
+        pw.get_style_context().add_class("spower")
+        pw.set_tooltip_text("Lock, log out, restart, shut down")
+        pw.connect("clicked", lambda *_: (self.spawn(["glyph-power"]), self.quit()))
+        foot.pack_start(pw, False, False, 0)
+        outer.pack_start(foot, False, False, 0)
+
+        mon = Gdk.Display.get_default().get_monitor(0)
+        h = mon.get_geometry().height if mon else 900
+        self.set_size_request(680, max(420, min(600, h - 90)))
+        self.build_side()
+        self.fill()
+        self.search.grab_focus()
+
+    # ---------- helpers
+    def spawn(self, cmd):
+        try:
+            Gio.Subprocess.new(cmd, Gio.SubprocessFlags.NONE)
+        except Exception:
+            pass
+
+    def quit(self, *_):
+        PIDFILE.unlink(missing_ok=True)
+        Gtk.main_quit()
+        return False
+
+    def count(self, cat):
+        if cat == "Favorites":
+            return len([a for a in self.apps if a["id"] in self.favs])
+        if cat == "All":
+            return len(self.apps)
+        keys = dict(CATS)[cat]
+        return len([a for a in self.apps if a["cats"] & set(keys)])
+
+    def build_side(self):
+        for c in self.side.get_children():
+            self.side.remove(c)
+        def item(name):
+            n = self.count(name)
+            if name not in ("Favorites", "All") and n == 0:
+                return
+            b = Gtk.Button()
+            b.get_style_context().add_class("scat")
+            if name == self.cat and not self.search.get_text():
+                b.get_style_context().add_class("cur")
+            box = Gtk.Box()
+            box.pack_start(Gtk.Label(label=name, xalign=0), True, True, 0)
+            cnt = Gtk.Label(label=str(n) if n else "")
+            cnt.get_style_context().add_class("dim")
+            box.pack_end(cnt, False, False, 0)
+            b.add(box)
+            b.connect("clicked", lambda *_: self.pick(name))
+            self.side.pack_start(b, False, False, 0)
+        item("Favorites")
+        item("All")
+        sep = Gtk.Separator()
+        sep.get_style_context().add_class("ssep")
+        self.side.pack_start(sep, False, False, 0)
+        for name, _ in CATS:
+            item(name)
+        self.side.show_all()
+
+    def pick(self, name):
+        self.cat = name
+        self.search.set_text("")
+        self.build_side()
+        self.fill()
+        self.search.grab_focus()
+
+    def shown(self):
+        q = self.search.get_text().strip().lower()
+        if q:
+            words = q.split()
+            res = [a for a in self.apps if all(w in a["kw"] for w in words)]
+            res.sort(key=lambda a: (not a["name"].lower().startswith(q), a["name"].lower()))
+            return f"SEARCH · {len(res)} found", res
+        if self.cat == "Favorites":
+            order = {f: i for i, f in enumerate(self.favs)}
+            res = sorted([a for a in self.apps if a["id"] in order], key=lambda a: order[a["id"]])
+        elif self.cat == "All":
+            res = self.apps
+        else:
+            keys = set(dict(CATS)[self.cat])
+            res = [a for a in self.apps if a["cats"] & keys]
+        return f"{self.cat.upper()} · {len(res)} apps", res
+
+    def fill(self):
+        head, res = self.shown()
+        self.head.set_text(head)
+        for r in self.list.get_children():
+            self.list.remove(r)
+        for a in res:
+            self.list.add(self.row(a))
+        self.list.show_all()
+        first = self.list.get_row_at_index(0)
+        if first:
+            self.list.select_row(first)
+        if self.search.get_text():
+            self.build_side()
+
+    def row(self, a):
+        r = Gtk.ListBoxRow()
+        r.app = a
+        r.get_style_context().add_class("srow")
+        ev = Gtk.EventBox()
+        ev.connect("button-press-event", lambda w, e: self.menu(a, e) if e.button == 3 else False)
+        box = Gtk.Box(spacing=12)
+        ev.add(box)
+        tile = Gtk.Label(label=(a["name"][:1] or "?").upper())
+        tile.get_style_context().add_class("ltile")
+        tile.set_valign(Gtk.Align.CENTER)
+        box.pack_start(tile, False, False, 0)
+        nm = Gtk.Label(label=a["name"], xalign=0)
+        nm.set_ellipsize(3)
+        box.pack_start(nm, False, False, 0)
+        d = Gtk.Label(label=a["desc"], xalign=1)
+        d.set_ellipsize(3)
+        d.get_style_context().add_class("sdesc")
+        box.pack_start(d, True, True, 0)
+        fav = a["id"] in self.favs
+        st = Gtk.Button(label="★" if fav else "☆")
+        st.get_style_context().add_class("star")
+        if fav:
+            st.get_style_context().add_class("on")
+        st.set_tooltip_text("Remove from favourites" if fav else "Add to favourites")
+        st.connect("clicked", lambda *_: self.toggle_fav(a))
+        box.pack_end(st, False, False, 0)
+        r.add(ev)
+        return r
+
+    def toggle_fav(self, a):
+        if a["id"] in self.favs:
+            self.favs.remove(a["id"])
+        else:
+            self.favs.append(a["id"])
+        write_list(FAVS, self.favs)
+        self.build_side()
+        self.fill()
+
+    def menu(self, a, ev):
+        m = Gtk.Menu()
+        it = Gtk.MenuItem(label="Remove from favourites" if a["id"] in self.favs else "Add to favourites")
+        it.connect("activate", lambda *_: self.toggle_fav(a))
+        m.append(it)
+        hi = Gtk.MenuItem(label="Hide from the start menu")
+
+        def hide(*_):
+            lst = read_list(HIDDEN) or []
+            lst.append(a["id"])
+            write_list(HIDDEN, lst)
+            self.apps = [x for x in self.apps if x["id"] != a["id"]]
+            self.build_side()
+            self.fill()
+        hi.connect("activate", hide)
+        m.append(hi)
+        m.show_all()
+        m.popup_at_pointer(ev)
+        return True
+
+    def launch(self, a):
+        try:
+            a["app"].launch([], None)
+        except Exception:
+            pass
+        self.quit()
+
+    def launch_first(self):
+        r = self.list.get_selected_row() or self.list.get_row_at_index(0)
+        if r:
+            self.launch(r.app)
+
+    def on_key(self, w, e):
+        k = e.keyval
+        if k == Gdk.KEY_Escape:
+            if self.search.get_text():
+                self.search.set_text("")
+            else:
+                self.quit()
+            return True
+        if k in (Gdk.KEY_Down, Gdk.KEY_Up):
+            r = self.list.get_selected_row()
+            i = (r.get_index() if r else -1) + (1 if k == Gdk.KEY_Down else -1)
+            n = self.list.get_row_at_index(max(0, i))
+            if n:
+                self.list.select_row(n)
+                alloc = n.get_allocation()
+                self.scroll.get_vadjustment().clamp_page(alloc.y, alloc.y + alloc.height)
+            return True
+        if k in (Gdk.KEY_Super_L, Gdk.KEY_Super_R):
+            self.quit()
+            return True
+        return False
+
+
+def main():
+    # toggle: a second press closes the open menu
+    try:
+        pid = int(PIDFILE.read_text())
+        if b"glyph-start" in Path(f"/proc/{pid}/cmdline").read_bytes():
+            os.kill(pid, signal.SIGTERM)
+            PIDFILE.unlink(missing_ok=True)
+            return
+    except Exception:
+        pass
+    PIDFILE.unlink(missing_ok=True)
+    screen = Gdk.Screen.get_default()
+    if screen is None:
+        sys.exit("glyph-start: no display")
+    PIDFILE.write_text(str(os.getpid()))
+    css = Gtk.CssProvider()
+    try:
+        css.load_from_path(str(CONF / "panel" / "panel.css"))
+    except Exception:
+        pass
+    Gtk.StyleContext.add_provider_for_screen(screen, css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 10)
+    w = Start()
+    signal.signal(signal.SIGTERM, lambda *a: GLib.idle_add(w.quit))
+    w.connect("destroy", w.quit)
+    w.show_all()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

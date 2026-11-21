@@ -2,7 +2,7 @@
 {
   "layer": "top",
   "position": "bottom",
-  "height": 40,
+  "height": 46,
   "spacing": 0,
   "modules-left": ["custom/start", "custom/ws1", "custom/ws2", "custom/ws3", "custom/ws4", "wlr/taskbar"],
   "modules-right": ["tray", "custom/settings", "clock", "custom/power"],
@@ -13,15 +13,23 @@
     "on-click": "glyph-menu"
   },
 
-  // workspaces: click to go there (labwc 0.8 has no workspace list for waybar yet)
-  "custom/ws1": { "format": "1", "tooltip-format": "Workspace 1 (Ctrl+Alt+1)", "on-click": "glyph-ws 1" },
-  "custom/ws2": { "format": "2", "tooltip-format": "Workspace 2 (Ctrl+Alt+2)", "on-click": "glyph-ws 2" },
-  "custom/ws3": { "format": "3", "tooltip-format": "Workspace 3 (Ctrl+Alt+3)", "on-click": "glyph-ws 3" },
-  "custom/ws4": { "format": "4", "tooltip-format": "Workspace 4 (Ctrl+Alt+4)", "on-click": "glyph-ws 4" },
+  // workspaces: click to go there; the current one is lit (glyph-ws keeps track)
+  "custom/ws1": { "exec": "glyph-ws state 1", "return-type": "json", "interval": "once", "signal": 8, "on-click": "glyph-ws 1" },
+  "custom/ws2": { "exec": "glyph-ws state 2", "return-type": "json", "interval": "once", "signal": 8, "on-click": "glyph-ws 2" },
+  "custom/ws3": { "exec": "glyph-ws state 3", "return-type": "json", "interval": "once", "signal": 8, "on-click": "glyph-ws 3" },
+  "custom/ws4": { "exec": "glyph-ws state 4", "return-type": "json", "interval": "once", "signal": 8, "on-click": "glyph-ws 4" },
 
-  // open windows: text only, no icons
+  // open windows: a letter tile and the name, no icons
   "wlr/taskbar": {
-    "format": "{name}",
+    "format": "{icon}  {title}",
+    "icon-theme": "GlyphLetters",
+    "icon-size": 22,
+    "rewrite": {
+      ".* - Thunar": "  Files", "\\s*Thunar": "  Files", ".* - Mousepad": "  Text editor", "\\s*Mousepad": "  Text editor",
+      ".*Mozilla Firefox.*": "  Firefox", ".* — Firefox.*": "  Firefox", ".*Vivaldi.*": "  Vivaldi",
+      "\\s*Settings": "  Settings", "\\s*foot": "  Terminal", ".*@.*:.*": "  Terminal",
+      "^\\s*(.{0,20}).*$": "  $1"
+    },
     "tooltip-format": "{title}",
     "on-click": "minimize-raise",
     "on-click-middle": "close",
@@ -76,7 +84,7 @@
   },
 
   "custom/power": {
-    "format": "POWER",
+    "format": "⏻",
     "tooltip-format": "Lock, log out, restart, shut down",
     "on-click": "glyph-power"
   }

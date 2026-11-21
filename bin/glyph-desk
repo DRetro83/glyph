@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""glyph-desk - the Glyph desktop background, as in the design.
+
+Fine scan lines in the Glyph colour (or your picture), corner marks, and a
+big clock with date, uptime, battery, power profile and network at the
+bottom right. Started by glyph-bg; settings come from ~/.config/glyph/theme.conf:
+  background=/path/to/picture   bgmode=fill|fit|center|tile   bgcolour=#rrggbb
+  desk=info (clock and info) | clean (only the background)
+"""
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+gi.require_version("PangoCairo", "1.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell, Pango, PangoCairo  # noqa: E402
+import cairo  # noqa: E402
+
+GLib.set_prgname("glyph-desk")
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+BAR = 46   # taskbar height
+
+
+def kv(path):
+    d = {}
+    try:
+        for l in Path(path).read_text().splitlines():
+            if "=" in l and not l.lstrip().startswith("#"):
+                k, v = l.split("=", 1)
+                d[k.strip()] = v.strip().strip('"')
+    except Exception:
+        pass
+    return d
+
+
+def rgb(h, a=1.0):
+    h = (h or "#221f1b").lstrip("#")
+    try:
+        return (int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255, a)
+    except Exception:
+        return (0.13, 0.12, 0.1, a)
+
+
+def sh(cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout.strip()
+    except Exception:
+        return ""
+
+
+class Info:
+    """Slow facts, refreshed every 15 s."""
+    def __init__(self):
+        self.lines = []
+        self.refresh()
+
+    def refresh(self):
+        L = []
+        try:
+            up = int(float(Path("/proc/uptime").read_text().split()[0]))
+            L.append(("UPTIME", f"{up // 3600:02d}:{up % 3600 // 60:02d}"))
+        except Exception:
+            pass
+        for b in sorted(Path("/sys/class/power_supply").glob("BAT*")):
+            try:
+                cap = (b / "capacity").read_text().strip()
+                st = (b / "status").read_text().strip().lower()
+                L.append(("BATTERY", f"{cap}% {st}"))
+                break
+            except Exception:
+                pass
+        prof = sh(["powerprofilesctl", "get"])
+        if prof:
+            L.append(("POWER", {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}.get(prof, prof)))
+        net = ""
+        for l in sh(["nmcli", "-t", "-f", "NAME,TYPE", "con", "show", "--active"]).splitlines():
+            name, _, typ = l.rpartition(":")
+            if typ.endswith("wireless") or typ.endswith("ethernet"):
+                net = name.replace("\\:", ":")
+                break
+        L.append(("NETWORK", net or "offline"))
+        self.lines = L
+        return True
+
+
+class Desk(Gtk.Window):
+    def __init__(self, monitor, info):
+        super().__init__()
+        self.info = info
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_namespace(self, "glyph-desk")
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.BACKGROUND)
+        GtkLayerShell.set_monitor(self, monitor)
+        for e in (GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM, GtkLayerShell.Edge.LEFT, GtkLayerShell.Edge.RIGHT):
+            GtkLayerShell.set_anchor(self, e, True)
+        GtkLayerShell.set_exclusive_zone(self, -1)
+        self.set_app_paintable(True)
+        self.cache = None
+        self.load()
+        self.connect("draw", self.draw)
+        self.connect("realize", lambda *_: self.get_window().input_shape_combine_region(cairo.Region(), 0, 0))
+        self.connect("size-allocate", lambda *_: setattr(self, "cache", None))
+
+    def load(self):
+        self.pal = kv(CONF / "palette.env")
+        self.theme = kv(CONF / "theme.conf")
+        self.cache = None
+        self.pix = None
+        pic = self.theme.get("background", "")
+        if pic and Path(pic).is_file():
+            try:
+                self.pix = GdkPixbuf.Pixbuf.new_from_file(pic)
+            except Exception:
+                self.pix = None
+
+    def c(self, key, a=1.0):
+        return rgb(self.pal.get("GLYPH_" + key.upper()), a)
+
+    def background(self, w, h):
+        surf = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
+        cr = cairo.Context(surf)
+        bgc = self.theme.get("bgcolour")
+        cr.set_source_rgba(*(rgb(bgc) if bgc else self.c("view")))
+        cr.paint()
+        if self.pix:
+            pw, ph = self.pix.get_width(), self.pix.get_height()
+            mode = self.theme.get("bgmode", "fill")
+            if mode == "tile":
+                Gdk.cairo_set_source_pixbuf(cr, self.pix, 0, 0)
+                cr.get_source().set_extend(cairo.EXTEND_REPEAT)
+                cr.paint()
+            else:
+                s = {"fill": max(w / pw, h / ph), "fit": min(w / pw, h / ph), "center": 1.0}.get(mode, max(w / pw, h / ph))
+                cr.save()
+                cr.translate((w - pw * s) / 2, (h - ph * s) / 2)
+                cr.scale(s, s)
+                Gdk.cairo_set_source_pixbuf(cr, self.pix, 0, 0)
+                cr.paint()
+                cr.restore()
+        else:
+            # fine scan lines, like an old screen
+            cr.set_source_rgba(*self.c("lo", 0.35))
+            for y in range(0, h, 3):
+                cr.rectangle(0, y, w, 1)
+            cr.fill()
+        if self.theme.get("desk", "info") != "clean":
+            # corner marks
+            cr.set_source_rgba(*self.c("hi"))
+            cr.set_line_width(2)
+            m, L = 40, 40
+            # top corners here; the bottom-right mark is drawn next to the clock
+            for (x, y, dx, dy) in ((m, m, 1, 1), (w - m, m, -1, 1)):
+                cr.move_to(x + dx * L, y)
+                cr.line_to(x, y)
+                cr.line_to(x, y + dy * L)
+            cr.stroke()
+        return surf
+
+    def text(self, cr, s, font, colour, x, y, right=True, spacing=0):
+        lay = PangoCairo.create_layout(cr)
+        fd = Pango.FontDescription.from_string(font)
+        lay.set_font_description(fd)
+        if spacing:
+            attrs = Pango.AttrList()
+            attrs.insert(Pango.attr_letter_spacing_new(spacing * Pango.SCALE))
+            lay.set_attributes(attrs)
+        lay.set_text(s, -1)
+        tw, th = lay.get_pixel_size()
+        cr.set_source_rgba(*colour)
+        cr.move_to(x - tw if right else x, y)
+        PangoCairo.show_layout(cr, lay)
+        return tw, th
+
+    def draw(self, w, cr):
+        a = self.get_allocation()
+        W, H = a.width, a.height
+        if self.cache is None or self.cache.get_width() != W or self.cache.get_height() != H:
+            self.cache = self.background(W, H)
+        cr.set_source_surface(self.cache, 0, 0)
+        cr.paint()
+        if self.theme.get("desk", "info") == "clean":
+            return False
+        x = W - 72
+        y = H - BAR - 40 - 30
+        rows = [(None, time.strftime("%A %-d %B %Y"))] + self.info.lines
+        lh = 23
+        y -= lh * len(rows)
+        big = max(64, min(120, W // 13))
+        _, th = self.text(cr, time.strftime("%H:%M"), f"IBM Plex Mono Bold {big}px", self.c("tan"), x + 4, y - big * 1.25, spacing=-2)
+        for lab, val in rows:
+            vw, _ = self.text(cr, val, "IBM Plex Mono 14px", self.c("tan"), x, y)
+            if lab:
+                self.text(cr, lab + " ", "IBM Plex Mono 14px", self.c("dim"), x - vw, y, spacing=1)
+            y += lh
+        # bracket next to the info
+        cr.set_source_rgba(*self.c("hi"))
+        cr.set_line_width(2)
+        bx, by = W - 40, H - BAR - 40
+        cr.move_to(bx - 40, by)
+        cr.line_to(bx, by)
+        cr.line_to(bx, by - lh * len(rows) - 10)
+        cr.stroke()
+        return False
+
+
+def main():
+    disp = Gdk.Display.get_default()
+    if disp is None:
+        sys.exit("glyph-desk: no display")
+    info = Info()
+    wins = []
+    for i in range(disp.get_n_monitors()):
+        d = Desk(disp.get_monitor(i), info)
+        d.show_all()
+        wins.append(d)
+
+    def tick():
+        for d in wins:
+            d.queue_draw()
+        return True
+
+    def reload_(*_):
+        for d in wins:
+            d.load()
+            d.queue_draw()
+        return False
+    # redraw at the start of every minute (and every 30 s to be safe)
+    GLib.timeout_add_seconds(30, tick)
+    GLib.timeout_add((60 - time.localtime().tm_sec) * 1000 + 50, lambda: (tick(), GLib.timeout_add_seconds(60, tick), False)[2])
+    GLib.timeout_add_seconds(15, lambda: (info.refresh(), tick())[0])
+    signal.signal(signal.SIGHUP, lambda *a: GLib.idle_add(reload_))
+    signal.signal(signal.SIGTERM, lambda *a: GLib.idle_add(Gtk.main_quit))
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()
