@@ -888,7 +888,12 @@ def write_apps(p, conf):
             if line.startswith("Exec=") and "GTK_THEME=" not in line:
                 line = "Exec=env GTK_THEME=" + lo_theme + " " + line[5:]
             out.append(line)
-        out.insert(1, "X-Glyph-LibreOffice=yes")
+        # the marker goes right under [Desktop Entry] (Debian's files start with comments)
+        try:
+            i = out.index("[Desktop Entry]") + 1
+        except ValueError:
+            continue
+        out.insert(i, "X-Glyph-LibreOffice=yes")
         dst.write_text("\n".join(out) + "\n")
     # Qt: only read when QT_QPA_PLATFORMTHEME=qt6ct / qt5ct (set in the Glyph session only)
     for qt in ("qt6ct", "qt5ct"):
