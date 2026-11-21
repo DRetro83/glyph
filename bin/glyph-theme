@@ -255,8 +255,8 @@ tooltip {{ background: {p['panel']}; border: 1px solid {p['title']}; }}
 tooltip label {{ color: {p['text']}; }}
 button {{ border: none; }}
 
-#custom-start {{ color: {p['tink']}; background: {p['amber']}; border: 2px solid shade({p['amber']}, 0.6); font-weight: bold; letter-spacing: 1px; padding: 0 22px; margin: 4px 6px 4px 8px; }}
-#custom-start:hover {{ background: shade({p['amber']}, 1.1); }}
+#custom-start {{ color: {p['amber']}; background: {p['view']}; border: 1px solid {p['amber']}; font-weight: bold; letter-spacing: 1px; padding: 0 16px; margin: 4px 6px 4px 8px; }}
+#custom-start:hover {{ background: {p['hov']}; }}
 
 #custom-ws1, #custom-ws2, #custom-ws3, #custom-ws4 {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; min-width: 40px; padding: 0; margin: 4px 2px; font-weight: bold; }}
 #custom-ws1.active, #custom-ws2.active, #custom-ws3.active, #custom-ws4.active {{ background: {p['text']}; color: {p['tink']}; border-color: {p['text']}; }}
@@ -444,6 +444,8 @@ entry:focus {{ border-color: {p['amber']}; }}
 .day {{ padding: 4px 0; }}
 .day.today {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; }}
 scrollbar slider {{ background: {p['hi']}; border-radius: 0; min-width: 6px; }}
+.sechdr {{ padding-top: 6px; }}
+.sechdr .dim {{ font-size: 11px; padding-left: 8px; }}
 /* Start menu */
 #glyph-start {{ background: transparent; }}
 .start .sside {{ background: {p['panel']}; border-right: 1px solid {p['hi']}; padding: 4px 0; }}

@@ -155,8 +155,9 @@ class Desk(Gtk.Window):
             cr.set_source_rgba(*self.c("hi"))
             cr.set_line_width(2)
             m, L = 40, 40
-            # top corners here; the bottom-right mark is drawn next to the clock
-            for (x, y, dx, dy) in ((m, m, 1, 1), (w - m, m, -1, 1)):
+            # three corners here; the bottom-right mark is drawn next to the clock
+            b = h - BAR - m
+            for (x, y, dx, dy) in ((m, m, 1, 1), (w - m, m, -1, 1), (m, b, 1, -1)):
                 cr.move_to(x + dx * L, y)
                 cr.line_to(x, y)
                 cr.line_to(x, y + dy * L)

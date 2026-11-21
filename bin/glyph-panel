@@ -25,6 +25,23 @@ RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 
 
 # ---------------------------------------------------------------- helpers
+
+OPEN_FILE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph" / "quick-open"
+
+
+def load_open():
+    try:
+        return set(OPEN_FILE.read_text().split())
+    except Exception:
+        return set()
+
+
+def save_open(keys):
+    try:
+        OPEN_FILE.write_text(" ".join(sorted(keys)) + "\n")
+    except Exception:
+        pass
+
 def sh(cmd, timeout=4):
     """Run a command, return its output ('' on any problem)."""
     try:
@@ -373,7 +390,7 @@ def run_panel(kind):
     # ------------------------------------------------------------ quick settings
     if kind == "quick":
         win.set_size_request(400, -1)
-        state = {"open_net": False, "join": None, "msg": "", "busy": set()}
+        state = {"open": load_open(), "join": None, "msg": "", "busy": set()}
 
         def toggle_tile(name, on, sub, cb, enabled=True):
             b = Gtk.Button()
@@ -387,6 +404,27 @@ def run_panel(kind):
             b.set_sensitive(enabled)
             b.connect("clicked", lambda *_: cb())
             return b
+
+        def section(title, key, summary=""):
+            """A header with Show/Hide; returns True when the section is open."""
+            is_open = key in state["open"]
+            hdr = Gtk.Box(spacing=6)
+            hdr.get_style_context().add_class("sechdr")
+            hdr.pack_start(label(title, "lab"), False, False, 0)
+            if summary and not is_open:
+                sm = label(summary, "dim")
+                sm.set_ellipsize(3)
+                hdr.pack_start(sm, True, True, 0)
+            else:
+                hdr.pack_start(Gtk.Box(), True, True, 0)
+
+            def flip():
+                (state["open"].discard if is_open else state["open"].add)(key)
+                save_open(state["open"])
+                draw()
+            hdr.pack_start(button("Hide ▴" if is_open else "Show ▾", flip, "small"), False, False, 0)
+            body.pack_start(hdr, False, False, 0)
+            return is_open
 
         def draw():
             clear(body)
@@ -431,42 +469,8 @@ def run_panel(kind):
                 grid.attach(t, i % 3, i // 3, 1, 1)
             body.pack_start(grid, False, False, 0)
 
-            # sliders
-            v, muted = volume()
-            if v is not None:
-                row = Gtk.Box(spacing=8)
-                row.pack_start(label("VOL", "lab"), False, False, 0)
-                sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 5)
-                sc.set_draw_value(False)
-                sc.set_value(v)
-                val = label("muted" if muted else f"{v}%", "dim")
-                val.set_width_chars(6)
-                sc.connect("value-changed", lambda s: (sh(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{int(s.get_value())}%"]),
-                                                       val.set_text(f"{int(s.get_value())}%")))
-                row.pack_start(sc, True, True, 0)
-                row.pack_start(val, False, False, 0)
-                row.pack_start(button("ON" if muted else "MUTE", lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)), "small"), False, False, 0)
-                body.pack_start(row, False, False, 0)
-            br = brightness()
-            if br is not None:
-                row = Gtk.Box(spacing=8)
-                row.pack_start(label("BRI", "lab"), False, False, 0)
-                sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 5)
-                sc.set_draw_value(False)
-                sc.set_value(br)
-                val = label(f"{br}%", "dim")
-                val.set_width_chars(6)
-                sc.connect("value-changed", lambda s: (sh(["brightnessctl", "-q", "set", f"{int(s.get_value())}%"]), val.set_text(f"{int(s.get_value())}%")))
-                row.pack_start(sc, True, True, 0)
-                row.pack_start(val, False, False, 0)
-                body.pack_start(row, False, False, 0)
-
             # Wi-Fi networks
-            hdr = Gtk.Box(spacing=6)
-            hdr.pack_start(label("WI-FI NETWORKS", "lab"), True, True, 0)
-            hdr.pack_start(button("Hide ▴" if state["open_net"] else "Show ▾", lambda: (state.update(open_net=not state["open_net"]), draw()), "small"), False, False, 0)
-            body.pack_start(hdr, False, False, 0)
-            if state["open_net"]:
+            if section("WI-FI NETWORKS", "net", cur if w_on and cur else ("off" if not w_on else "")):
                 if not w_on:
                     body.pack_start(label("Wi-Fi is off.", "dim"), False, False, 0)
                 else:
@@ -529,72 +533,73 @@ def run_panel(kind):
 
             # Bluetooth devices
             if bt_present() and bt_on():
-                body.pack_start(label("BLUETOOTH · PAIRED DEVICES", "lab"), False, False, 0)
-                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                box.get_style_context().add_class("list")
                 devs = bt_devices()
-                if not devs:
-                    box.pack_start(label("No paired devices yet.", "dim"), False, False, 0)
-                for d in devs:
-                    r = Gtk.Box(spacing=8)
-                    r.get_style_context().add_class("row")
-                    r.pack_start(tile_label(d["name"][:1].upper()), False, False, 0)
-                    r.pack_start(label(d["name"] + ("  ✓ connected" if d["on"] else ""), "on" if d["on"] else None), True, True, 0)
-                    if d["mac"] in state["busy"]:
-                        r.pack_end(label("…", "amber"), False, False, 0)
-                    else:
-                        act = "disconnect" if d["on"] else "connect"
+                nconn = len([d for d in devs if d["on"]])
+                if section("BLUETOOTH · PAIRED DEVICES", "bt", f"{nconn} connected" if nconn else f"{len(devs)} paired"):
+                    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    box.get_style_context().add_class("list")
+                    if not devs:
+                        box.pack_start(label("No paired devices yet.", "dim"), False, False, 0)
+                    for d in devs:
+                        r = Gtk.Box(spacing=8)
+                        r.get_style_context().add_class("row")
+                        r.pack_start(tile_label(d["name"][:1].upper()), False, False, 0)
+                        r.pack_start(label(d["name"] + ("  ✓ connected" if d["on"] else ""), "on" if d["on"] else None), True, True, 0)
+                        if d["mac"] in state["busy"]:
+                            r.pack_end(label("…", "amber"), False, False, 0)
+                        else:
+                            act = "disconnect" if d["on"] else "connect"
 
-                        def bt_act(m=d["mac"], a=act):
-                            state["busy"].add(m)
-                            run_then(["bluetoothctl", a, m], lambda rc, err, m=m: (state["busy"].discard(m), draw()))
-                            draw()
-                        r.pack_end(button(act.capitalize(), bt_act, "small"), False, False, 0)
-                    box.pack_start(r, False, False, 0)
-                body.pack_start(box, False, False, 0)
-                bm = "blueman-manager" if has("blueman-manager") else None
-                body.pack_start(button("Pair a new device…", lambda: (bg([bm] if bm else ["foot", "-T", "Bluetooth", "bluetoothctl"]), quit_()), "small"), False, False, 0)
+                            def bt_act(m=d["mac"], a=act):
+                                state["busy"].add(m)
+                                run_then(["bluetoothctl", a, m], lambda rc, err, m=m: (state["busy"].discard(m), draw()))
+                                draw()
+                            r.pack_end(button(act.capitalize(), bt_act, "small"), False, False, 0)
+                        box.pack_start(r, False, False, 0)
+                    body.pack_start(box, False, False, 0)
+                    bm = "blueman-manager" if has("blueman-manager") else None
+                    body.pack_start(button("Pair a new device…", lambda: (bg([bm] if bm else ["foot", "-T", "Bluetooth", "bluetoothctl"]), quit_()), "small"), False, False, 0)
 
             # drives
-            body.pack_start(label("DRIVES · USB", "lab"), False, False, 0)
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            box.get_style_context().add_class("list")
             dl = drives()
-            if not dl:
-                box.pack_start(label("No USB drives plugged in.", "dim"), False, False, 0)
-            for d in dl:
-                r = Gtk.Box(spacing=8)
-                r.get_style_context().add_class("row")
-                r.pack_start(tile_label("U"), False, False, 0)
-                v2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                v2.pack_start(label(d["label"], "tn"), False, False, 0)
-                v2.pack_start(label(f"{d['size']} · " + (d["mnt"] if d["mnt"] else "not mounted"), "ts"), False, False, 0)
-                r.pack_start(v2, True, True, 0)
-                if d["path"] in state["busy"]:
-                    r.pack_end(label("…", "amber"), False, False, 0)
-                else:
-                    def eject(d=d):
-                        state["busy"].add(d["path"])
-                        draw()
-                        cmd = ["sh", "-c", f"udisksctl unmount -b '{d['path']}' >/dev/null 2>&1; udisksctl power-off -b '{d['parent']}'"]
-                        run_then(cmd, lambda rc, err, p=d["path"], l=d["label"]: (state["busy"].discard(p),
-                                 bg(["notify-send", "-a", "Drives", "Drives", f"{l} can now be removed safely." if rc == 0 else f"{l} is still in use. Close the files on it and try again."]), draw()))
-                    r.pack_end(button("Eject", eject, "small amber"), False, False, 0)
-                    if d["mnt"]:
-                        r.pack_end(button("Open", (lambda m=d["mnt"]: (bg(["thunar", m]), quit_())), "small"), False, False, 0)
+            if section("DRIVES · USB", "usb", f"{len(dl)} plugged in" if dl else "none"):
+                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                box.get_style_context().add_class("list")
+                if not dl:
+                    box.pack_start(label("No USB drives plugged in.", "dim"), False, False, 0)
+                for d in dl:
+                    r = Gtk.Box(spacing=8)
+                    r.get_style_context().add_class("row")
+                    r.pack_start(tile_label("U"), False, False, 0)
+                    v2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    v2.pack_start(label(d["label"], "tn"), False, False, 0)
+                    v2.pack_start(label(f"{d['size']} · " + (d["mnt"] if d["mnt"] else "not mounted"), "ts"), False, False, 0)
+                    r.pack_start(v2, True, True, 0)
+                    if d["path"] in state["busy"]:
+                        r.pack_end(label("…", "amber"), False, False, 0)
                     else:
-                        def mount(p=d["path"]):
-                            state["busy"].add(p)
-                            run_then(["udisksctl", "mount", "-b", p], lambda rc, err, p=p: (state["busy"].discard(p), draw()))
+                        def eject(d=d):
+                            state["busy"].add(d["path"])
                             draw()
-                        r.pack_end(button("Mount", mount, "small"), False, False, 0)
-                box.pack_start(r, False, False, 0)
-            body.pack_start(box, False, False, 0)
+                            cmd = ["sh", "-c", f"udisksctl unmount -b '{d['path']}' >/dev/null 2>&1; udisksctl power-off -b '{d['parent']}'"]
+                            run_then(cmd, lambda rc, err, p=d["path"], l=d["label"]: (state["busy"].discard(p),
+                                     bg(["notify-send", "-a", "Drives", "Drives", f"{l} can now be removed safely." if rc == 0 else f"{l} is still in use. Close the files on it and try again."]), draw()))
+                        r.pack_end(button("Eject", eject, "small amber"), False, False, 0)
+                        if d["mnt"]:
+                            r.pack_end(button("Open", (lambda m=d["mnt"]: (bg(["thunar", m]), quit_())), "small"), False, False, 0)
+                        else:
+                            def mount(p=d["path"]):
+                                state["busy"].add(p)
+                                run_then(["udisksctl", "mount", "-b", p], lambda rc, err, p=p: (state["busy"].discard(p), draw()))
+                                draw()
+                            r.pack_end(button("Mount", mount, "small"), False, False, 0)
+                    box.pack_start(r, False, False, 0)
+                body.pack_start(box, False, False, 0)
 
             # power profile + battery
             prof = power_profile()
-            if prof:
-                body.pack_start(label("POWER PROFILE", "lab"), False, False, 0)
+            names = {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}
+            if prof and section("POWER PROFILE", "pow", names.get(prof, prof)):
                 row = Gtk.Box(spacing=4, homogeneous=True)
                 for key, name in (("power-saver", "Saver"), ("balanced", "Balanced"), ("performance", "Performance")):
                     b = button(name, (lambda k=key: (sh(["powerprofilesctl", "set", k]), later(draw, 200))), "seg on" if prof == key else "seg")
@@ -603,6 +608,36 @@ def run_panel(kind):
             bat = battery()
             if bat:
                 body.pack_start(label(f"BATTERY  {bat[0]}% · {bat[1].lower()}", "dim"), False, False, 0)
+
+            # volume and brightness, at the bottom
+            v, muted = volume()
+            if v is not None:
+                row = Gtk.Box(spacing=8)
+                row.pack_start(label("VOL", "lab"), False, False, 0)
+                sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 5)
+                sc.set_draw_value(False)
+                sc.set_value(v)
+                val = label("muted" if muted else f"{v}%", "dim")
+                val.set_width_chars(6)
+                sc.connect("value-changed", lambda s: (sh(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{int(s.get_value())}%"]),
+                                                       val.set_text(f"{int(s.get_value())}%")))
+                row.pack_start(sc, True, True, 0)
+                row.pack_start(val, False, False, 0)
+                row.pack_start(button("ON" if muted else "MUTE", lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)), "small"), False, False, 0)
+                body.pack_start(row, False, False, 0)
+            br = brightness()
+            if br is not None:
+                row = Gtk.Box(spacing=8)
+                row.pack_start(label("BRI", "lab"), False, False, 0)
+                sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 5)
+                sc.set_draw_value(False)
+                sc.set_value(br)
+                val = label(f"{br}%", "dim")
+                val.set_width_chars(6)
+                sc.connect("value-changed", lambda s: (sh(["brightnessctl", "-q", "set", f"{int(s.get_value())}%"]), val.set_text(f"{int(s.get_value())}%")))
+                row.pack_start(sc, True, True, 0)
+                row.pack_start(val, False, False, 0)
+                body.pack_start(row, False, False, 0)
             body.show_all()
             GLib.idle_add(fit_height)
 
