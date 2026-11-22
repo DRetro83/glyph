@@ -111,6 +111,17 @@ if [[ -d "$GLYPH_CONF/labwc" ]] && (( ! CHECK )); then
 fi
 run mkdir -p "$GLYPH_CONF/labwc"
 run cp "$HERE"/config/labwc/{rc.xml,menu.xml,autostart,environment} "$GLYPH_CONF/labwc/"
+# keep your mouse and touchpad choices (Settings -> Mouse & touchpad) from the backup
+if [[ -n "${BK:-}" && -f "$BK/rc.xml" ]] && (( ! CHECK )); then
+  python3 - "$BK/rc.xml" "$GLYPH_CONF/labwc/rc.xml" <<'PY' || true
+import re, sys
+old, new = open(sys.argv[1]).read(), open(sys.argv[2]).read()
+m = re.search(r"<libinput>.*?</libinput>", old, re.S)
+if m:
+    new = re.sub(r"<libinput>.*?</libinput>", lambda _: m.group(0), new, count=1, flags=re.S)
+    open(sys.argv[2], "w").write(new)
+PY
+fi
 run mkdir -p "$GLYPH_CONF/waybar"
 run cp "$HERE/config/waybar/config.jsonc" "$GLYPH_CONF/waybar/"
 (( CHECK )) || "$HERE/bin/glyph-bar" >/dev/null 2>&1 || true   # keep your taskbar choice (Settings -> Taskbar)
@@ -124,6 +135,15 @@ if [[ -r /etc/default/keyboard ]] && (( ! CHECK )); then
     [[ -n "${XKBOPTIONS:-}" ]] && echo "XKB_DEFAULT_OPTIONS=$XKBOPTIONS"
   } >> "$GLYPH_CONF/labwc/environment"
   ok "keyboard layout: ${XKBLAYOUT:-us}"
+fi
+# the Glyph mouse pointer, in your colour and size (Settings -> Mouse & touchpad)
+if (( ! CHECK )); then
+  CC=$(sed -n 's/^cursor_colour=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null); CC=${CC:-#e6dac4}
+  CS=$(sed -n 's/^cursor_size=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null); CS=${CS:-24}
+  sed -i "s/^XCURSOR_SIZE=.*/XCURSOR_SIZE=$CS/" "$GLYPH_CONF/labwc/environment"
+  "$HERE/bin/glyph-cursors" "$CC" "$CS" >/dev/null 2>&1 || true
+  gsettings set org.gnome.desktop.interface cursor-theme Glyph 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface cursor-size "$CS" 2>/dev/null || true
 fi
 ok "settings in $GLYPH_CONF/labwc"
 

@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""glyph-cursors - make the Glyph mouse pointer in a colour and size.
+
+  glyph-cursors [COLOUR] [SIZE]     e.g. glyph-cursors '#ffb340' 32
+
+Draws the pointer shapes of the prototype (arrow, hand, text, wait, move,
+~/.local/share/icons/Glyph. Needs no extra packages. Settings -> Mouse &
+touchpad calls this; labwc and the apps pick it up.
+"""
+import math
+import os
+import struct
+import sys
+from pathlib import Path
+
+import cairo
+
+OUT = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "icons" / "Glyph"
+INK = (0x0c / 255, 0x0b / 255, 0x0a / 255)
+ROSE = (0xb8 / 255, 0x40 / 255, 0x5c / 255)
+AMBER = (1.0, 0xb3 / 255, 0x40 / 255)
+
+POLY = {
+    "arrow": [(3, 2), (3, 25), (9, 19), (13, 28), (17, 26), (13, 18), (21, 18)],
+    "link": [(10, 2), (15, 2), (15, 11), (26, 11), (26, 27), (12, 27), (5, 19), (8, 16), (10, 18)],
+    "text": [(9, 3), (23, 3), (23, 7), (18, 7), (18, 25), (23, 25), (23, 29), (9, 29), (9, 25), (14, 25), (14, 7), (9, 7)],
+    "wait": [(8, 3), (24, 3), (24, 7), (18, 16), (24, 25), (24, 29), (8, 29), (8, 25), (14, 16), (8, 7)],
+    "move": [(16, 1), (22, 7), (18, 7), (18, 14), (25, 14), (25, 10), (31, 16), (25, 22), (25, 18), (18, 18), (18, 25),
+             (22, 25), (16, 31), (10, 25), (14, 25), (14, 18), (7, 18), (7, 22), (1, 16), (7, 10), (7, 14), (14, 14),
+             (14, 7), (10, 7)],
+    "dbl": [(1, 16), (8, 9), (8, 13), (24, 13), (24, 9), (31, 16), (24, 23), (24, 19), (8, 19), (8, 23)],
+}
+CROSS = [(15, 2), (17, 2), (17, 15), (30, 15), (30, 17), (17, 17), (17, 30), (15, 30), (15, 17), (2, 17), (2, 15), (15, 15)]
+
+# shape: (draw, rotation, hotspot in 32-px units, names)
+SHAPES = {
+    "default": ("arrow", 0, (3, 2), ["left_ptr", "arrow", "top_left_arrow", "default", "context-menu", "help",
+                                     "question_arrow", "whats_this", "copy", "alias", "dnd-copy", "dnd-link", "dnd-none",
+                                     "center_ptr", "right_ptr", "draft", "pencil"]),
+    "pointer": ("link", 0, (12, 2), ["hand1", "hand2", "pointer", "pointing_hand", "openhand", "grab", "grabbing",
+                                      "closedhand", "dnd-move", "dnd-ask", "e29285e634086352946a0e7090d73106",
+                                      "9d800788f1b08800ae810202380a0822"]),
+    "text": ("text", 0, (16, 16), ["xterm", "ibeam", "text", "vertical-text"]),
+    "wait": ("wait", 0, (16, 16), ["watch", "wait", "progress", "left_ptr_watch", "half-busy",
+                                    "08e8e1c95fe2fc01f976f1e063a24ccd", "3ecb610c1bf2410f44200f48c40d3599"]),
+    "move": ("move", 0, (16, 16), ["fleur", "move", "all-scroll", "size_all", "4498f0e0c1937ffe01fd06f973665830",
+                                    "9081237383d90e509aa00f00170e968f"]),
+    "ew": ("dbl", 0, (16, 16), ["sb_h_double_arrow", "ew-resize", "col-resize", "left_side", "right_side", "e-resize",
+                                "w-resize", "h_double_arrow", "size_hor", "split_h", "028006030e0e7ebffc7f7070c0600140",
+                                "14fef782d02440884392942c11205230"]),
+    "ns": ("dbl", 90, (16, 16), ["sb_v_double_arrow", "ns-resize", "row-resize", "top_side", "bottom_side", "n-resize",
+                                 "s-resize", "v_double_arrow", "size_ver", "split_v", "00008160000006810000408080010102",
+                                 "2870a09082c103050810ffdffffe0204"]),
+    "nwse": ("dbl", 45, (16, 16), ["top_left_corner", "bottom_right_corner", "nw-resize", "se-resize", "nwse-resize",
+                                   "size_fdiag", "bd_double_arrow", "c7088f0f3e6c8088236ef8e1e3e70000"]),
+    "nesw": ("dbl", -45, (16, 16), ["top_right_corner", "bottom_left_corner", "ne-resize", "sw-resize", "nesw-resize",
+                                    "size_bdiag", "fd_double_arrow", "fcf1c3c7cd4491d801f1e1c78f100000"]),
+    "cross": ("cross", 0, (16, 16), ["crosshair", "cross", "tcross", "cell", "plus", "color-picker", "target", "zoom-in",
+                                     "zoom-out"]),
+    "no": ("no", 0, (16, 16), ["crossed_circle", "not-allowed", "forbidden", "no-drop", "circle", "X_cursor", "pirate",
+                               "03b6e0fcb3499374a867c041f52298f0"]),
+}
+
+
+def hexrgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def draw(kind, rot, fill, n):
+    surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, n, n)
+    cr = cairo.Context(surf)
+    cr.scale(n / 32, n / 32)
+    cr.translate(16, 16)
+    cr.rotate(math.radians(rot))
+    cr.translate(-16, -16)
+    cr.set_line_join(cairo.LINE_JOIN_MITER)
+
+    def poly(pts, col, width=1.6):
+        cr.move_to(*pts[0])
+        for p in pts[1:]:
+            cr.line_to(*p)
+        cr.close_path()
+        cr.set_source_rgb(*col)
+        cr.fill_preserve()
+        cr.set_source_rgb(*INK)
+        cr.set_line_width(width)
+        cr.stroke()
+
+    if kind == "no":
+        for w, col in ((7, INK), (4, ROSE)):
+            cr.set_line_width(w)
+            cr.set_source_rgb(*col)
+            cr.arc(16, 16, 12, 0, 2 * math.pi)
+            cr.stroke()
+            cr.move_to(8, 24)
+            cr.line_to(24, 8)
+            cr.stroke()
+    elif kind == "cross":
+        poly(CROSS, fill, 1.2)
+    else:
+        poly(POLY[kind], fill)
+        if kind == "link":
+            cr.set_source_rgb(*INK)
+            cr.set_line_width(1.2)
+            for x in (19, 22.5):
+                cr.move_to(x, 11)
+                cr.line_to(x, 17)
+                cr.stroke()
+        if kind == "wait":
+            for pts in ([(11, 26), (21, 26), (16, 20)], [(12, 8), (20, 8), (16, 12)]):
+                cr.move_to(*pts[0])
+                for p in pts[1:]:
+                    cr.line_to(*p)
+                cr.close_path()
+                cr.set_source_rgb(*AMBER)
+                cr.fill()
+    surf.flush()
+    return surf
+
+
+def xcursor(images):
+    """images: [(nominal size, width, height, xhot, yhot, argb bytes)] -> Xcursor file bytes."""
+    ntoc = len(images)
+    head = struct.pack("<4sIII", b"Xcur", 16, 0x10000, ntoc)
+    pos = 16 + ntoc * 12
+    toc, chunks = b"", b""
+    for size, w, h, xh, yh, data in images:
+        chunk = struct.pack("<IIIIIIIII", 36, 0xfffd0002, size, 1, w, h, xh, yh, 0) + data
+        toc += struct.pack("<III", 0xfffd0002, size, pos)
+        pos += len(chunk)
+        chunks += chunk
+    return head + toc + chunks
+
+
+def main():
+    colour = sys.argv[1] if len(sys.argv) > 1 else "#e6dac4"
+    try:
+        base = int(sys.argv[2]) if len(sys.argv) > 2 else 24
+    except ValueError:
+        base = 24
+    fill = hexrgb(colour)
+    sizes = sorted({base, 24, 32, 48, base * 2})
+    cur = OUT / "cursors"
+    cur.mkdir(parents=True, exist_ok=True)
+    for shape, (kind, rot, (hx, hy), names) in SHAPES.items():
+        imgs = []
+        for n in sizes:
+            s = draw(kind, rot, fill, n)
+            # cairo ARGB32 is premultiplied native-endian (little-endian here), the same layout Xcursor wants
+            data = bytes(s.get_data())[: n * n * 4]
+            imgs.append((n, n, n, min(n - 1, round(hx * n / 32)), min(n - 1, round(hy * n / 32)), data))
+        blob = xcursor(imgs)
+        first = cur / names[0]
+        tmp = first.with_suffix(".tmp")
+        tmp.write_bytes(blob)
+        os.replace(tmp, first)
+        for alias in names[1:]:
+            link = cur / alias
+            if link.is_symlink() or link.exists():
+                link.unlink()
+            link.symlink_to(names[0])
+    (OUT / "index.theme").write_text("[Icon Theme]\nName=Glyph\nComment=Glyph mouse pointer\nInherits=Adwaita\n")
+    print(f"Glyph pointer: {colour}, size {base} -> {OUT}")
+
+
+if __name__ == "__main__":
+    main()

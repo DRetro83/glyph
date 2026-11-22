@@ -79,19 +79,49 @@ def write_kv(path, key, value, header="# Glyph settings\n"):
     path.write_text(header + "".join(f"{k}={v}\n" for k, v in d.items()))
 
 
-def rc_set(tag, value):
-    """Set <tag>value</tag> inside the touchpad <device> block of rc.xml."""
+def rc_set(tag, value, cats=("touchpad",)):
+    """Set <tag>value</tag> inside the <device> blocks of rc.xml (touchpad, or default = mouse)."""
     try:
         s = RCXML.read_text()
     except Exception:
         return False
-    if re.search(rf"<{tag}>.*?</{tag}>", s):
-        s = re.sub(rf"<{tag}>.*?</{tag}>", f"<{tag}>{value}</{tag}>", s, count=1)
-    else:
-        s = s.replace('<device category="touchpad">', f'<device category="touchpad">\n      <{tag}>{value}</{tag}>', 1)
+    for cat in cats:
+        start = f'<device category="{cat}">'
+        if start not in s:
+            s = s.replace("<libinput>", f"<libinput>\n    {start}\n    </device>", 1)
+        a = s.index(start)
+        b = s.index("</device>", a)
+        block = s[a:b]
+        if re.search(rf"<{tag}>.*?</{tag}>", block):
+            block = re.sub(rf"<{tag}>.*?</{tag}>", f"<{tag}>{value}</{tag}>", block, count=1)
+        else:
+            block = block.replace(start, f"{start}\n      <{tag}>{value}</{tag}>", 1)
+        s = s[:a] + block + s[b:]
     RCXML.write_text(s)
     bg(["labwc", "--reconfigure"])
     return True
+
+
+CURSOR_COLOURS = [("#e6dac4", "Cream"), ("#a8957c", "Tan"), ("#ffb340", "Amber"), ("#b5b03c", "Olive"),
+                  ("#8c9e3a", "Green"), ("#b8405c", "Rose"), ("#8fb0c8", "Blue"), ("#ffffff", "White")]
+
+
+def apply_cursor(colour, size):
+    """Make the Glyph pointer and tell labwc and the apps to use it."""
+    write_kv(GCONF, "cursor_colour", colour)
+    write_kv(GCONF, "cursor_size", str(size))
+    env = CONF / "labwc" / "environment"
+    try:
+        lines = [l for l in env.read_text().splitlines() if not l.startswith(("XCURSOR_THEME=", "XCURSOR_SIZE="))]
+        lines += ["XCURSOR_THEME=Glyph", f"XCURSOR_SIZE={size}"]
+        env.write_text("\n".join(lines) + "\n")
+    except Exception:
+        pass
+    script = ('glyph-cursors "$1" "$2" >/dev/null 2>&1; '
+              'gsettings set org.gnome.desktop.interface cursor-theme Glyph 2>/dev/null; '
+              'gsettings set org.gnome.desktop.interface cursor-size "$2" 2>/dev/null; '
+              'labwc --reconfigure 2>/dev/null')
+    bg(["sh", "-c", script, "cursor", colour, str(size)])
 
 
 def rc_get(tag, default=""):
@@ -536,8 +566,21 @@ class Settings(Gtk.Window):
             spd = 0
         sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, -1, 1, 0.1)
         sc.set_value(spd)
-        sc.connect("button-release-event", lambda s, e: rc_set("pointerSpeed", f"{s.get_value():.1f}") and False)
+        sc.connect("button-release-event", lambda s, e: rc_set("pointerSpeed", f"{s.get_value():.1f}", ("default", "touchpad")) and False)
         p.pack_start(sc, False, False, 0)
+        p.pack_start(self.toggle("Left-handed", "Swap the left and right button.", rc_get("leftHanded", "no") == "yes",
+                                 lambda on: (rc_set("leftHanded", "yes" if on else "no", ("default", "touchpad")), self.refresh())),
+                     False, False, 0)
+        g = read_kv(GCONF)
+        col, size = g.get("cursor_colour", "#e6dac4"), g.get("cursor_size", "24")
+        p.pack_start(self.lab("POINTER COLOUR", "lab"), False, False, 0)
+        p.pack_start(self.opts([(c, f'<span foreground="{c}">■</span> {n}') for c, n in CURSOR_COLOURS], col,
+                               lambda v: apply_cursor(v, read_kv(GCONF).get("cursor_size", "24"))), False, False, 0)
+        p.pack_start(self.lab("POINTER SIZE", "lab"), False, False, 0)
+        p.pack_start(self.opts([("24", "Small"), ("32", "Normal"), ("48", "Large")], size,
+                               lambda v: apply_cursor(read_kv(GCONF).get("cursor_colour", "#e6dac4"), v)), False, False, 0)
+        p.pack_start(self.note("The pointer changes at once on the desktop and in most apps; "
+                               "some apps show it after they are opened again."), False, False, 0)
 
     def page_power_lock(self, p):
         prof = sh(["powerprofilesctl", "get"]).strip() if has("powerprofilesctl") else ""

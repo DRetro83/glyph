@@ -1,6 +1,7 @@
 # Glyph - environment for the Glyph session only (KDE is not touched)
 XDG_CURRENT_DESKTOP=Glyph:wlroots
 XDG_SESSION_DESKTOP=glyph
+XCURSOR_THEME=Glyph
 XCURSOR_SIZE=24
 MOZ_ENABLE_WAYLAND=1
 QT_QPA_PLATFORM=wayland;xcb
