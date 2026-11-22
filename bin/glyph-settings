@@ -341,7 +341,11 @@ class Settings(Gtk.Window):
         try:
             rad = int(t.get("radius", ""))
         except ValueError:
-            rad = 8 if t.get("corners", "square") == "round" else 0
+            rad = {"round": 8, "bol": 16}.get(t.get("corners", "square"), 0)
+        shape = t.get("corners", "square") if rad else "square"
+        p.pack_start(self.opts([("square", "Square"), ("round", "Rounded"), ("bol", "Round ends")], shape,
+                               lambda v: self.theme("--set", "corners=" + v, "--set",
+                                                    "radius=" + {"square": "0", "round": "8", "bol": "16"}[v])), False, False, 0)
         rrow = Gtk.Box(spacing=12)
         rsc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 16, 1)
         rsc.set_value(rad)
@@ -351,11 +355,11 @@ class Settings(Gtk.Window):
         rval.set_width_chars(8)
         rsc.connect("value-changed", lambda w: rval.set_text("Square" if not int(w.get_value()) else f"{int(w.get_value())} px"))
         rsc.connect("button-release-event", lambda w, e: (self.theme("--set", f"radius={int(w.get_value())}",
-                                                                     "--set", "corners=" + ("round" if int(w.get_value()) else "square")), False)[1])
+                                                                     "--set", "corners=" + (("bol" if shape == "bol" else "round") if int(w.get_value()) else "square")), False)[1])
         rrow.pack_start(rsc, False, False, 0)
         rrow.pack_start(rval, False, False, 0)
         p.pack_start(rrow, False, False, 0)
-        p.pack_start(self.note("Windows, panels, buttons and cards. 0 is square, like the prototype."), False, False, 0)
+        p.pack_start(self.note("How round windows, panels, buttons and cards are. Round ends gives buttons and fields round ends. Windows round only at the top: labwc cannot round the bottom of a window."), False, False, 0)
         p.pack_start(self.lab("TEXT SIZE", "lab"), False, False, 0)
         p.pack_start(self.opts([("12", "Small"), ("13", "Normal"), ("15", "Large")], t.get("textsize", "13"),
                                lambda v: self.theme("--set", "textsize=" + v)), False, False, 0)

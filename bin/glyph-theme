@@ -927,7 +927,7 @@ def corner_radius(conf=None):
     try:
         return max(0, min(16, int(conf.get("radius", ""))))
     except ValueError:
-        return 8 if conf.get("corners", "square") == "round" else 0
+        return {"round": 8, "bol": 16}.get(conf.get("corners", "square"), 0)
 
 
 def round_css(p):
@@ -936,9 +936,11 @@ def round_css(p):
     if not r:
         return ""
     small = max(2, r * 3 // 4)
+    if read_conf().get("corners") == "bol":
+        small = 999          # round ends: pill-shaped buttons, fields and tiles
     return ("\n/* rounded corners */\n.panel button, .panel entry, .ptile, .tile, button, entry, menu, .menu, "
-            f"popover, tooltip, .gmenu, .files .ftool button, .tog, .accbox, .sliders, .npcard, .ltile, .ftile {{ border-radius: {small}px; }}\n"
-            f".panel, .start, .settings .card, .list, .ovlist {{ border-radius: {r}px; }}\n"
+            f"popover, tooltip, .gmenu, .files .ftool button, .ltile, .ftile {{ border-radius: {small}px; }}\n"
+            f".panel, .start, .settings .card, .list, .ovlist, .panel button.tog, .accbox, .sliders, .npcard {{ border-radius: {r}px; }}\n"
             f"scale trough, scale highlight {{ border-radius: {max(1, r // 3)}px; }}\n"
             f".ptitle {{ border-radius: {r}px {r}px 0 0; }}\n.pfoot {{ border-radius: 0 0 {r}px {r}px; }}\n"
             ".panel button.acc, .tog button.tmore, .ptitle .px, .accbody, .panel .prow button.acc { border-radius: 0; }\n"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.5 · corner shapes · 2026-11-22
+
+- Window corners: Square, Rounded or Round ends (pill-shaped buttons and fields), plus the slider for how round
+
 ## 0.9.4 · corners on a slider · 2026-11-22
 
 - Settings → Appearance → Window corners is a slider now: 0 (square) to 16 px, for windows, panels, buttons, tiles and cards
