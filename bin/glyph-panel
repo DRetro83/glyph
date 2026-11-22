@@ -424,6 +424,34 @@ def status():
 
 
 # ---------------------------------------------------------------- the panel window
+
+def add_catcher(on_click):
+    """A see-through layer over the desktop and the windows (not the taskbar), just below a menu:
+    a click anywhere next to the menu closes it, like on other desktops."""
+    from gi.repository import Gdk, Gtk, GtkLayerShell
+    c = Gtk.Window()
+    c.set_name("glyph-catcher")
+    GtkLayerShell.init_for_window(c)
+    GtkLayerShell.set_namespace(c, "glyph-catcher")
+    GtkLayerShell.set_layer(c, GtkLayerShell.Layer.TOP)
+    for e in (GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM, GtkLayerShell.Edge.LEFT, GtkLayerShell.Edge.RIGHT):
+        GtkLayerShell.set_anchor(c, e, True)
+    GtkLayerShell.set_exclusive_zone(c, 0)          # leave the taskbar free
+    try:
+        GtkLayerShell.set_keyboard_mode(c, GtkLayerShell.KeyboardMode.NONE)
+    except Exception:
+        pass
+    vis = c.get_screen().get_rgba_visual()
+    if vis:
+        c.set_visual(vis)
+    c.set_app_paintable(True)
+    c.connect("draw", lambda w, cr: (cr.set_source_rgba(0, 0, 0, 0), cr.set_operator(0), cr.paint(), False)[3])
+    c.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+    c.connect("button-press-event", lambda *_: (on_click(), True)[1])
+    c.show_all()
+    return c
+
+
 def run_panel(kind):
     import gi
     gi.require_version("Gtk", "3.0")
@@ -497,6 +525,7 @@ def run_panel(kind):
 
     win.connect("destroy", quit_)
     win.connect("key-press-event", lambda w, e: quit_() if e.keyval == Gdk.KEY_Escape else False)
+    add_catcher(quit_)
     had_focus = {"v": False}
 
     def on_focus_in(*_):

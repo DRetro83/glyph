@@ -31,6 +31,8 @@ HIDDEN = CONF / "menu-hidden"
 CATALOG = [
     ("firefox-esr", "Firefox ESR", "web browser", "Browsers", "deb", ""),
     ("vivaldi", "Vivaldi", "web browser (from vivaldi.com, updates with Debian)", "Browsers", "get", ""),
+    ("thunderbird", "Thunderbird", "email, calendar and contacts", "Mail", "deb", ""),
+    ("geary", "Geary", "simple and light email", "Mail", "deb", ""),
     ("libreoffice", "LibreOffice", "documents, sheets, slides", "Editing", "deb", ""),
     ("inkscape", "Inkscape", "vector drawing", "Editing", "deb", ""),
     ("gimp", "GIMP", "photo editing", "Editing", "deb", ""),
