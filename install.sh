@@ -74,6 +74,22 @@ say "Glyph - installing next to your current desktop"
 # 1. packages
 say "Installing packages (asks for your password)"
 run sudo apt-get update
+# the Glyph font (IBM Plex) is in Debian's "contrib" section, which a fresh
+# Debian 13 does not always have switched on: switch it on if needed
+if (( ! CHECK )) && ! apt-cache show fonts-ibm-plex >/dev/null 2>&1; then
+  say "Switching on Debian's \"contrib\" section for the IBM Plex font"
+  if [[ -f /etc/apt/sources.list.d/debian.sources ]]; then
+    sudo sed -i -E '/^Components:/{/contrib/!s/$/ contrib/}' /etc/apt/sources.list.d/debian.sources
+  fi
+  if [[ -f /etc/apt/sources.list ]]; then
+    sudo sed -i -E '/^deb(-src)? .*debian/{/contrib/!s/ main( |$)/ main contrib\1/}' /etc/apt/sources.list
+  fi
+  sudo apt-get update
+fi
+if (( ! CHECK )) && ! apt-cache show fonts-ibm-plex >/dev/null 2>&1; then
+  say "(IBM Plex not found; Glyph uses DejaVu Sans Mono instead)"
+  PACKAGES=("${PACKAGES[@]/fonts-ibm-plex/fonts-dejavu-core}")
+fi
 run sudo apt-get install -y "${PACKAGES[@]}"
 # optional helpers that not every Debian has: monitor brightness, batteries,
 # clipboard history, music on the lock screen
