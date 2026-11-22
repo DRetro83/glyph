@@ -891,7 +891,8 @@ def run_panel(kind):
             grid.get_style_context().add_class("tiles")
             body.pack_start(grid, False, False, 0)
 
-            # now playing: a card, only when something plays
+            # now playing: a card, only when something plays (shown at the bottom, above the sliders)
+            np_card = None
             ps = media_players()
             if ps:
                 pl, st, ti, ar = ps[0]
@@ -918,7 +919,7 @@ def run_panel(kind):
                     nb = button(sym, lambda c=cmd, p=pl: (sh(["playerctl", "-p", p, c]), later(draw, 300)), cls)
                     nb.set_valign(Gtk.Align.CENTER)
                     card.pack_start(nb, False, False, 0)
-                body.pack_start(card, False, False, 0)
+                np_card = card
 
             # Wi-Fi networks
             if section("WI-FI NETWORKS", "net", cur if w_on and cur else ("off" if not w_on else "")):
@@ -1104,6 +1105,8 @@ def run_panel(kind):
                     body.pack_start(box, False, False, 0)
 
             flush()
+            if np_card:
+                body.pack_start(np_card, False, False, 0)
 
             # volume and brightness, at the bottom, in one framed box
             sliders = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)

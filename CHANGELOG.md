@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.9 · 2026-11-22
+
+- Quick settings: the Now playing card sits at the bottom, just above volume and brightness
+
 ## 0.9.8 · readable light mode · 2026-11-22
 
 - Light mode: windows without focus keep dark, readable text (GTK greyed it out far too much); for every system colour
