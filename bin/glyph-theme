@@ -1244,7 +1244,11 @@ def letter_icons(p):
     dirs.append(HOME / ".local/share/flatpak/exports/share/applications")
     done = set()
     for dd in dirs:
-        for f in dd.glob("*.desktop") if dd.is_dir() else []:
+        try:
+            found = sorted(dd.glob("*.desktop")) if dd.is_dir() else []
+        except OSError:                 # a folder you may not read (another user's)
+            found = []
+        for f in found:
             try:
                 txt = f.read_text(errors="ignore")
             except Exception:
