@@ -5,13 +5,13 @@ The design is the HTML prototype ("Glyph desktop"). The real desktop is built in
 | Step | What | Parts | Status |
 |---|---|---|---|
 | 1 | **Windows**: title bars, buttons, snapping, workspaces, right-click menu, the Glyph colours | labwc, glyph-theme | ✅ done |
-| 2 | **Taskbar** at the bottom: START, workspaces, open windows, volume, network, battery, clock, power | waybar | ✅ done |
-| 3 | **Start menu, power menu, notifications, lock screen, screenshots** | fuzzel, mako, swaylock + swayidle, grim + slurp | ✅ done |
+| 2 | **Taskbar** at the bottom: START, workspaces, the apps per workspace, now playing, clock, power | waybar, glyph-tasks | ✅ done |
+| 3 | **Start menu, power menu, notifications, lock screen, screenshots** | glyph-start, mako, gtklock + swayidle, grim + slurp | ✅ done |
 | 4 | **Quick settings, calendar, Settings window** | glyph-panel and glyph-settings (Python, GTK3, gtk-layer-shell), NetworkManager, BlueZ, PipeWire, udisks2 | ✅ done |
 | 5 | **Start-up and sign-in** (optional): boot menu, start-up screen, sign-in screen | GRUB theme, Plymouth script theme, SDDM theme (`extras/boot`) | ✅ done |
 | 6 | **Apps in the Glyph look**: GTK 3/4, Qt, terminal, editor, Firefox, Vivaldi | glyph-theme (gtk.css, qt6ct, foot, GtkSourceView, userChrome.css) | ✅ done |
 
-**Now:** test on a real Debian 13 PC, fix what shows up, then version 1.0.
+**Now (0.9.9):** in daily use on a real Debian 13 PC; fixing what shows up, then version 1.0.
 
 ## Later
 
@@ -22,14 +22,15 @@ The design is the HTML prototype ("Glyph desktop"). The real desktop is built in
 
 ## Notes on labwc
 
-- Standard labwc 0.8 draws only a solid title bar. Glyph therefore ships **labwc-glyph**: Debian's labwc 0.8.3 with a small patch (`extras/labwc/glyph-titlebar.patch`) for fine stripes, the boxed "■ TITLE" and capital titles. GitHub Actions builds and tests it from Debian's source; `install.sh` installs it (skip with `--plain-titlebars`), `uninstall.sh` puts Debian's labwc back.
+- Standard labwc 0.8 draws only a solid title bar. Glyph therefore ships **labwc-glyph**: Debian's labwc 0.8.3 with small patches for fine stripes, the boxed "■ TITLE" and capital titles (`glyph-titlebar.patch`), the hard drop shadow (`glyph-shadow.patch`) and the taskbar per workspace (`glyph-workspace-taskbar.patch`).
+- labwc rounds only the top corners of a window; the bottom is the app itself and stays square. GitHub Actions builds and tests it from Debian's source; `install.sh` installs it (skip with `--plain-titlebars`), `uninstall.sh` puts Debian's labwc back.
 - Debian 13 ships labwc 0.8. labwc 0.7 looks for themes in `themes/<name>/openbox-3/` and 0.8 in `themes/<name>/labwc/`. glyph-theme fills both.
 
 ## Notes on steps 2 and 3
 
-- **Workspaces on the taskbar:** labwc 0.8 cannot tell waybar which workspace is active, so the buttons 1–4 switch workspace but do not light up. Newer labwc versions add this, and Glyph will use it when Debian has them.
-- **Start menu:** fuzzel lists every app by name, without icons. The categories and favourites of the prototype need a bigger menu; that comes with the panels in step 4.
-- **Lock screen:** swaylock shows the Glyph colours and a ring. The clock and media controls of the prototype need gtklock, which can come later.
+- **Workspaces on the taskbar:** labwc-glyph also carries `glyph-workspace-taskbar.patch`: apps on another workspace leave the taskbar list, so glyph-tasks shows only the apps of the workspace you are on, in its colour.
+- **Start menu:** glyph-start (GTK3) with categories, favourites and one search for apps, settings and recent files.
+- **Lock screen:** gtklock with the Glyph colours, a clock and (if installed) media controls; swaylock stays as a fallback.
 - **Tray:** waybar shows tray icons of apps that have one (for example Steam or Discord). Glyph's own Wi-Fi, Bluetooth and sound panels come in step 4.
 
 ## Notes on steps 4, 5 and 6

@@ -6,16 +6,16 @@
 
 Debian 13 · labwc · Wayland · runs next to KDE, GNOME or XFCE · open source
 
-[Try it](#-try-it-next-to-your-desktop) · [What you get](#-what-you-get) · [Roadmap](#-roadmap) · [Change the look](#-change-the-look) · [Update](#-update-and-remove)
+[Why Glyph](#-why-glyph-is-different) · [Try it](#-try-it-next-to-your-desktop) · [What you get](#-what-you-get) · [Roadmap](#-roadmap) · [Change the look](#-change-the-look) · [Update](#-update-and-remove)
 
 </div>
 
 ## What is Glyph?
 
-Glyph is a complete desktop for Debian, put together from small open-source parts instead of one big desktop environment. Everything looks the same: one font, square windows and one set of colours.
+Glyph is a complete desktop for Debian, put together from small open-source parts instead of one big desktop environment. Everything looks the same: one font, one shape and one set of colours.
 
 - **Text first.** Apps get a letter tile (**F** Files, **T** Terminal), not a logo. Menus and buttons are words.
-- **One look everywhere.** IBM Plex Mono, square windows and the Glyph colours: Dark, OLED black or Light, with ten system colours. One settings file themes the windows, the taskbar and later your apps too.
+- **One look everywhere.** IBM Plex Mono and the Glyph colours: Dark, OLED black or Light, with ten system colours. Square, rounded or round corners. One settings file themes the windows, the taskbar, the panels and your apps.
 - **Light.** labwc (Wayland) with a handful of small programs. No full desktop environment underneath.
 - **Safe to try.** Glyph installs as an **extra session**. Your KDE, GNOME or XFCE stays exactly as it is, and `./uninstall.sh` removes Glyph again.
 
@@ -27,6 +27,27 @@ Glyph is a complete desktop for Debian, put together from small open-source part
 
 </div>
 
+## ◆ Why Glyph is different
+
+Most desktops are built around icons, a big settings program and a look that apps only half follow. Glyph goes the other way.
+
+| | Glyph | A typical desktop |
+|---|---|---|
+| **Apps and buttons** | A letter tile and a word: **F** Files, **T** Terminal, *Shut down* | An icon you have to learn |
+| **Theme** | One choice colours *everything*: windows, taskbar, panels, start menu, GTK and Qt apps, the terminal, Firefox, Vivaldi, notifications, the lock screen and (optionally) boot and sign-in | Apps, browser and lock screen each do their own thing |
+| **Workspaces** | Each workspace can have its **own colour**. The whole desktop takes it on when you switch, and every app on the taskbar shows the colour of its workspace. The taskbar shows only the apps of the workspace you are on | Numbered workspaces that all look the same |
+| **Size** | labwc plus small programs; most of Glyph is short Python you can read and change | A larger set of programs and services |
+| **Changes** | Almost every setting applies at once, without signing out | Some changes need a restart or sign-out |
+| **Language** | English, or any language from one plain text file (`Shut down = Afsluiten`) that anyone can write | Translations made with special tools |
+| **Look and feel** | A retro terminal look on purpose: striped title bars, a hard drop shadow, optional scanlines, a big clock on the desktop | A modern flat look |
+
+A few smaller things that come with it:
+
+- **Shutting down is polite.** Glyph asks every app to close and waits, so an unsaved drawing or document still gets its *Save?* question; *Shut down anyway* is there when you need it.
+- **Your clipboard remembers** (Super+V), the start menu also finds settings and recent files, and quick settings show what is playing.
+- **Software for people, not packages.** Glyph Software shows a short, curated list (browsers, office, games, backup…) and installs from Debian, Flathub or the maker's site.
+- **No surprises.** USB sticks, a low battery and waiting updates show up as a notification, and nothing installs or updates without you saying so.
+
 ## ✦ What you get
 
 | Quick settings | Apps in the Glyph look |
@@ -37,12 +58,12 @@ Glyph is a complete desktop for Debian, put together from small open-source part
 
 | Part | What it does |
 |---|---|
-| **Windows** | Square windows with a coloured title bar and **_ □ ×** buttons. Drag a window to an edge for half the screen, or to the top to maximize it. Four workspaces. |
-| **Taskbar** | At the bottom: ▸ START, workspaces, every open app with a letter tile in the colour of its workspace, ♪ now playing, ▦ open windows, SETTINGS ▴ (with the update count), the clock and POWER. |
+| **Windows** | Windows with a striped, coloured title bar, **_ □ ×** buttons and a hard shadow; square, rounded or round corners. Drag a window to an edge for half the screen, or to the top to maximize it. Four workspaces. |
+| **Taskbar** | At the bottom: ▸ START, workspaces, the apps of this workspace with a letter tile in its colour, ♪ now playing, ▦ open windows, SETTINGS ▴ (with the update count), the clock and POWER. Every part can be switched off in Settings → Taskbar. |
 | **Start menu** | Categories on the left, apps on the right. One search box finds apps, settings and files. |
-| **Quick settings** | Tiles for Wi-Fi, Bluetooth, do not disturb, night light, airplane mode and power profile; now playing; Wi-Fi, Bluetooth, drives, sound output, microphone and batteries in one list; volume and brightness. |
+| **Quick settings** | Tiles for Wi-Fi, Bluetooth, do not disturb, night light, airplane mode and power profile; Wi-Fi, Bluetooth, drives, sound output, microphone and batteries in one list; now playing, volume and brightness at the bottom. |
 | **Settings** | Appearance, background, taskbar, notifications, display, sound, keyboard, mouse, printers, power, disks, network, Bluetooth, users, date, language, privacy, default apps, accessibility, updates and about. |
-| **Apps** | Glyph Files, Music, System monitor, Software, Disks, Calculator and Screenshot; text editor (Mousepad), terminal (Xfce Terminal), image viewer (Ristretto), video (mpv), PDF (Atril), Firefox. More in Software. |
+| **Apps** | Glyph Files, Music, System monitor (Ctrl+Shift+Esc), Software, Disks, Calculator and Screenshot; text editor (Mousepad), terminal (Xfce Terminal), image viewer (Ristretto), video (mpv), PDF (Atril), Firefox. More in Software. |
 | **Start-up** | Boot menu, splash screen, sign-in screen, a welcome at the first start, and a lock screen. |
 
 <div align="center">
@@ -67,7 +88,7 @@ Then log out. At the login screen, pick **Glyph** in the session list (in SDDM i
 
 ![Glyph running for real: taskbar, start menu and a notification](docs/img/glyph-desktop.png)
 
-<sub>Glyph running for real on labwc: the taskbar, the start menu (fuzzel) and a notification (mako).</sub>
+<sub>Glyph running for real on labwc: the taskbar, the start menu and a notification.</sub>
 
 | Power menu | Lock screen |
 |---|---|
@@ -117,13 +138,13 @@ They take your Glyph colours at the moment you run it; run it again after you ch
 
 ## 🗺 Roadmap
 
-Glyph is built in six steps. All six are built and in daily use (version 0.9.0, see the [changelog](CHANGELOG.md)).
+Glyph is built in six steps. All six are built and in daily use (version 0.9.9, see the [changelog](CHANGELOG.md)).
 
 | Step | What | Built with | Status |
 |---|---|---|---|
 | 1 | **Windows**: title bars, buttons, snapping, workspaces, right-click menu, the Glyph colours | labwc, glyph-theme | ✅ done |
-| 2 | **Taskbar** at the bottom: START, workspaces, windows, volume, network, battery, clock, POWER | waybar | ✅ done |
-| 3 | **Start menu, power menu, notifications, lock screen, screenshots** | fuzzel, mako, swaylock + swayidle, grim + slurp | ✅ done |
+| 2 | **Taskbar** at the bottom: START, workspaces, the apps per workspace, now playing, clock, POWER | waybar, glyph-tasks | ✅ done |
+| 3 | **Start menu, power menu, notifications, lock screen, screenshots** | glyph-start, mako, gtklock + swayidle, grim + slurp | ✅ done |
 | 4 | **Quick settings, calendar and the Settings window** | GTK3 + gtk-layer-shell, NetworkManager, BlueZ, PipeWire, udisks2 | ✅ done |
 | 5 | **Start-up and sign-in** (optional extra) | GRUB theme, Plymouth, SDDM theme | ✅ done |
 | 6 | **Your apps in the Glyph look** | GTK 3/4 theme, qt6ct, foot, editor colours, Firefox and Vivaldi CSS | ✅ done |
@@ -137,6 +158,8 @@ Next: a **Glyph OS ISO** to try it from a USB stick and install it, with its own
 ```sh
 glyph-theme --mode dark      # dark | oled | light
 glyph-theme --colour amber   # tan, light-tan, cream, amber, olive, green, rose, blue, dark-blue, dark-tan, or #rrggbb
+glyph-theme --shadows yes    # hard shadow under windows and menus: yes | no
+glyph-theme --set radius=8   # corners: 0 (square) to 16
 glyph-theme --print          # show the whole palette
 ```
 
@@ -170,15 +193,16 @@ glyph-update               # newest Glyph from GitHub; your look and settings ar
 | `~/.config/qt6ct/`, `~/.config/qt5ct/` | Qt colours, only read in the Glyph session |
 | `~/.config/glyph/foot/glyph.ini`, `vivaldi/glyph.css` | terminal and Vivaldi colours; Firefox gets `chrome/userChrome.css` in its profile |
 | `~/.config/glyph/glyph.conf` | lock time and screen scale from Settings |
-| `~/.config/glyph/waybar/`, `fuzzel/`, `mako/`, `swaylock/` | taskbar, menus, notifications and lock screen; the colours are made by glyph-theme |
-| `/usr/local/bin/glyph-*` | glyph-session, glyph-theme, glyph-settings, glyph-panel, glyph-bg, glyph-idle, glyph-update, glyph-menu, glyph-power, glyph-lock, glyph-shot, glyph-ws |
+| `~/.config/glyph/waybar/`, `mako/`, `gtklock/`, `panel/` | taskbar, menus, notifications and lock screen; the colours are made by glyph-theme |
+| `/usr/local/bin/glyph-*` | Glyph's own programs: the session, theme, taskbar helpers, start menu, panels, Settings, Files, Music, Software, System monitor and more |
+| `/usr/local/share/glyph/lang/` | the languages that come with Glyph; your own go in `~/.config/glyph/lang/` |
 | `/usr/share/wayland-sessions/glyph.desktop` | the entry on the login screen |
 
 </details>
 
 ## Built with
 
-[labwc](https://labwc.github.io/) · [waybar](https://github.com/Alexays/Waybar) · [fuzzel](https://codeberg.org/dnkl/fuzzel) · [mako](https://github.com/emersion/mako) · [swaylock](https://github.com/swaywm/swaylock) · [foot](https://codeberg.org/dnkl/foot) · [Thunar](https://docs.xfce.org/xfce/thunar/start) · [Mousepad](https://docs.xfce.org/apps/mousepad/start) · [IBM Plex Mono](https://www.ibm.com/plex/) · [Debian](https://www.debian.org/)
+[labwc](https://labwc.github.io/) · [waybar](https://github.com/Alexays/Waybar) · [mako](https://github.com/emersion/mako) · [gtklock](https://github.com/jovanlanik/gtklock) · [GTK 3](https://www.gtk.org/) + [gtk-layer-shell](https://github.com/wmww/gtk-layer-shell) · [foot](https://codeberg.org/dnkl/foot) · [Mousepad](https://docs.xfce.org/apps/mousepad/start) · [IBM Plex Mono](https://www.ibm.com/plex/) · [Debian](https://www.debian.org/)
 
 ## Licence
 
