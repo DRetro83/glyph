@@ -1,0 +1,484 @@
+#!/usr/bin/env python3
+"""glyph-software - install and remove apps, and updates, in the Glyph look.
+
+EXPLORE    a short list of good apps by category (Debian packages and Flatpak)
+INSTALLED  every app in your Start menu: where it comes from, Open, Hide from
+           Start, Remove
+UPDATES    Debian and Flatpak updates: Check, Update all
+
+Debian packages are installed with apt through pkexec (it asks your password),
+Flatpak apps for you alone from Flathub. Debian updates still come straight
+from Debian.
+"""
+import os
+import re
+import shutil
+import subprocess
+import threading
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+HIDDEN = CONF / "menu-hidden"
+
+# id, name, what, category, source (deb/flat), flatpak id
+CATALOG = [
+    ("firefox-esr", "Firefox ESR", "web browser", "Internet", "deb", ""),
+    ("thunderbird", "Thunderbird", "email and calendar", "Internet", "deb", ""),
+    ("transmission-gtk", "Transmission", "torrents", "Internet", "deb", ""),
+    ("signal", "Signal", "private messages", "Internet", "flat", "org.signal.Signal"),
+    ("discord", "Discord", "chat and voice", "Internet", "flat", "com.discordapp.Discord"),
+    ("libreoffice", "LibreOffice", "documents, sheets, slides", "Office", "deb", ""),
+    ("atril", "Atril", "PDF and document viewer", "Office", "deb", ""),
+    ("gimp", "GIMP", "photo editing", "Graphics", "deb", ""),
+    ("krita", "Krita", "digital painting", "Graphics", "deb", ""),
+    ("inkscape", "Inkscape", "vector drawing", "Graphics", "deb", ""),
+    ("ristretto", "Ristretto", "image viewer", "Graphics", "deb", ""),
+    ("vlc", "VLC", "video and music player", "Multimedia", "deb", ""),
+    ("mpv", "mpv", "video player", "Multimedia", "deb", ""),
+    ("audacity", "Audacity", "audio editing", "Multimedia", "deb", ""),
+    ("obs-studio", "OBS Studio", "screen recording and streaming", "Multimedia", "deb", ""),
+    ("kdenlive", "Kdenlive", "video editing", "Multimedia", "deb", ""),
+    ("spotify", "Spotify", "music streaming", "Multimedia", "flat", "com.spotify.Client"),
+    ("steam-installer", "Steam", "game store (needs contrib and non-free)", "Games", "deb", ""),
+    ("lutris", "Lutris", "game launcher", "Games", "deb", ""),
+    ("supertuxkart", "SuperTuxKart", "kart racing", "Games", "deb", ""),
+    ("0ad", "0 A.D.", "real-time strategy", "Games", "deb", ""),
+    ("luanti", "Luanti", "block building game", "Games", "deb", ""),
+    ("wine", "Wine", "run Windows programs", "Wine", "deb", ""),
+    ("winetricks", "winetricks", "extra parts for Wine", "Wine", "deb", ""),
+    ("bottles", "Bottles", "Windows apps in bottles", "Wine", "flat", "com.usebottles.bottles"),
+    ("gcompris-qt", "GCompris", "learning games for kids", "Education", "deb", ""),
+    ("stellarium", "Stellarium", "planetarium", "Education", "deb", ""),
+    ("codium", "VSCodium", "code editor", "Development", "flat", "com.vscodium.codium"),
+    ("geany", "Geany", "light code editor", "Development", "deb", ""),
+    ("git", "git", "version control", "Development", "deb", ""),
+    ("btop", "btop", "system monitor in the terminal", "System", "deb", ""),
+    ("timeshift", "Timeshift", "system backups", "System", "deb", ""),
+    ("gparted", "GParted", "partitions and disks", "System", "deb", ""),
+    ("keepassxc", "KeePassXC", "password manager", "Utilities", "deb", ""),
+    ("galculator", "Galculator", "calculator", "Utilities", "deb", ""),
+    ("mousepad", "Mousepad", "text editor", "Utilities", "deb", ""),
+]
+
+
+def run(cmd, timeout=20):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout
+    except Exception:
+        return ""
+
+
+def deb_status(names):
+    """{name: (installed version or '', candidate or '')}"""
+    out = {}
+    text = run(["apt-cache", "policy", *names], 30)
+    cur = None
+    for line in text.splitlines():
+        if line and not line.startswith(" "):
+            cur = line.rstrip(":")
+            out[cur] = ["", ""]
+        elif cur and "Installed:" in line:
+            v = line.split(":", 1)[1].strip()
+            out[cur][0] = "" if v == "(none)" else v
+        elif cur and "Candidate:" in line:
+            v = line.split(":", 1)[1].strip()
+            out[cur][1] = "" if v == "(none)" else v
+    return {k: tuple(v) for k, v in out.items()}
+
+
+def flat_installed():
+    if not shutil.which("flatpak"):
+        return set()
+    return set(run(["flatpak", "list", "--app", "--columns=application"]).split())
+
+
+def kv(path):
+    d = {}
+    try:
+        for line in Path(path).read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                d[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return d
+
+
+class Software(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="Software")
+        self.set_default_size(800, 600)
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        pal = kv(CONF / "palette.env")
+        extra = Gtk.CssProvider()
+        extra.load_from_data((
+            ".sw .prow { padding: 8px 12px; border-bottom: 1px solid %s; }"
+            ".sw .pname { font-weight: bold; }"
+            ".sw .src { font-size: 9px; letter-spacing: 1px; padding: 0 4px; border: 1px solid %s; color: %s; }"
+            ".sw .tile { min-width: 30px; min-height: 30px; font-weight: bold; background: %s; color: %s; }"
+            ".sw .chips button { padding: 2px 10px; }"
+            ".sw .busy { color: %s; }"
+            ".sw .hint { padding: 8px 12px; }"
+            % (pal.get("GLYPH_HOV", "#333"), pal.get("GLYPH_HI", "#555"), pal.get("GLYPH_DIM", "#999"),
+               pal.get("GLYPH_TITLE", "#a8957c"), pal.get("GLYPH_TINK", "#111"), pal.get("GLYPH_AMBER", "#ffb340"))).encode())
+        for c in (css, extra):
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), c, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        self.tab, self.cat, self.q = "explore", "All", ""
+        self.status, self.flats, self.busy = {}, set(), {}
+        self.updates = None
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        for c in ("files", "sw"):
+            root.get_style_context().add_class(c)
+        self.add(root)
+        tb = Gtk.Box(spacing=4)
+        tb.get_style_context().add_class("ftool")
+        self.tabs = {}
+        for k, t in (("explore", "EXPLORE"), ("inst", "INSTALLED"), ("upd", "UPDATES")):
+            b = Gtk.Button(label=t)
+            b.connect("clicked", lambda *_, k=k: self.set_tab(k))
+            tb.pack_start(b, False, False, 0)
+            self.tabs[k] = b
+        self.search = Gtk.SearchEntry()
+        self.search.set_placeholder_text("Search apps…")
+        self.search.connect("search-changed", lambda e: self.set_q(e.get_text()))
+        tb.pack_start(self.search, True, True, 0)
+        root.pack_start(tb, False, False, 0)
+        self.body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        sw = Gtk.ScrolledWindow()
+        sw.add(self.body)
+        root.pack_start(sw, True, True, 0)
+        foot = Gtk.Box()
+        foot.get_style_context().add_class("fstatus")
+        self.foot = Gtk.Label(xalign=0)
+        self.foot.set_ellipsize(Pango.EllipsizeMode.END)
+        foot.pack_start(self.foot, True, True, 8)
+        root.pack_start(foot, False, False, 0)
+        self.set_tab("explore")
+        self.refresh_status()
+
+    # ---------- state
+    def refresh_status(self):
+        def work():
+            st = deb_status([c[0] for c in CATALOG if c[4] == "deb"])
+            fl = flat_installed()
+            GLib.idle_add(self.got_status, st, fl)
+        self.foot.set_text("Looking at what is installed…")
+        threading.Thread(target=work, daemon=True).start()
+
+    def got_status(self, st, fl):
+        self.status, self.flats = st, fl
+        self.foot.set_text("Debian packages come straight from Debian · Flatpak apps from Flathub")
+        self.draw()
+        return False
+
+    def installed(self, c):
+        return (c[5] in self.flats) if c[4] == "flat" else bool(self.status.get(c[0], ("", ""))[0])
+
+    def available(self, c):
+        return True if c[4] == "flat" else bool(self.status.get(c[0], ("", ""))[1])
+
+    # ---------- ui
+    def clear(self):
+        for ch in self.body.get_children():
+            ch.destroy()
+
+    def set_tab(self, k):
+        self.tab = k
+        for kk, b in self.tabs.items():
+            (b.get_style_context().add_class if kk == k else b.get_style_context().remove_class)("on")
+        self.search.set_visible(k != "upd")
+        self.draw()
+        if k == "upd" and self.updates is None:
+            self.check_updates()
+
+    def set_q(self, q):
+        self.q = q.lower()
+        self.draw()
+
+    def tile(self, name):
+        l = Gtk.Label(label=(name[:1] or "?").upper())
+        l.get_style_context().add_class("tile")
+        l.set_valign(Gtk.Align.CENTER)
+        return l
+
+    def row(self, name, src, desc, buttons):
+        r = Gtk.Box(spacing=12)
+        r.get_style_context().add_class("prow")
+        r.pack_start(self.tile(name), False, False, 0)
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        h = Gtk.Box(spacing=8)
+        n = Gtk.Label(label=name, xalign=0)
+        n.get_style_context().add_class("pname")
+        h.pack_start(n, False, False, 0)
+        if src:
+            s = Gtk.Label(label=src)
+            s.get_style_context().add_class("src")
+            h.pack_start(s, False, False, 0)
+        v.pack_start(h, False, False, 0)
+        d = Gtk.Label(label=desc, xalign=0)
+        d.get_style_context().add_class("dim")
+        d.set_ellipsize(Pango.EllipsizeMode.END)
+        v.pack_start(d, False, False, 0)
+        r.pack_start(v, True, True, 0)
+        for b in buttons:
+            r.pack_start(b, False, False, 0)
+        self.body.pack_start(r, False, False, 0)
+
+    def button(self, text, cb, cls=None, sensitive=True):
+        b = Gtk.Button(label=text)
+        if cls:
+            b.get_style_context().add_class(cls)
+        b.set_sensitive(sensitive)
+        b.connect("clicked", lambda *_: cb())
+        b.set_valign(Gtk.Align.CENTER)
+        return b
+
+    def draw(self):
+        self.clear()
+        {"explore": self.draw_explore, "inst": self.draw_installed, "upd": self.draw_updates}[self.tab]()
+        self.body.show_all()
+
+    def draw_explore(self):
+        if not self.q:
+            chips = Gtk.FlowBox()
+            chips.set_selection_mode(Gtk.SelectionMode.NONE)
+            chips.set_max_children_per_line(12)
+            chips.get_style_context().add_class("chips")
+            chips.set_margin_top(8)
+            chips.set_margin_start(8)
+            chips.set_margin_bottom(4)
+            for cat in ["All"] + sorted({c[3] for c in CATALOG}):
+                b = Gtk.Button(label=cat)
+                if cat == self.cat:
+                    b.get_style_context().add_class("on")
+                b.connect("clicked", lambda *_, cat=cat: (setattr(self, "cat", cat), self.draw()))
+                chips.add(b)
+            self.body.pack_start(chips, False, False, 0)
+        for c in CATALOG:
+            if self.q and self.q not in " ".join(c[:4]).lower():
+                continue
+            if not self.q and self.cat != "All" and c[3] != self.cat:
+                continue
+            self.row(c[1], "FLATPAK" if c[4] == "flat" else "DEB", f"{c[2]} · {c[3]}", self.actions(c))
+
+    def actions(self, c):
+        key = c[5] or c[0]
+        if key in self.busy:
+            l = Gtk.Label(label=self.busy[key])
+            l.get_style_context().add_class("busy")
+            return [l]
+        if not self.status and c[4] == "deb":
+            return []
+        if self.installed(c):
+            return [self.button("Remove", lambda: self.remove(c))]
+        if not self.available(c):
+            return [self.button("Not in your sources", lambda: self.not_available(c), sensitive=True)]
+        return [self.button("Install", lambda: self.install(c), "amber")]
+
+    def start_apps(self):
+        hidden = set(HIDDEN.read_text().split()) if HIDDEN.exists() else set()
+        apps = []
+        for a in Gio.AppInfo.get_all():
+            if not isinstance(a, Gio.DesktopAppInfo) or a.get_nodisplay():
+                continue
+            fn = a.get_filename() or ""
+            apps.append((a.get_display_name() or a.get_name(), a.get_id(), fn, a.get_description() or "", a.get_id() in hidden, a))
+        apps.sort(key=lambda x: x[0].lower())
+        return apps
+
+    def draw_installed(self):
+        apps = self.start_apps()
+        if not hasattr(self, "owners"):
+            self.owners = {}
+            debs = [fn for _, _, fn, _, _, _ in apps if fn.startswith("/usr/")]
+            out = run(["dpkg", "-S", *debs], 30) if debs else ""
+            for line in out.splitlines():
+                if ": " in line:
+                    pkg, path = line.split(": ", 1)
+                    self.owners[path.strip()] = pkg.split(":")[0].split(",")[0].strip()
+        hint = Gtk.Label(label="Every app in your Start menu. Hide one to keep it out of Start without removing it.", xalign=0)
+        hint.get_style_context().add_class("dim")
+        hint.get_style_context().add_class("hint")
+        hint.set_line_wrap(True)
+        self.body.pack_start(hint, False, False, 0)
+        for name, aid, fn, desc, hid, info in apps:
+            if self.q and self.q not in f"{name} {aid} {desc}".lower():
+                continue
+            if "/flatpak/" in fn:
+                src, what, pkg = "FLATPAK", aid.removesuffix(".desktop"), aid.removesuffix(".desktop")
+            elif fn.startswith(str(Path.home())):
+                src, what, pkg = "YOURS", "made in your home folder", ""
+            else:
+                pkg = self.owners.get(fn, "")
+                src, what = "DEB", pkg or "Debian"
+            btns = [self.button("Open", lambda info=info: info.launch([], None)),
+                    self.button("Show in Start" if hid else "Hide from Start", lambda aid=aid, hid=hid: self.hide(aid, not hid))]
+            if pkg and not pkg.startswith("glyph"):
+                key = pkg
+                if key in self.busy:
+                    l = Gtk.Label(label=self.busy[key])
+                    l.get_style_context().add_class("busy")
+                    btns.append(l)
+                else:
+                    btns.append(self.button("Remove", lambda pkg=pkg, src=src: self.remove_pkg(pkg, src == "FLATPAK")))
+            self.row(name + ("  (hidden)" if hid else ""), src, f"{desc or what} · {what}" if desc else what, btns)
+
+    def hide(self, aid, on):
+        cur = set(HIDDEN.read_text().split()) if HIDDEN.exists() else set()
+        (cur.add if on else cur.discard)(aid)
+        HIDDEN.parent.mkdir(parents=True, exist_ok=True)
+        HIDDEN.write_text("\n".join(sorted(cur)) + "\n")
+        self.draw()
+
+    def draw_updates(self):
+        top = Gtk.Box(spacing=8)
+        top.get_style_context().add_class("prow")
+        if self.updates is None:
+            msg = "Checking for updates…"
+        elif not self.updates:
+            msg = "✓ Everything is up to date. Debian 13 and your Flatpak apps."
+        else:
+            msg = f"{len(self.updates)} updates ready"
+        l = Gtk.Label(label=msg, xalign=0)
+        top.pack_start(l, True, True, 0)
+        if "__upd" in self.busy:
+            b = Gtk.Label(label=self.busy["__upd"])
+            b.get_style_context().add_class("busy")
+            top.pack_start(b, False, False, 0)
+        else:
+            top.pack_start(self.button("Check again", self.check_updates, sensitive=self.updates is not None), False, False, 0)
+            top.pack_start(self.button("Update all", self.update_all, "amber", sensitive=bool(self.updates)), False, False, 0)
+        self.body.pack_start(top, False, False, 0)
+        for name, ver, src in self.updates or []:
+            self.row(name, src, ver, [])
+
+    # ---------- actions
+    def task(self, key, label, cmds, done=None):
+        """Run commands one after another; show progress from apt's status lines."""
+        self.busy[key] = label + "…"
+        self.draw()
+
+        def work():
+            ok = True
+            for cmd in cmds:
+                try:
+                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                except Exception:
+                    ok = False
+                    break
+                for line in p.stdout:
+                    m = re.match(r"(?:pm|dl)status:[^:]*:([\d.]+):", line)
+                    if m:
+                        pct = int(float(m.group(1)))
+                        GLib.idle_add(self.set_busy, key, f"{label} {pct}%")
+                p.wait()
+                if p.returncode != 0:
+                    ok = False
+                    break
+            GLib.idle_add(self.task_done, key, label, ok, done)
+        threading.Thread(target=work, daemon=True).start()
+
+    def set_busy(self, key, text):
+        self.busy[key] = text
+        self.draw()
+        return False
+
+    def task_done(self, key, label, ok, done):
+        self.busy.pop(key, None)
+        self.foot.set_text(f"{label}: done." if ok else f"{label}: did not work (cancelled, or no password given).")
+        if hasattr(self, "owners"):
+            del self.owners
+        if done:
+            done()
+        self.refresh_status()
+        return False
+
+    def apt(self, *args):
+        return ["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-y", "-o", "APT::Status-Fd=1", *args]
+
+    def install(self, c):
+        if c[4] == "flat":
+            cmds = [["flatpak", "remote-add", "--user", "--if-not-exists", "flathub",
+                     "https://dl.flathub.org/repo/flathub.flatpakrepo"],
+                    ["flatpak", "install", "--user", "-y", "--noninteractive", "flathub", c[5]]]
+        else:
+            cmds = [self.apt("install", c[0])]
+        self.task(c[5] or c[0], "Installing", cmds)
+
+    def remove(self, c):
+        self.remove_pkg(c[5] or c[0], c[4] == "flat")
+
+    def remove_pkg(self, pkg, flat):
+        cmds = [["flatpak", "uninstall", "-y", "--noninteractive", pkg]] if flat else [self.apt("remove", pkg)]
+        self.task(pkg, "Removing", cmds)
+
+    def not_available(self, c):
+        d = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.INFO,
+                              buttons=Gtk.ButtonsType.OK, text=f"{c[1]} is not in your Debian sources")
+        d.format_secondary_text("Steam and some other apps need the 'contrib' and 'non-free' parts of Debian. "
+                                "Add them to /etc/apt/sources.list.d/debian.sources (Components: main contrib non-free "
+                                "non-free-firmware), then run Check again under UPDATES.")
+        d.run()
+        d.destroy()
+
+    def check_updates(self):
+        self.updates = None
+        if self.tab == "upd":
+            self.draw()
+
+        def work():
+            subprocess.run(["pkexec", "apt-get", "update"], capture_output=True)
+            ups = []
+            for line in run(["apt", "list", "--upgradable"], 30).splitlines():
+                m = re.match(r"([^/]+)/\S+ (\S+) \S+ \[upgradable from: ([^\]]+)\]", line)
+                if m:
+                    ups.append((m.group(1), f"{m.group(3)} → {m.group(2)}", "DEB"))
+            if shutil.which("flatpak"):
+                for line in run(["flatpak", "remote-ls", "--updates", "--columns=application,version"], 60).splitlines():
+                    parts = line.split("\t")
+                    if parts and parts[0]:
+                        ups.append((parts[0], parts[1] if len(parts) > 1 else "", "FLATPAK"))
+            GLib.idle_add(self.got_updates, ups)
+        threading.Thread(target=work, daemon=True).start()
+
+    def got_updates(self, ups):
+        self.updates = ups
+        if self.tab == "upd":
+            self.draw()
+        return False
+
+    def update_all(self):
+        cmds = [self.apt("upgrade")]
+        if shutil.which("flatpak"):
+            cmds.append(["flatpak", "update", "-y", "--noninteractive"])
+        self.task("__upd", "Updating", cmds, done=self.check_updates)
+
+
+def main():
+    GLib.set_prgname("glyph-software")
+    w = Software()
+    w.connect("destroy", Gtk.main_quit)
+    w.show_all()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] in ("explore", "installed", "updates"):
+        w.set_tab({"installed": "inst", "updates": "upd"}.get(sys.argv[1], "explore"))
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    try:
+        os.setsid()
+    except Exception:
+        pass
+    main()

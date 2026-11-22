@@ -649,8 +649,9 @@ class Settings(Gtk.Window):
     def page_updates(self, p):
         p.pack_start(self.note("Debian and your apps: this opens a terminal that asks for your password, "
                                "shows what will change and asks before it installs."), False, False, 0)
-        p.pack_start(self.btn("Check and install updates…", lambda: bg(["foot", "-T", "Updates", "sh", "-c",
-                     "sudo apt update && sudo apt upgrade; command -v flatpak >/dev/null && flatpak update; echo; read -p 'Press Enter to close ' x"]), "amber"), False, False, 0)
+        p.pack_start(self.btn("Open Software → Updates", lambda: bg(["glyph-software", "updates"]), "amber"), False, False, 0)
+        p.pack_start(self.btn("Check and install updates in a terminal…", lambda: bg(["foot", "-T", "Updates", "sh", "-c",
+                     "sudo apt update && sudo apt upgrade; command -v flatpak >/dev/null && flatpak update; echo; read -p 'Press Enter to close ' x"])), False, False, 0)
         p.pack_start(self.lab("GLYPH", "lab"), False, False, 0)
         p.pack_start(self.btn("Update Glyph from GitHub…", lambda: bg(["foot", "-T", "Glyph update", "sh", "-c", "glyph-update; echo; read -p 'Press Enter to close ' x"])), False, False, 0)
 

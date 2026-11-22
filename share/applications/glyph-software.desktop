@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Software
+GenericName=App store
+Comment=install and remove apps, updates
+Exec=glyph-software
+Terminal=false
+Categories=System;PackageManager;
+Keywords=install;remove;apps;software;store;updates;apt;flatpak;
+StartupWMClass=glyph-software
+Icon=system-software-install
