@@ -106,6 +106,45 @@ def load_apps():
 
 
 
+SETTINGS_PAGES = [
+    ("Appearance", "mode dark light oled colour color theme accent shadows corners rounded text size font scanlines start menu size look"),
+    ("Background", "wallpaper image picture desktop clock info"), ("Taskbar", "bar panel workspaces apps tray music button workspace colours"),
+    ("Notifications", "popups messages do not disturb dnd sound"),
+    ("Display", "screen monitor resolution scale zoom refresh rate hz night light warm"),
+    ("Sound", "volume speakers headphones hdmi microphone mic audio output input"), ("Keyboard", "layout shortcuts keys hotkeys"),
+    ("Mouse & touchpad", "pointer cursor speed tap scroll natural left-handed colour size"), ("Printers", "print printer scanner"),
+    ("Power & lock", "sleep suspend lock screen idle battery power profile"), ("Disks", "drive usb stick mount eject storage partition"),
+    ("Network", "wifi wi-fi wireless internet ethernet cable vpn ip"), ("Mobile network", "sim modem lte 4g 5g"),
+    ("Bluetooth", "pair headphones earbuds devices controller"), ("Users", "account password person people admin administrator name"),
+    ("Date & time", "clock timezone time zone ntp"), ("Language & region", "locale language formats region keyboard"),
+    ("Privacy", "recent files camera trash history clear"), ("Default apps", "browser open with default mail terminal pdf"),
+    ("Accessibility", "contrast bigger larger text cursor pointer"), ("Updates", "update upgrade software patches"),
+    ("About", "system info version computer cpu memory")]
+
+
+def recent_files():
+    """The files you opened lately (the list GTK apps keep), newest first."""
+    import re as _re
+    from urllib.parse import unquote
+    f = Path.home() / ".local/share/recently-used.xbel"
+    try:
+        text = f.read_text(errors="ignore")
+    except Exception:
+        return []
+    out, seen = [], set()
+    for m in reversed(list(_re.finditer(r'<bookmark href="file://([^"]+)"', text))):
+        path = unquote(m.group(1))
+        if path in seen or not os.path.exists(path):
+            continue
+        seen.add(path)
+        name = os.path.basename(path)
+        folder = os.path.dirname(path).replace(str(Path.home()), "~")
+        out.append({"name": name, "desc": folder, "kw": name.lower(), "cmd": ["xdg-open", path], "id": "file:" + path})
+        if len(out) >= 60:
+            break
+    return out
+
+
 def add_catcher(on_click):
     """A see-through layer over the desktop and the windows (not the taskbar), just below a menu:
     a click anywhere next to the menu closes it, like on other desktops."""
@@ -211,7 +250,7 @@ class Start(Gtk.Window):
         ul = Gtk.Label(label=u.pw_name if u else "user")
         foot.pack_start(ul, False, False, 0)
         self.search = Gtk.Entry()
-        self.search.set_placeholder_text("search for an app…")
+        self.search.set_placeholder_text("search apps, settings, files…")
         self.search.connect("changed", lambda *_: self.fill())
         self.search.connect("activate", lambda *_: self.launch_first())
         foot.pack_start(self.search, True, True, 0)
@@ -299,6 +338,11 @@ class Start(Gtk.Window):
             words = q.split()
             res = [a for a in self.apps if all(w in a["kw"] for w in words)]
             res.sort(key=lambda a: (not a["name"].lower().startswith(q), a["name"].lower()))
+            # Settings pages and recent files too
+            sets = [{"name": n, "desc": "Settings", "kw": (n + " " + kw).lower(), "cmd": ["glyph-settings", n], "id": "set:" + n}
+                    for n, kw in SETTINGS_PAGES]
+            res += [x for x in sets if all(w in x["kw"] for w in words)][:5]
+            res += [x for x in recent_files() if all(w in x["kw"] for w in words)][:5]
             return f"SEARCH · {len(res)} found", res
         if self.cat == "Favorites":
             order = {f: i for i, f in enumerate(self.favs)}
@@ -329,7 +373,7 @@ class Start(Gtk.Window):
         r.app = a
         r.get_style_context().add_class("srow")
         ev = Gtk.EventBox()
-        ev.connect("button-press-event", lambda w, e: self.menu(a, e) if e.button == 3 else False)
+        ev.connect("button-press-event", lambda w, e: self.menu(a, e) if e.button == 3 and a.get("app") else False)
         box = Gtk.Box(spacing=12)
         ev.add(box)
         tile = Gtk.Label(label=(a["name"][:1] or "?").upper())
@@ -352,7 +396,10 @@ class Start(Gtk.Window):
             st.get_style_context().add_class("on")
         st.set_tooltip_text("Remove from favourites" if fav else "Add to favourites")
         st.connect("clicked", lambda *_: self.toggle_fav(a))
-        box.pack_end(st, False, False, 0)
+        if a.get("app"):
+            box.pack_end(st, False, False, 0)
+        else:
+            box.pack_end(Gtk.Box(), False, False, 14)     # keep the columns in line
         r.add(ev)
         return r
 
@@ -386,6 +433,10 @@ class Start(Gtk.Window):
         return True
 
     def launch(self, a):
+        if a.get("cmd"):          # a Settings page or a recent file
+            self.spawn(a["cmd"])
+            self.quit()
+            return
         cmd = a["app"].get_commandline() or ""
         try:
             if "flatpak" in cmd and " run " in cmd:
