@@ -4,6 +4,7 @@
   glyph-toplevel list               JSON: [{"app_id", "title", "state"}]
   glyph-toplevel focus APP TITLE    bring that window to the front
   glyph-toplevel close APP TITLE    close that window
+  glyph-toplevel minimize APP TITLE
   glyph-toplevel close-all
 
 Talks to labwc directly over the Wayland socket, using the
@@ -159,6 +160,8 @@ def main():
     for i in targets:
         if cmd in ("close", "close-all"):
             w.send(i, 5)                                # close
+        elif cmd == "minimize":
+            w.send(i, 2)                                # set_minimized
         elif cmd == "focus":
             if 1 in shown[i]["state"]:
                 w.send(i, 3)                            # unset_minimized

@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""glyph-tasks - the app buttons on the taskbar, for every workspace.
+
+Every open app gets a button with its letter tile in the colour of the
+workspace it is on (Settings -> Taskbar -> Workspace colours). Click: go to
+that workspace and bring the app to the front (a second click minimizes it).
+Middle click: close. The app stays on its own workspace.
+
+  glyph-tasks daemon      keeps track of the windows (started at sign-in)
+  glyph-tasks slot N      JSON for taskbar button N (waybar)
+  glyph-tasks click N     go to the app of button N
+  glyph-tasks close N     close it
+
+labwc-glyph tells which windows are on the workspace you see; glyph-tasks
+remembers the workspace of each window from that.
+"""
+import json
+import os
+import select
+import struct
+import subprocess
+import sys
+import time
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+import shutil
+
+RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
+STATE = RUN / "glyph-tasks.json"
+WSFILE = RUN / "glyph-ws"
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+HIDE = ("glyph-desk", "glyph-panel", "glyph-start", "glyph-osd-bar", "waybar", "glyph-catcher")
+SLOTS = 12
+
+
+def current_ws():
+    try:
+        n = WSFILE.read_text().strip()
+        return n if n in ("1", "2", "3", "4") else "1"
+    except Exception:
+        return "1"
+
+
+def kv(path):
+    d = {}
+    try:
+        for line in Path(path).read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                d[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return d
+
+
+def app_name(app, title, cache={}):
+    """The app's own name from its .desktop file: 'org.gnome.Nautilus' -> 'Files', 'vivaldi-stable' -> 'Vivaldi'."""
+    if app in cache:
+        return cache[app]
+    name = ""
+    dirs = [Path.home() / ".local/share/applications", Path("/usr/local/share/applications"), Path("/usr/share/applications"),
+            Path.home() / ".local/share/flatpak/exports/share/applications", Path("/var/lib/flatpak/exports/share/applications")]
+    for d in dirs:
+        for cand in (d / f"{app}.desktop", d / f"{app.lower()}.desktop"):
+            if cand.exists():
+                for line in cand.read_text(errors="ignore").splitlines():
+                    if line.startswith("Name="):
+                        name = line[5:].strip()
+                        break
+                break
+        if name:
+            break
+    if not name:
+        base = app.split(".")[-1].replace("glyph-", "").replace("-stable", "").replace("-esr", "") if app else title
+        name = {"foot": "Terminal", "xfce4-terminal": "Terminal"}.get(base, base[:1].upper() + base[1:])
+    cache[app] = name or title or "Window"
+    return cache[app]
+
+
+# ---------------------------------------------------------------- the daemon
+def daemon():
+    path = shutil.which("glyph-toplevel")
+    mod = SourceFileLoader("glyph_toplevel", path).load_module()
+
+    class W(mod.Wayland):
+        """Windows (wlr-foreign-toplevel) plus workspaces (ext-workspace) from labwc."""
+
+        def __init__(self):
+            self.order, self.outs, self.dirty = [], {}, True
+            self.wsname, self.wsactive = {}, None
+            super().__init__()
+
+        def event(self, obj, op, a):
+            k = self.kind.get(obj)
+            if k == "manager" and op == 0:
+                tid = struct.unpack_from("<I", a)[0]
+                self.order.append(tid)
+                self.outs[tid] = set()
+            elif k == "top" and op in (2, 3):
+                o = struct.unpack_from("<I", a)[0]
+                (self.outs.setdefault(obj, set()).add if op == 2 else self.outs.setdefault(obj, set()).discard)(o)
+            elif k == "top" and op == 6:
+                if obj in self.order:
+                    self.order.remove(obj)
+                self.outs.pop(obj, None)
+            elif k == "wsmgr" and op in (0, 1):
+                nid = struct.unpack_from("<I", a)[0]
+                self.kind[nid] = "wsgroup" if op == 0 else "ws"
+            elif k == "ws" and op == 1:
+                self.wsname[obj] = self.get_str(a, 0)[0]
+            elif k == "ws" and op == 3:
+                if struct.unpack_from("<I", a)[0] & 1:
+                    self.wsactive = obj
+            if k in ("top", "ws", "wsmgr"):
+                self.dirty = True
+            super().event(obj, op, a)
+
+        def active_ws(self):
+            n = self.wsname.get(self.wsactive, "")
+            return n if n in ("1", "2", "3", "4") else None
+
+    w = W()
+    # every output: then labwc-glyph tells which windows are on the screen (= on this workspace)
+    for num, ver in [v for k, v in w.globals.items() if k == "wl_output"]:
+        i = w.new("output")
+        w.send(w.registry, 0, w.u(num) + w.s("wl_output") + w.u(min(ver, 3)) + w.u(i))
+    if "ext_workspace_manager_v1" in w.globals:
+        w.bind("ext_workspace_manager_v1", "wsmgr", 1)
+    w.windows()
+    ws_of = {}
+    last, last_ws = None, None
+    while True:
+        r, _, _ = select.select([w.sock], [], [], 1.0)
+        if r:
+            w.read()
+            # a workspace switch comes as many small messages: take them all first
+            while select.select([w.sock], [], [], 0.08)[0]:
+                w.read()
+        if not w.dirty:
+            continue
+        w.dirty = False
+        cur = w.active_ws() or current_ws()
+        if cur != last_ws:
+            # keep the workspace buttons, the desktop and the colours in step with labwc
+            last_ws = cur
+            if current_ws() != cur:
+                WSFILE.write_text(cur + "\n")
+                subprocess.run(["pkill", "-RTMIN+8", "-x", "waybar"], check=False)
+                subprocess.run(["pkill", "-HUP", "-f", "bin/glyph-desk"], check=False)
+                if "ws_colours=own" in ((CONF / "theme.conf").read_text(errors="ignore") if (CONF / "theme.conf").exists() else ""):
+                    subprocess.Popen(["glyph-theme", "--quick"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for t in w.order:
+            if w.outs.get(t):            # on the screen: on the workspace we see
+                ws_of[t] = cur
+            else:
+                ws_of.setdefault(t, cur)
+        out = []
+        for t in w.order:
+            info = w.tops.get(t)
+            if not info or info["app_id"].lower() in HIDE:
+                continue
+            st = info["state"]
+            out.append({"id": t, "app": info["app_id"], "title": info["title"], "name": app_name(info["app_id"], info["title"]),
+                        "ws": ws_of.get(t, cur), "active": 2 in st, "min": 1 in st})
+        if out != last:
+            last = out
+            tmp = STATE.with_suffix(".tmp")
+            tmp.write_text(json.dumps(out))
+            os.replace(tmp, STATE)
+            subprocess.run(["pkill", "-RTMIN+9", "-x", "waybar"], check=False)
+
+
+# ---------------------------------------------------------------- taskbar buttons
+def state():
+    try:
+        return json.loads(STATE.read_text())
+    except Exception:
+        return []
+
+
+def esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def slot(n):
+    items = state()
+    if n >= len(items):
+        print(json.dumps({"text": "", "class": "empty"}))
+        return
+    t = items[n]
+    pal = kv(CONF / "palette.env")
+    cur = current_ws()
+    col = pal.get("GLYPH_WS" + str(t["ws"]))
+    if not col:
+        col = pal.get("GLYPH_TITLE", "#a8957c") if t["ws"] == cur else pal.get("GLYPH_HI", "#5c544a")
+    h = col.lstrip("#")
+    lum = (0.2126 * int(h[0:2], 16) + 0.7152 * int(h[2:4], 16) + 0.0722 * int(h[4:6], 16)) / 255
+    ink = "#111111" if lum > 0.35 else "#ffffff"
+    name = t["name"][:18] + ("…" if len(t["name"]) > 18 else "")
+    tile = f"<span background='{col}' foreground='{ink}' weight='bold'> {esc(t['name'][:1].upper())} </span>"
+    cls = "active" if t["active"] and t["ws"] == cur else "min" if t["min"] else "other" if t["ws"] != cur else "normal"
+    print(json.dumps({"text": f"{tile}  {esc(name)}", "class": cls,
+                      "tooltip": f"{t['title']}\nworkspace {t['ws']} · click: go there · middle click: close"}))
+
+
+def click(n, action="focus"):
+    items = state()
+    if n >= len(items):
+        return
+    t = items[n]
+    cur = current_ws()
+    if action == "focus" and t["active"] and t["ws"] == cur:
+        action = "minimize"
+    # labwc goes to the app's workspace by itself; glyph-tasks daemon follows it
+    subprocess.run(["glyph-toplevel", action, t["app"], t["title"]], check=False)
+
+
+if __name__ == "__main__":
+    a = sys.argv[1:]
+    if a[:1] == ["daemon"]:
+        while True:
+            try:
+                daemon()
+            except Exception as e:
+                print("glyph-tasks:", e, file=sys.stderr)
+            time.sleep(2)
+    elif a[:1] == ["slot"] and len(a) > 1:
+        slot(int(a[1]) - 1)
+    elif a[:1] in (["click"], ["close"]) and len(a) > 1:
+        click(int(a[1]) - 1, "focus" if a[0] == "click" else "close")
+    else:
+        print(__doc__)

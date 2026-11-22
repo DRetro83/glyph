@@ -5,7 +5,7 @@
   "position": "bottom",
   "height": 46,
   "spacing": 0,
-  "modules-left": ["custom/start", "custom/ws1", "custom/ws2", "custom/ws3", "custom/ws4", "wlr/taskbar"],
+  "modules-left": ["custom/start", "custom/ws1", "custom/ws2", "custom/ws3", "custom/ws4", "custom/task1", "custom/task2", "custom/task3", "custom/task4", "custom/task5", "custom/task6", "custom/task7", "custom/task8", "custom/task9", "custom/task10", "custom/task11", "custom/task12"],
   "modules-right": ["custom/media", "tray", "custom/windows", "custom/settings", "clock", "custom/power"],
 
   "custom/start": {
@@ -20,24 +20,19 @@
   "custom/ws3": { "exec": "glyph-ws state 3", "return-type": "json", "interval": "once", "signal": 8, "on-click": "glyph-ws 3" },
   "custom/ws4": { "exec": "glyph-ws state 4", "return-type": "json", "interval": "once", "signal": 8, "on-click": "glyph-ws 4" },
 
-  // open windows: a letter tile and the name, no icons
-  "wlr/taskbar": {
-    "format": "{icon}  {title}",
-    "all-outputs": false,
-    "icon-theme": "GlyphLetters",
-    "icon-size": 22,
-    "rewrite": {
-      ".* - Files": "  Files", ".* - Music": "  Music", ".* - Thunar": "  Thunar", "\\s*Thunar": "  Thunar", ".* - Mousepad": "  Text editor", "\\s*Mousepad": "  Text editor",
-      ".*Mozilla Firefox.*": "  Firefox", ".* — Firefox.*": "  Firefox", ".*Vivaldi.*": "  Vivaldi",
-      "\\s*Settings": "  Settings", "\\s*foot": "  Terminal", ".*@.*:.*": "  Terminal",
-      "^\\s*(.{0,20}).*$": "  $1"
-    },
-    "tooltip-format": "{title}",
-    "on-click": "minimize-raise",
-    "on-click-middle": "close",
-    "on-click-right": "maximize",
-    "ignore-list": ["waybar"]
-  },
+  // open apps of every workspace: a letter tile in the colour of its workspace (glyph-tasks)
+  "custom/task1": { "exec": "glyph-tasks slot 1", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 1", "on-click-middle": "glyph-tasks close 1" },
+  "custom/task2": { "exec": "glyph-tasks slot 2", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 2", "on-click-middle": "glyph-tasks close 2" },
+  "custom/task3": { "exec": "glyph-tasks slot 3", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 3", "on-click-middle": "glyph-tasks close 3" },
+  "custom/task4": { "exec": "glyph-tasks slot 4", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 4", "on-click-middle": "glyph-tasks close 4" },
+  "custom/task5": { "exec": "glyph-tasks slot 5", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 5", "on-click-middle": "glyph-tasks close 5" },
+  "custom/task6": { "exec": "glyph-tasks slot 6", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 6", "on-click-middle": "glyph-tasks close 6" },
+  "custom/task7": { "exec": "glyph-tasks slot 7", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 7", "on-click-middle": "glyph-tasks close 7" },
+  "custom/task8": { "exec": "glyph-tasks slot 8", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 8", "on-click-middle": "glyph-tasks close 8" },
+  "custom/task9": { "exec": "glyph-tasks slot 9", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 9", "on-click-middle": "glyph-tasks close 9" },
+  "custom/task10": { "exec": "glyph-tasks slot 10", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 10", "on-click-middle": "glyph-tasks close 10" },
+  "custom/task11": { "exec": "glyph-tasks slot 11", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 11", "on-click-middle": "glyph-tasks close 11" },
+  "custom/task12": { "exec": "glyph-tasks slot 12", "return-type": "json", "interval": "once", "signal": 9, "escape": false, "on-click": "glyph-tasks click 12", "on-click-middle": "glyph-tasks close 12" },
 
   "tray": { "icon-size": 16, "spacing": 8 },
 

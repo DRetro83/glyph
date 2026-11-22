@@ -17,6 +17,10 @@ glyph-notifyd >/dev/null 2>&1 &
 # the first time: the welcome steps (look, Wi-Fi, apps)
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/glyph/welcome-done" ] || (sleep 2; glyph-welcome) >/dev/null 2>&1 &
 
+# the app buttons on the taskbar, for every workspace
+pkill -u "$(id -u)" -f "glyph-tasks daemon" 2>/dev/null
+glyph-tasks daemon >/dev/null 2>&1 &
+
 # USB drives (sound + Open) and low battery warnings
 pkill -u "$(id -u)" -f "bin/glyph-watch" 2>/dev/null
 glyph-watch >/dev/null 2>&1 &

@@ -19,7 +19,7 @@ G = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
 CONF = G / "glyph.conf"
 CFG = G / "waybar" / "config.jsonc"
 LEFT = [("custom/start", None), ("custom/ws1", "workspaces"), ("custom/ws2", "workspaces"),
-        ("custom/ws3", "workspaces"), ("custom/ws4", "workspaces"), ("wlr/taskbar", "apps")]
+        ("custom/ws3", "workspaces"), ("custom/ws4", "workspaces")] + [(f"custom/task{i}", "apps") for i in range(1, 13)]
 RIGHT = [("custom/media", "media"), ("tray", "tray"), ("custom/windows", "windows"), ("custom/settings", None),
          ("clock", None), ("custom/power", None)]
 KEYS = ("workspaces", "apps", "windows", "tray", "media")

@@ -316,6 +316,20 @@ def ws_own_css(p):
     return css
 
 
+def task_css(p):
+    """The app buttons of glyph-tasks (custom/task1..12), like the taskbar buttons."""
+    ids = ", ".join(f"#custom-task{i}" for i in range(1, 13))
+    sel = lambda suf: ", ".join(f"#custom-task{i}{suf}" for i in range(1, 13))
+    return (f"{ids} {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; border-bottom: 3px solid {p['hi']}; "
+            f"padding: 0 14px 0 6px; margin: 4px 2px; min-width: 100px; }}\n"
+            f"{sel(':hover')} {{ background: {p['hov']}; }}\n"
+            f"{sel('.active')} {{ background: {p['hov']}; border-bottom-color: {p['title']}; }}\n"
+            f"{sel('.other')} {{ color: {p['dim']}; }}\n"
+            f"{sel('.min')} {{ color: {p['dim']}; }}\n"
+            f"{sel('.empty')} {{ padding: 0; margin: 0; border: none; min-width: 0; }}\n"
+            f"#custom-task1 {{ margin-left: 8px; }}\n")
+
+
 def waybar_css(p):
     light = is_light(p)
     bar = p['panel'] if light else p['lo']                 # the bar itself: light in light mode
@@ -337,6 +351,7 @@ button {{ border: none; }}
 #custom-ws4 {{ margin-right: 8px; }}
 {ws_own_css(p)}
 #taskbar {{ border-left: 1px solid {p['hi']}; padding-left: 6px; }}
+{task_css(p)}
 #taskbar button {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; border-bottom: 3px solid {p['hi']}; padding: 0 14px 0 8px; margin: 4px 2px; min-width: 100px; }}
 #taskbar button:hover {{ background: {p['hov']}; }}
 #taskbar button.active {{ background: {p['hov']}; border-bottom-color: {p['title']}; }}
