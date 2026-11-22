@@ -363,6 +363,7 @@ button {{ border: none; }}
 #tray {{ margin-right: 8px; }}
 #custom-settings {{ font-weight: bold; letter-spacing: 1px; }}
 #custom-settings.low {{ color: {p['amber']}; }}
+#custom-settings.updates {{ color: {p['amber']}; }}
 #clock {{ font-weight: bold; font-size: 16px; padding: 0 22px; letter-spacing: 1px; }}
 #custom-power {{ color: {p['amber']}; background: {p['view']}; border: 1px solid {p['hi']}; font-size: 18px; padding: 0 14px; margin: 4px 8px 4px 6px; }}
 #custom-power:hover, #custom-settings:hover, #clock:hover {{ background: {p['hov']}; }}

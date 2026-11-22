@@ -423,7 +423,16 @@ def status():
         tips.append("Volume: " + ("muted" if m else f"{v}%"))
     if dnd_on():
         txt += "  DND"
-    print(json.dumps({"text": txt, "tooltip": "\n".join(tips), "class": "low" if (b and b[0] <= 20) else ""}))
+    # updates found by glyph-watch (checked a few times a day)
+    try:
+        n = int((RUN / "glyph-updates").read_text().split()[0])
+    except Exception:
+        n = 0
+    if n:
+        txt += f"  ● {n}"
+        tips.append(f"{n} updates ready: open Software → Updates")
+    cls = "low" if (b and b[0] <= 20) else ("updates" if n else "")
+    print(json.dumps({"text": txt, "tooltip": "\n".join(tips), "class": cls}))
 
 
 # ---------------------------------------------------------------- the panel window

@@ -79,6 +79,52 @@ class Usb:
         notify("USB · " + (vol.get_name() or "drive"), "Taken out.")
 
 
+# ---------------------------------------------------------------- updates
+class Updates:
+    """A few times a day: how many updates are ready (Debian refreshes its lists by itself
+    every day). The number shows on the SETTINGS button; a message when there are new ones."""
+    FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "glyph-updates"
+
+    def __init__(self):
+        self.told = 0
+        GLib.timeout_add_seconds(120, lambda: (self.check(), False)[1])     # 2 minutes after sign-in
+        GLib.timeout_add_seconds(6 * 3600, lambda: (self.check(), True)[1])
+
+    def check(self):
+        threading.Thread(target=self.work, daemon=True).start()
+
+    def work(self):
+        n = 0
+        try:
+            out = subprocess.run(["apt", "list", "--upgradable"], capture_output=True, text=True, timeout=60).stdout
+            n += sum(1 for l in out.splitlines() if "[upgradable from" in l)
+        except Exception:
+            pass
+        try:
+            out = subprocess.run(["flatpak", "remote-ls", "--updates", "--columns=application"],
+                                 capture_output=True, text=True, timeout=120).stdout
+            n += len([l for l in out.splitlines() if l.strip()])
+        except Exception:
+            pass
+        GLib.idle_add(self.done, n)
+
+    def done(self, n):
+        try:
+            self.FILE.write_text(f"{n}\n")
+        except Exception:
+            pass
+        bg(["pkill", "-RTMIN+10", "-x", "waybar"])
+        if n > self.told:
+
+            def act(key):
+                if key == "open":
+                    bg(["glyph-software", "updates"])
+                return False
+            notify("Updates", f"{n} updates are ready.", actions=(("open", "Update now"),), on_action=act)
+        self.told = n
+        return False
+
+
 # ---------------------------------------------------------------- battery
 class Battery:
     def __init__(self):
@@ -140,6 +186,7 @@ def main():
         pass
     Usb()
     Battery()
+    Updates()
     GLib.MainLoop().run()
 
 

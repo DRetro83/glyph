@@ -51,6 +51,7 @@
     "exec": "glyph-panel status",
     "return-type": "json",
     "interval": 5,
+    "signal": 10,
     "on-click": "glyph-panel quick",
     "on-scroll-up": "glyph-volume up",
     "on-scroll-down": "glyph-volume down"

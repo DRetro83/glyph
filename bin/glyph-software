@@ -471,6 +471,12 @@ class Software(Gtk.Window):
 
     def got_updates(self, ups):
         self.updates = ups
+        # the number on the taskbar's SETTINGS button
+        try:
+            (Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "glyph-updates").write_text(f"{len(ups)}\n")
+            subprocess.run(["pkill", "-RTMIN+10", "-x", "waybar"], check=False)
+        except Exception:
+            pass
         if self.tab == "upd":
             self.draw()
         return False
