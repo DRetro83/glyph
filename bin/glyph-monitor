@@ -1,0 +1,562 @@
+#!/usr/bin/env python3
+"""glyph-monitor - System monitor in the Glyph look (like the prototype).
+
+PROCESSES: every running program with CPU, memory and user; sort by a column,
+search, "My apps" only, End task / Kill (Del / Shift+Del), right-click menu.
+RESOURCES: CPU (per core), memory, network and disk with small graphs.
+Opens with Ctrl+Shift+Esc.  glyph-monitor resources  opens on RESOURCES.
+"""
+import os
+import pwd
+import shutil
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+HZ = os.sysconf("SC_CLK_TCK")
+PAGE = os.sysconf("SC_PAGE_SIZE")
+ME = os.getuid()
+HIST = 60
+
+
+def kv(path):
+    d = {}
+    try:
+        for line in Path(path).read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                d[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return d
+
+
+def hexrgb(h, a=1.0):
+    h = (h or "#888888").lstrip("#")
+    return (int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255, a)
+
+
+def fmt_mem(kb):
+    mb = kb / 1024
+    return f"{mb / 1024:.1f} GB" if mb >= 1024 else f"{mb:.1f} MB" if mb < 10 else f"{mb:.0f} MB"
+
+
+def fmt_rate(b):
+    kb = b / 1024
+    return f"{kb / 1024:.1f} MB/s" if kb >= 1024 else f"{kb:.0f} KB/s"
+
+
+def user_name(uid, cache={}):
+    if uid not in cache:
+        try:
+            cache[uid] = pwd.getpwuid(uid).pw_name
+        except KeyError:
+            cache[uid] = str(uid)
+    return cache[uid]
+
+
+def cpu_times():
+    """[(busy, total)] for all cpus and each core."""
+    out = []
+    for line in Path("/proc/stat").read_text().splitlines():
+        if not line.startswith("cpu"):
+            break
+        v = [int(x) for x in line.split()[1:]]
+        idle = v[3] + (v[4] if len(v) > 4 else 0)
+        out.append((sum(v) - idle, sum(v)))
+    return out
+
+
+def meminfo():
+    d = {}
+    for line in Path("/proc/meminfo").read_text().splitlines():
+        k, v = line.split(":", 1)
+        d[k] = int(v.split()[0])
+    return d
+
+
+def net_bytes():
+    rx = tx = 0
+    for line in Path("/proc/net/dev").read_text().splitlines()[2:]:
+        name, data = line.split(":", 1)
+        if name.strip() == "lo":
+            continue
+        v = data.split()
+        rx += int(v[0])
+        tx += int(v[8])
+    return rx, tx
+
+
+def temperature():
+    best = None
+    for z in Path("/sys/class/thermal").glob("thermal_zone*"):
+        try:
+            t = int((z / "temp").read_text()) / 1000
+            kind = (z / "type").read_text().strip()
+            if kind in ("x86_pkg_temp", "cpu-thermal", "k10temp", "acpitz") or best is None:
+                best = t
+        except Exception:
+            pass
+    for h in Path("/sys/class/hwmon").glob("hwmon*"):
+        try:
+            if (h / "name").read_text().strip() in ("k10temp", "coretemp", "zenpower"):
+                return int((h / "temp1_input").read_text()) / 1000
+        except Exception:
+            pass
+    return best
+
+
+class Sampler:
+    def __init__(self):
+        self.prev_proc = {}
+        self.prev_cpu = cpu_times()
+        self.prev_net = net_bytes()
+        self.prev_t = time.time()
+        self.hist = {"cpu": [], "mem": [], "down": [], "up": []}
+        self.cores = [0.0] * (len(self.prev_cpu) - 1)
+        self.procs = []
+        self.mem = meminfo()
+
+    def push(self, k, v):
+        self.hist[k].append(v)
+        if len(self.hist[k]) > HIST:
+            self.hist[k].pop(0)
+
+    def sample(self):
+        now = time.time()
+        dt = max(0.1, now - self.prev_t)
+        self.prev_t = now
+        cur = cpu_times()
+        pct = []
+        for (b0, t0), (b1, t1) in zip(self.prev_cpu, cur):
+            pct.append(100 * (b1 - b0) / max(1, t1 - t0))
+        self.prev_cpu = cur
+        self.cores = pct[1:]
+        self.push("cpu", pct[0] if pct else 0)
+        self.mem = meminfo()
+        used = self.mem.get("MemTotal", 0) - self.mem.get("MemAvailable", 0)
+        self.push("mem", used)
+        rx, tx = net_bytes()
+        self.push("down", max(0, rx - self.prev_net[0]) / dt)
+        self.push("up", max(0, tx - self.prev_net[1]) / dt)
+        self.prev_net = (rx, tx)
+        ncpu = max(1, len(self.cores))
+        procs, seen = [], {}
+        for d in os.listdir("/proc"):
+            if not d.isdigit():
+                continue
+            pid = int(d)
+            try:
+                stat = Path(f"/proc/{d}/stat").read_text()
+                name = stat[stat.index("(") + 1: stat.rindex(")")]
+                f = stat[stat.rindex(")") + 2:].split()
+                ticks = int(f[11]) + int(f[12])
+                rss = int(f[21]) * PAGE // 1024
+                uid = os.stat(f"/proc/{d}").st_uid
+            except Exception:
+                continue
+            prev = self.prev_proc.get(pid)
+            cpu = 0.0 if prev is None else 100 * (ticks - prev) / HZ / dt / ncpu
+            seen[pid] = ticks
+            if rss == 0:      # kernel threads
+                continue
+            procs.append({"pid": pid, "name": name, "cpu": max(0.0, cpu), "mem": rss, "uid": uid,
+                          "user": user_name(uid), "state": f[0]})
+        self.prev_proc = seen
+        self.procs = procs
+
+
+class Graph(Gtk.DrawingArea):
+    """A small bar graph of the last 60 samples, like the prototype's sparks."""
+
+    def __init__(self, win, key, maxv=None, colour="tan"):
+        super().__init__()
+        self.win, self.key, self.maxv, self.colour = win, key, maxv, colour
+        self.set_size_request(-1, 54)
+        self.connect("draw", self.draw)
+
+    def draw(self, w, cr):
+        p = self.win.pal
+        W, H = w.get_allocated_width(), w.get_allocated_height()
+        cr.set_source_rgba(*hexrgb(p.get("GLYPH_VIEW")))
+        cr.rectangle(0, 0, W, H)
+        cr.fill()
+        data = self.win.s.hist[self.key]
+        mx = self.maxv() if callable(self.maxv) else (self.maxv or max([1] + data))
+        bw = W / HIST
+        cr.set_source_rgba(*hexrgb(p.get("GLYPH_" + self.colour.upper(), p.get("GLYPH_TAN"))))
+        for j, v in enumerate(data[-HIST:]):
+            x = (HIST - len(data[-HIST:]) + j) * bw
+            h = max(2, min(1, v / mx) * (H - 4)) if v > 0 else 2
+            cr.rectangle(x + 1, H - h, max(1, bw - 2), h)
+        cr.fill()
+        cr.set_source_rgba(*hexrgb(p.get("GLYPH_HI")))
+        cr.set_line_width(1)
+        cr.rectangle(0.5, 0.5, W - 1, H - 1)
+        cr.stroke()
+        return False
+
+
+class Meter(Gtk.DrawingArea):
+    """20 blocks, lit up to the percentage (amber; rose above 85 %)."""
+
+    def __init__(self, win, height=12):
+        super().__init__()
+        self.win, self.pct = win, 0
+        self.set_size_request(-1, height)
+        self.connect("draw", self.draw)
+
+    def set(self, pct):
+        self.pct = pct
+        self.queue_draw()
+
+    def draw(self, w, cr):
+        p = self.win.pal
+        W, H = w.get_allocated_width(), w.get_allocated_height()
+        n = round(self.pct / 5)
+        sw = W / 20
+        for j in range(20):
+            col = p.get("GLYPH_HOV")
+            if j < n:
+                col = p.get("GLYPH_ROSE") if self.pct > 85 else p.get("GLYPH_AMBER")
+            cr.set_source_rgba(*hexrgb(col))
+            cr.rectangle(j * sw + 1, 0, sw - 2, H)
+            cr.fill()
+        return False
+
+
+class Monitor(Gtk.Window):
+    COLS = [("name", "NAME"), ("pid", "PID"), ("cpu", "CPU"), ("mem", "MEMORY"), ("user", "USER")]
+
+    def __init__(self):
+        super().__init__(title="System monitor")
+        self.set_default_size(760, 540)
+        self.pal = kv(CONF / "palette.env")
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        extra = Gtk.CssProvider()
+        extra.load_from_data(b".mon .mh { font-weight: bold; } .mon .msec { padding: 10px 12px; }"
+                             b" .mon .msum { padding: 6px 12px; font-size: 12px; }")
+        for c in (css, extra):
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), c, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        self.s = Sampler()
+        self.tab, self.sort, self.desc, self.q, self.mine = "proc", "cpu", True, "", False
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        root.get_style_context().add_class("files")
+        root.get_style_context().add_class("mon")
+        self.add(root)
+        tb = Gtk.Box(spacing=4)
+        tb.get_style_context().add_class("ftool")
+        self.b_proc = self.btn("PROCESSES", lambda: self.set_tab("proc"), "on")
+        self.b_res = self.btn("RESOURCES", lambda: self.set_tab("res"))
+        tb.pack_start(self.b_proc, False, False, 0)
+        tb.pack_start(self.b_res, False, False, 0)
+        self.search = Gtk.SearchEntry()
+        self.search.set_placeholder_text("Search a program or PID…")
+        self.search.connect("search-changed", lambda e: self.set_q(e.get_text()))
+        tb.pack_start(self.search, True, True, 0)
+        self.b_mine = self.btn("MY APPS", self.flip_mine)
+        tb.pack_start(self.b_mine, False, False, 0)
+        root.pack_start(tb, False, False, 0)
+
+        self.stack = Gtk.Stack()
+        root.pack_start(self.stack, True, True, 0)
+
+        # processes
+        self.store = Gtk.ListStore(int, str, str, str, str, float, int)  # pid, name, cpu, mem, user, cpu#, mem#
+        self.tree = Gtk.TreeView(model=self.store)
+        self.tree.get_style_context().add_class("flist")
+        self.tree.set_enable_search(False)
+        for i, (k, title) in enumerate(self.COLS):
+            r = Gtk.CellRendererText()
+            if k == "name":
+                r.set_property("ellipsize", Pango.EllipsizeMode.END)
+            if k in ("pid", "cpu", "mem"):
+                r.set_property("xalign", 1.0)
+            if k == "pid":
+                c = Gtk.TreeViewColumn(title, r)
+                c.set_cell_data_func(r, lambda col, cell, m, it, _: cell.set_property("text", str(m[it][0])))
+            else:
+                c = Gtk.TreeViewColumn(title, r, text={"name": 1, "cpu": 2, "mem": 3, "user": 4}[k])
+            c.set_clickable(True)
+            c.set_expand(k == "name")
+            c.set_min_width(220 if k == "name" else 90)
+            c.connect("clicked", lambda col, k=k: self.set_sort(k))
+            self.tree.append_column(c)
+        self.cols = self.tree.get_columns()
+        self.tree.connect("button-press-event", self.on_click)
+        self.tree.connect("key-press-event", self.on_key)
+        self.tree.get_selection().connect("changed", lambda *_: self.update_foot())
+        sw = Gtk.ScrolledWindow()
+        sw.add(self.tree)
+        self.stack.add_named(sw, "proc")
+
+        # resources
+        res = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        rsw = Gtk.ScrolledWindow()
+        rsw.add(res)
+        self.stack.add_named(rsw, "res")
+        self.lab_cpu = self.section(res, "CPU", Graph(self, "cpu", 100))
+        self.core_box = Gtk.Grid(column_spacing=12, row_spacing=4)
+        self.core_meters = []
+        for j in range(len(self.s.cores)):
+            l = Gtk.Label(label=f"CPU{j + 1}", xalign=0)
+            l.get_style_context().add_class("dim")
+            m = Meter(self, 10)
+            m.set_hexpand(True)
+            self.core_box.attach(l, (j % 2) * 2, j // 2, 1, 1)
+            self.core_box.attach(m, (j % 2) * 2 + 1, j // 2, 1, 1)
+            self.core_meters.append(m)
+        self.last_sec.pack_start(self.core_box, False, False, 0)
+        self.lab_mem = self.section(res, "MEMORY", Graph(self, "mem", lambda: self.s.mem.get("MemTotal", 1), "amber"))
+        self.mem_meter = Meter(self)
+        self.last_sec.pack_start(self.mem_meter, False, False, 0)
+        self.lab_net = self.section(res, "NETWORK", Graph(self, "down", lambda: max([100 * 1024] + self.s.hist["down"]), "green"))
+        self.lab_disk = self.section(res, "DISK", None)
+        self.disk_meter = Meter(self)
+        self.last_sec.pack_start(self.disk_meter, False, False, 0)
+        self.lab_sys = self.section(res, "SYSTEM", None)
+
+        # footer
+        foot = Gtk.Box(spacing=6)
+        foot.get_style_context().add_class("fstatus")
+        self.sum = Gtk.Label(xalign=0)
+        self.sum.get_style_context().add_class("msum")
+        self.sum.set_ellipsize(Pango.EllipsizeMode.END)
+        foot.pack_start(self.sum, True, True, 0)
+        self.b_end = self.btn("End task", lambda: self.end(False))
+        self.b_kill = self.btn("Kill", lambda: self.end(True))
+        self.b_kill.get_style_context().add_class("amber")
+        foot.pack_end(self.b_kill, False, False, 4)
+        foot.pack_end(self.b_end, False, False, 0)
+        root.pack_start(foot, False, False, 0)
+
+        self.connect("key-press-event", self.on_win_key)
+        self.s.sample()
+        GLib.timeout_add(400, self.tick_once)
+        GLib.timeout_add(1500, self.tick)
+
+    # ---------- helpers
+    def btn(self, text, cb, cls=None):
+        b = Gtk.Button(label=text)
+        for c in (cls or "").split():
+            b.get_style_context().add_class(c)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def section(self, parent, title, graph):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.get_style_context().add_class("msec")
+        h = Gtk.Box()
+        t = Gtk.Label(label=title, xalign=0)
+        t.get_style_context().add_class("mh")
+        v = Gtk.Label(xalign=1)
+        v.get_style_context().add_class("dim")
+        h.pack_start(t, False, False, 0)
+        h.pack_end(v, False, False, 0)
+        box.pack_start(h, False, False, 0)
+        if graph:
+            box.pack_start(graph, False, False, 0)
+        parent.pack_start(box, False, False, 0)
+        self.last_sec = box
+        return v
+
+    def set_tab(self, t):
+        self.tab = t
+        self.stack.set_visible_child_name(t)
+        for b, on in ((self.b_proc, t == "proc"), (self.b_res, t == "res")):
+            (b.get_style_context().add_class if on else b.get_style_context().remove_class)("on")
+        self.search.set_visible(t == "proc")
+        self.b_mine.set_visible(t == "proc")
+        self.draw()
+
+    def set_q(self, q):
+        self.q = q.lower()
+        self.draw_proc()
+
+    def flip_mine(self):
+        self.mine = not self.mine
+        (self.b_mine.get_style_context().add_class if self.mine else self.b_mine.get_style_context().remove_class)("on")
+        self.draw_proc()
+
+    def set_sort(self, k):
+        if self.sort == k:
+            self.desc = not self.desc
+        else:
+            self.sort, self.desc = k, k in ("cpu", "mem", "pid")
+        self.draw_proc()
+
+    def selected(self):
+        m, it = self.tree.get_selection().get_selected()
+        return m[it][0] if it else None
+
+    # ---------- drawing
+    def tick_once(self):
+        self.tick()
+        return False
+
+    def tick(self):
+        self.s.sample()
+        self.draw()
+        return True
+
+    def draw(self):
+        if self.tab == "proc":
+            self.draw_proc()
+        else:
+            self.draw_res()
+        self.update_foot()
+
+    def draw_proc(self):
+        sel = self.selected()
+        rows = [p for p in self.s.procs if (not self.mine or p["uid"] == ME)
+                and (not self.q or self.q in f"{p['name']} {p['pid']}".lower())]
+        rows.sort(key=lambda p: p[self.sort] if self.sort != "name" else p["name"].lower(), reverse=self.desc)
+        adj = self.tree.get_parent().get_vadjustment() if self.tree.get_parent() else None
+        pos = adj.get_value() if adj else 0
+        self.store.clear()
+        for p in rows:
+            self.store.append([p["pid"], p["name"], f"{p['cpu']:.1f} %", fmt_mem(p["mem"]), p["user"], p["cpu"], p["mem"]])
+        for c, (k, t) in zip(self.cols, self.COLS):
+            c.set_title(t + ((" ▾" if self.desc else " ▴") if k == self.sort else ""))
+        if sel is not None:
+            for i, r in enumerate(self.store):
+                if r[0] == sel:
+                    self.tree.get_selection().select_path(Gtk.TreePath(i))
+                    break
+        if adj:
+            GLib.idle_add(lambda: (adj.set_value(pos), False)[1])
+
+    def draw_res(self):
+        h = self.s.hist
+        cpu = h["cpu"][-1] if h["cpu"] else 0
+        t = temperature()
+        self.lab_cpu.set_text(f"{cpu:.0f}% · {len(self.s.cores)} cores" + (f" · {t:.0f} °C" if t else ""))
+        for m, v in zip(self.core_meters, self.s.cores):
+            m.set(v)
+        mi = self.s.mem
+        used = h["mem"][-1] if h["mem"] else 0
+        tot = mi.get("MemTotal", 1)
+        swap = mi.get("SwapTotal", 0) - mi.get("SwapFree", 0)
+        self.lab_mem.set_text(f"{fmt_mem(used)} of {fmt_mem(tot)} · swap {fmt_mem(swap)} of {fmt_mem(mi.get('SwapTotal', 0))}")
+        self.mem_meter.set(100 * used / tot)
+        dn = h["down"][-1] if h["down"] else 0
+        up = h["up"][-1] if h["up"] else 0
+        self.lab_net.set_text(f"↓ {fmt_rate(dn)} · ↑ {fmt_rate(up)}")
+        du = shutil.disk_usage("/")
+        self.lab_disk.set_text(f"system disk · {du.used / 1e9:.0f} GB of {du.total / 1e9:.0f} GB used")
+        self.disk_meter.set(100 * du.used / du.total)
+        prof = ""
+        if shutil.which("powerprofilesctl"):
+            try:
+                prof = subprocess.run(["powerprofilesctl", "get"], capture_output=True, text=True, timeout=1).stdout.strip()
+            except Exception:
+                pass
+        up_s = float(Path("/proc/uptime").read_text().split()[0])
+        self.lab_sys.set_text(f"{len(self.s.procs)} processes · up {int(up_s // 3600)}h {int(up_s % 3600 // 60)}m"
+                              + (f" · power: {prof}" if prof else ""))
+        for w in self.stack.get_child_by_name("res").get_child().get_child().get_children():
+            for g in w.get_children():
+                if isinstance(g, Graph):
+                    g.queue_draw()
+
+    def update_foot(self):
+        h = self.s.hist
+        cpu = h["cpu"][-1] if h["cpu"] else 0
+        mem = h["mem"][-1] if h["mem"] else 0
+        pid = self.selected() if self.tab == "proc" else None
+        p = next((x for x in self.s.procs if x["pid"] == pid), None)
+        self.sum.set_text(f"CPU {cpu:.0f}% · Memory {fmt_mem(mem)}" + (f" · selected: {p['name']} ({p['pid']})" if p else ""))
+        for b in (self.b_end, self.b_kill):
+            b.set_sensitive(bool(p))
+
+    # ---------- actions
+    def end(self, kill):
+        pid = self.selected()
+        p = next((x for x in self.s.procs if x["pid"] == pid), None)
+        if not p:
+            return
+        if p["name"] == "labwc" or pid == 1:
+            self.say("End " + p["name"] + "?", "labwc draws all your windows; ending it logs you out." if p["name"] == "labwc"
+                     else "systemd runs the whole system and can't be ended.")
+            return
+        sig = signal.SIGKILL if kill else signal.SIGTERM
+        try:
+            os.kill(pid, sig)
+        except PermissionError:
+            subprocess.Popen(["pkexec", "kill", "-9" if kill else "-15", str(pid)])
+        except ProcessLookupError:
+            pass
+        GLib.timeout_add(400, lambda: (self.tick(), False)[1])
+
+    def say(self, title, text):
+        d = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.INFO,
+                              buttons=Gtk.ButtonsType.OK, text=title)
+        d.format_secondary_text(text)
+        d.run()
+        d.destroy()
+
+    def on_click(self, tree, e):
+        if e.button != 3:
+            return False
+        path = tree.get_path_at_pos(int(e.x), int(e.y))
+        if not path:
+            return False
+        tree.get_selection().select_path(path[0])
+        m = Gtk.Menu()
+        m.get_style_context().add_class("gmenu")
+        for text, cb in (("End task", lambda *_: self.end(False)), ("Kill", lambda *_: self.end(True)),
+                         ("Copy PID", lambda *_: Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(str(self.selected()), -1))):
+            it = Gtk.MenuItem(label=text)
+            it.connect("activate", cb)
+            m.append(it)
+        m.show_all()
+        m.popup_at_pointer(e)
+        return True
+
+    def on_key(self, w, e):
+        if e.keyval == Gdk.KEY_Delete:
+            self.end(bool(e.state & Gdk.ModifierType.SHIFT_MASK))
+            return True
+        return False
+
+    def on_win_key(self, w, e):
+        ctrl = e.state & Gdk.ModifierType.CONTROL_MASK
+        if ctrl and e.keyval in (Gdk.KEY_q, Gdk.KEY_w):
+            self.destroy()
+            return True
+        if ctrl and e.keyval == Gdk.KEY_f:
+            self.set_tab("proc")
+            self.search.grab_focus()
+            return True
+        return False
+
+
+def main():
+    GLib.set_prgname("glyph-monitor")
+    w = Monitor()
+    w.connect("destroy", Gtk.main_quit)
+    w.show_all()
+    import sys
+    w.set_tab("res" if "resources" in sys.argv[1:] else "proc")
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    try:
+        os.setsid()
+    except Exception:
+        pass
+    main()

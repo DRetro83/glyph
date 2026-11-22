@@ -84,6 +84,7 @@
     <!-- apps -->
     <keybind key="C-A-t"><action name="Execute" command="glyph-term" /></keybind>
     <keybind key="W-e"><action name="Execute" command="glyph-files" /></keybind>
+    <keybind key="C-S-Escape"><action name="Execute" command="glyph-monitor" /></keybind>
 
     <!-- lock, power menu, screenshots -->
     <keybind key="C-A-l"><action name="Execute" command="glyph-lock" /></keybind>

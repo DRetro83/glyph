@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=System monitor
+GenericName=Task manager
+Comment=running apps, CPU, memory
+Exec=glyph-monitor
+Terminal=false
+Categories=System;Monitor;
+Keywords=task;manager;process;cpu;memory;ram;kill;monitor;
+StartupWMClass=glyph-monitor
+Icon=utilities-system-monitor

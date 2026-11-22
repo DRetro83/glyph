@@ -537,7 +537,7 @@ class Settings(Gtk.Window):
         e.set_placeholder_text("type here to test: @ € é ñ ß …")
         p.pack_start(e, False, False, 0)
         p.pack_start(self.lab("SHORTCUTS", "lab"), False, False, 0)
-        p.pack_start(self.info([("Start menu", "Super or Ctrl+Space"), ("Terminal", "Ctrl+Alt+T"), ("Files", "Super+E"),
+        p.pack_start(self.info([("Start menu", "Super or Ctrl+Space"), ("Terminal", "Ctrl+Alt+T"), ("Files", "Super+E"), ("System monitor", "Ctrl+Shift+Esc"),
                                 ("Switch windows", "Alt+Tab"), ("Half screen / maximize", "Super+← → ↑"),
                                 ("Workspace 1–4", "Ctrl+Alt+1–4"), ("Close window", "Ctrl+Alt+W"), ("Lock", "Ctrl+Alt+L"),
                                 ("Power menu", "Ctrl+Alt+Delete"), ("Screenshot", "Print · area: Shift+Print")]), False, False, 0)

@@ -31,7 +31,7 @@ PIDFILE = RUN / "glyph-start.pid"
 DEFAULT_FAVS = ["xfce4-terminal.desktop", "foot.desktop", "glyph-files.desktop", "glyph-music.desktop", "firefox-esr.desktop", "firefox.desktop",
                 "org.xfce.mousepad.desktop", "glyph-settings.desktop"]
 # KDE helpers that make no sense in Glyph (they stay in KDE)
-HIDE_IDS = {"org.kde.drkonqi.coredump.gui.desktop", "org.kde.kaddressbook.themeeditor.desktop",
+HIDE_IDS = {"xfce4-taskmanager.desktop", "org.xfce.taskmanager.desktop", "org.kde.drkonqi.coredump.gui.desktop", "org.kde.kaddressbook.themeeditor.desktop",
             "org.kde.kontact.themeeditor.desktop", "org.kde.contactprintthemeeditor.desktop",
             "org.kde.contactthemeeditor.desktop", "blueman-adapters.desktop", "org.kde.kinfocenter.desktop",
             "org.kde.kmenuedit.desktop", "org.kde.plasma-systemmonitor.desktop", "org.kde.khelpcenter.desktop",
