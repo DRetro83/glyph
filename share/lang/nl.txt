@@ -456,3 +456,5 @@ You can take the drive out now. = Je kunt de schijf nu uitnemen.
 a folder cannot go inside itself = een map kan niet in zichzelf
 Removing {name} also removes: = Als je {name} verwijdert, verdwijnt ook:
 Other programs may need these. Remove them all? = Andere programma's hebben die misschien nodig. Alles verwijderen?
+SHOW DETAILS = DETAILS TONEN
+What apt is doing, live in a terminal (closing it does not stop anything) = Wat apt doet, live in een terminal (sluiten stopt niets)

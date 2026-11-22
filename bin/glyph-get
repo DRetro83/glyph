@@ -16,6 +16,13 @@ latest() {   # latest() OWNER/REPO PATTERN -> download URL of the newest release
     grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(http[^"]*\)"/\1/' | grep -E "$2" | head -1
 }
 
+# apt as root through Glyph's small helper (a short sentence in the password box)
+H=/usr/local/lib/glyph/glyph-apt
+apt_do() {
+  if [ -x "$H" ]; then pkexec "$H" "$@"
+  else pkexec env DEBIAN_FRONTEND=noninteractive apt-get -y -o APT::Status-Fd=1 "$@"; fi
+}
+
 case "$1:$what" in
   status:vivaldi)   dpkg -s vivaldi-stable >/dev/null 2>&1 && echo installed || true ;;
   status:emu-vault) dpkg -s emu-vault >/dev/null 2>&1 && echo installed || true ;;
@@ -23,20 +30,25 @@ case "$1:$what" in
 
   install:vivaldi)
     curl -fsSL https://repo.vivaldi.com/archive/linux_signing_key.pub -o "$TMP/vivaldi.pub"
-    pkexec sh -c "gpg --dearmor < '$TMP/vivaldi.pub' > /usr/share/keyrings/vivaldi.gpg &&
-      echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main' > /etc/apt/sources.list.d/vivaldi.list &&
-      apt-get update -o APT::Status-Fd=1 && DEBIAN_FRONTEND=noninteractive apt-get install -y -o APT::Status-Fd=1 vivaldi-stable" ;;
+    chmod 644 "$TMP/vivaldi.pub"; chmod 755 "$TMP"
+    if [ -x "$H" ]; then
+      pkexec "$H" add-vivaldi "$TMP/vivaldi.pub" && pkexec "$H" install vivaldi-stable
+    else
+      pkexec sh -c "gpg --dearmor < '$TMP/vivaldi.pub' > /usr/share/keyrings/vivaldi.gpg &&
+        echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main' > /etc/apt/sources.list.d/vivaldi.list &&
+        apt-get update -o APT::Status-Fd=1 && DEBIAN_FRONTEND=noninteractive apt-get install -y -o APT::Status-Fd=1 vivaldi-stable"
+    fi ;;
   remove:vivaldi)
-    pkexec env DEBIAN_FRONTEND=noninteractive apt-get remove -y -o APT::Status-Fd=1 vivaldi-stable ;;
+    apt_do remove vivaldi-stable ;;
 
   install:emu-vault)
     url=$(latest DRetro83/emu-vault '_amd64\.deb$')
     [ -n "$url" ] || { echo "no .deb in the newest Emu Vault release" >&2; exit 1; }
     curl -fL "$url" -o "$TMP/emu-vault.deb"
     chmod 644 "$TMP/emu-vault.deb"; chmod 755 "$TMP"
-    pkexec env DEBIAN_FRONTEND=noninteractive apt-get install -y -o APT::Status-Fd=1 "$TMP/emu-vault.deb" ;;
+    apt_do install "$TMP/emu-vault.deb" ;;
   remove:emu-vault)
-    pkexec env DEBIAN_FRONTEND=noninteractive apt-get remove -y -o APT::Status-Fd=1 emu-vault ;;
+    apt_do remove emu-vault ;;
 
   install:dbash)
     url=$(latest DRetro83/DBash '^.*/dbash-[0-9][^/]*\.sh$')

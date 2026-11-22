@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 import gi
@@ -69,6 +70,19 @@ CATALOG = [
 # always there in Glyph: shown as CORE, without a Remove button
 CORE = {"firefox-esr", "xfce4-terminal", "foot", "mousepad", "ristretto", "mpv", "atril", "xarchiver", "pavucontrol",
         "blueman", "labwc", "waybar"}
+
+
+APT_HELPER = "/usr/local/lib/glyph/glyph-apt"
+LOG = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "glyph-software.log"
+
+
+def apt_cmd(*args):
+    """apt as root through Glyph's small helper: a short sentence in the password box."""
+    if os.access(APT_HELPER, os.X_OK):
+        return ["pkexec", APT_HELPER, *args]
+    opts = ["-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold"]
+    return ["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", *(["-y", "-o", "APT::Status-Fd=1", *opts]
+                                                                            if args[0] != "update" else []), *args]
 
 
 def run(cmd, timeout=20):
@@ -167,6 +181,10 @@ class Software(Gtk.Window):
         self.foot = Gtk.Label(xalign=0)
         self.foot.set_ellipsize(Pango.EllipsizeMode.END)
         foot.pack_start(self.foot, True, True, 8)
+        det = Gtk.Button(label="SHOW DETAILS")
+        det.set_tooltip_text("What apt is doing, live in a terminal (closing it does not stop anything)")
+        det.connect("clicked", lambda *a: self.show_details())
+        foot.pack_end(det, False, False, 6)
         root.pack_start(foot, False, False, 0)
         self.set_tab("explore")
         self.refresh_status()
@@ -391,23 +409,51 @@ class Software(Gtk.Window):
 
         def work():
             ok = True
+            # everything apt says also goes to a log: SHOW DETAILS shows it live in a terminal
+            try:
+                log = open(LOG, "a", buffering=1)
+                log.write(f"\n■ {_(label)} · {time.strftime('%H:%M:%S')}\n")
+            except Exception:
+                log = None
             for cmd in cmds:
+                if log:
+                    log.write("$ " + " ".join(c for c in cmd if c != "pkexec") + "\n")
                 try:
                     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
                 except Exception:
                     ok = False
                     break
                 for line in p.stdout:
-                    m = re.match(r"(?:pm|dl)status:[^:]*:([\d.]+):", line)
+                    m = re.match(r"(?:pm|dl)status:[^:]*:([\d.]+):(.*)", line)
                     if m:
                         pct = int(float(m.group(1)))
                         GLib.idle_add(self.set_busy, key, f"{label} {pct}%")
+                        if log:
+                            log.write(f"  {pct:3d}%  {m.group(2).strip()}\n")
+                    elif log:
+                        log.write(line)
                 p.wait()
                 if p.returncode != 0:
                     ok = False
+                    if log:
+                        log.write(f"✗ stopped (code {p.returncode}: cancelled, no password, or an error above)\n")
                     break
+            if log:
+                log.write("✓ done\n" if ok else "")
+                log.close()
             GLib.idle_add(self.task_done, key, label, ok, done)
         threading.Thread(target=work, daemon=True).start()
+
+    def show_details(self):
+        """A terminal next to Software that follows the log as apt writes it."""
+        if not LOG.exists():
+            LOG.write_text("Nothing has run yet. Install, remove or update something and it shows up here.\n")
+        try:
+            subprocess.Popen(["foot", "--app-id", "glyph-details", "--title", "Software · details",
+                              "tail", "-n", "200", "-F", str(LOG)], start_new_session=True)
+        except FileNotFoundError:
+            subprocess.Popen(["xfce4-terminal", "--title", "Software · details", "-x", "tail", "-n", "200", "-F", str(LOG)],
+                             start_new_session=True)
 
     def set_busy(self, key, text):
         self.busy[key] = text
@@ -425,9 +471,7 @@ class Software(Gtk.Window):
         return False
 
     def apt(self, *args):
-        # keep your own changes to system settings files when a package update brings new ones
-        return ["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-y", "-o", "APT::Status-Fd=1",
-                "-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold", *args]
+        return apt_cmd(*args)
 
     def removes_more(self, pkg):
         """The other packages apt would remove together with pkg (a dry run, no password needed)."""
@@ -489,7 +533,7 @@ class Software(Gtk.Window):
             self.draw()
 
         def work():
-            subprocess.run(["pkexec", "apt-get", "update"], capture_output=True)
+            subprocess.run(apt_cmd("update"), capture_output=True)
             ups = []
             for line in run(["apt", "list", "--upgradable"], 30).splitlines():
                 m = re.match(r"([^/]+)/\S+ (\S+) \S+ \[upgradable from: ([^\]]+)\]", line)

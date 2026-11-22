@@ -282,8 +282,10 @@ class Welcome(Gtk.Window):
             done, failed = [], []
             if apt:
                 GLib.idle_add(self.say, f"Installing from Debian: {', '.join(apt)} (your password)…")
-                r = subprocess.run(["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", *apt],
-                                   capture_output=True, text=True)
+                helper = "/usr/local/lib/glyph/glyph-apt"     # a short sentence in the password box
+                cmd = (["pkexec", helper, "install", *apt] if os.access(helper, os.X_OK) else
+                       ["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", *apt])
+                r = subprocess.run(cmd, capture_output=True, text=True)
                 (done if r.returncode == 0 else failed).extend(apt)
             if flats:
                 GLib.idle_add(self.say, f"Installing from Flathub: {len(flats)} apps (this can take a while)…")

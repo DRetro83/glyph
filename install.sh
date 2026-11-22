@@ -127,6 +127,9 @@ fi
 # 2. programs, the files every user gets, and the session entry for the login screen
 run sudo install -m 755 "$HERE"/bin/glyph-* /usr/local/bin/
 run sudo install -D -m 644 "$HERE/bin/glyph_lang.py" /usr/local/lib/glyph/glyph_lang.py
+# apt for Software and Welcome, with its own short sentence in the password box
+run sudo install -D -m 755 "$HERE/share/glyph-apt" /usr/local/lib/glyph/glyph-apt
+run sudo install -D -m 644 "$HERE/share/polkit/org.glyph.apt.policy" /usr/share/polkit-1/actions/org.glyph.apt.policy
 run sudo mkdir -p /usr/local/share/glyph/lang /usr/local/share/glyph/config/labwc /usr/local/share/glyph/config/waybar \
   /usr/local/share/glyph/share/applications /usr/local/share/glyph/share/xdg-desktop-portal
 run sudo install -m 644 "$HERE"/share/lang/*.txt /usr/local/share/glyph/lang/

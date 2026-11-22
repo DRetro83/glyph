@@ -47,6 +47,8 @@ jobs:
           set -x
           test -x /usr/local/bin/glyph-theme
           test -f /usr/local/lib/glyph/glyph_lang.py
+          test -x /usr/local/lib/glyph/glyph-apt
+          test -f /usr/share/polkit-1/actions/org.glyph.apt.policy
           test -f /usr/local/share/glyph/lang/nl.txt
           test -f /usr/share/wayland-sessions/glyph.desktop
           test -f /home/glyph/.config/glyph/labwc/rc.xml
@@ -82,6 +84,7 @@ jobs:
           set -x
           ! ls /usr/local/bin/glyph-* 2>/dev/null
           test ! -e /usr/local/lib/glyph
+          test ! -e /usr/share/polkit-1/actions/org.glyph.apt.policy
           test ! -e /usr/local/share/glyph
           test ! -e /usr/share/wayland-sessions/glyph.desktop
           test ! -e /home/glyph/.config/glyph

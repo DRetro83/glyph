@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Glyph: the password box for installing, removing and updating programs.
+     A short sentence instead of the whole apt command; the password is
+     remembered for a few minutes, so several steps ask only once. -->
+<policyconfig>
+  <vendor>Glyph</vendor>
+  <vendor_url>https://github.com/DRetro83/glyph</vendor_url>
+  <action id="org.glyph.apt">
+    <description>Install, remove or update programs</description>
+    <description xml:lang="nl">Programma's installeren, verwijderen of bijwerken</description>
+    <message>Glyph wants to install, remove or update programs.</message>
+    <message xml:lang="nl">Glyph wil programma's installeren, verwijderen of bijwerken.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/lib/glyph/glyph-apt</annotate>
+  </action>
+</policyconfig>

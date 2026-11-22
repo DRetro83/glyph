@@ -1,0 +1,40 @@
+#!/bin/sh
+# glyph-apt - the one thing Glyph's apps run as root, through pkexec: apt, always
+# with the same safe options. Its own polkit rule (org.glyph.apt) gives the
+# password box a short sentence instead of the whole command.
+#
+#   glyph-apt update                     fetch the package lists
+#   glyph-apt upgrade                    install all updates
+#   glyph-apt install NAME|FILE.deb …    install packages
+#   glyph-apt remove NAME …              remove packages
+#   glyph-apt add-vivaldi KEYFILE        add Vivaldi's package source (its signing key)
+set -e
+export DEBIAN_FRONTEND=noninteractive
+# keep your own changes to system settings files when a package update brings new ones
+OPTS="-y -o APT::Status-Fd=1 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
+act="$1"
+[ $# -gt 0 ] && shift
+
+check_names() {
+  for p in "$@"; do
+    case "$p" in
+      /*.deb) [ -f "$p" ] || { echo "glyph-apt: no such file: $p" >&2; exit 2; } ;;
+      *) printf '%s' "$p" | grep -Eq '^[a-z0-9][a-z0-9+.-]*$' || { echo "glyph-apt: not a package name: $p" >&2; exit 2; } ;;
+    esac
+  done
+}
+
+# shellcheck disable=SC2086
+case "$act" in
+  update)  exec apt-get -o APT::Status-Fd=1 update ;;
+  upgrade) exec apt-get $OPTS upgrade ;;
+  install) [ $# -gt 0 ] || exit 2; check_names "$@"; exec apt-get $OPTS install "$@" ;;
+  remove)  [ $# -gt 0 ] || exit 2; check_names "$@"; exec apt-get $OPTS remove "$@" ;;
+  add-vivaldi)
+    [ -f "$1" ] || exit 2
+    gpg --dearmor < "$1" > /usr/share/keyrings/vivaldi.gpg
+    echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main' \
+      > /etc/apt/sources.list.d/vivaldi.list
+    exec apt-get -o APT::Status-Fd=1 update ;;
+  *) echo "usage: glyph-apt update | upgrade | install NAME… | remove NAME… | add-vivaldi KEYFILE" >&2; exit 2 ;;
+esac

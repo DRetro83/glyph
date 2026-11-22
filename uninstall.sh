@@ -12,6 +12,7 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 echo ":: Removing the Glyph session (asks for your password)"
 sudo rm -f /usr/share/wayland-sessions/glyph.desktop /usr/local/bin/glyph-*
 sudo rm -rf /usr/local/lib/glyph /usr/local/share/glyph
+sudo rm -f /usr/share/polkit-1/actions/org.glyph.apt.policy
 # your Glyph settings go too; a copy is kept in ~/.config/glyph.removed (delete it when you like)
 [ -d "$CONF/glyph" ] && { rm -rf "$CONF/glyph.removed"; cp -a "$CONF/glyph" "$CONF/glyph.removed"; }
 rm -rf "$CONF/glyph" "$DATA/themes/Glyph" "$DATA/icons/Glyph" "$DATA/icons/GlyphLetters"

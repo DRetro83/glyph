@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 · a small password box, details in a terminal · 2026-11-22
+
+- **The password box is small again**: Software, Welcome and the Glyph apps from GitHub install through Glyph's own little helper (`/usr/local/lib/glyph/glyph-apt`), so the box says *"Glyph wants to install, remove or update programs."* instead of the whole apt command. The password is remembered for a few minutes, so several steps ask once
+- **Software → SHOW DETAILS**: a terminal with what apt is doing, live. Closing it does not stop anything
+- The helper only accepts real package names, so nothing else can be run through it
+
 ## 1.0.1 · code review · 2026-11-22
 
 A full review of the code, looking for things that go wrong without crashing.
