@@ -33,18 +33,25 @@ jobs:
           su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh" 2>&1 | tail -60
           dpkg -l labwc | tail -1
       - name: Take the screenshots
+        shell: bash
         run: |
+          set +e
           su - glyph -c "cd ~/glyph && bash extras/screenshots/take.sh /tmp/shots" > take.log 2>&1 || true
           tail -80 take.log
-          mkdir -p shots && cp /tmp/shots/*.png shots/ 2>/dev/null; cp take.log /tmp/shots/session.log shots/ 2>/dev/null || true
+          mkdir -p shots
+          cp /tmp/shots/*.png shots/
+          cp take.log /tmp/shots/session.log shots/
           ls -la shots
+          true
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: screenshots
           path: shots/
 
   commit:
     needs: take
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
