@@ -1,7 +1,6 @@
 #!/bin/bash
 # Takes the screenshots for the README from the real Glyph session, headless.
 # (the first runs found a real install bug: IBM Plex needs Debian's contrib section)
-# run: 2
 # Runs on GitHub (see .github/workflows/screenshots.yml) as a normal user after ./install.sh.
 #   extras/screenshots/take.sh OUTDIR
 OUT=$(realpath "${1:-shots}")
@@ -33,6 +32,9 @@ esac
 EOF
 chmod +x /tmp/fake/playerctl
 export PATH=/tmp/fake:$PATH
+
+# no password helper: without a real login session it only shows an error
+sed -i '/lxpolkit/d' "$G/labwc/autostart"
 
 # put the windows where they look good
 python3 - "$G/labwc/rc.xml" <<'EOF'

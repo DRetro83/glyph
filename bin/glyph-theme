@@ -645,6 +645,8 @@ scrollbar slider:hover {{ background: {p['tanlo']}; }}
 .files treeview.flist {{ background: {p['win']}; }}
 .files treeview.flist header button {{ font-size: 10px; letter-spacing: 2px; color: {p['dim']}; background: {p['win']}; padding: 8px 10px; }}
 .files treeview.flist:selected, .files treeview.flist:selected:focus {{ background: {p['title']}; color: {p['tink']}; }}
+.files treeview.flist, .files treeview.flist:backdrop, .files iconview.fgrid:backdrop {{ color: {p['text']}; }}
+.files treeview.flist:selected:backdrop {{ background: {p['title']}; color: {p['tink']}; }}
 .files iconview.fgrid {{ background: {p['win']}; }}
 .files iconview.fgrid:selected {{ background: {p['title']}; color: {p['tink']}; }}
 .files .fstatus {{ padding: 6px 10px; background: {p['panel']}; border-top: 1px solid {p['hi']}; color: {p['dim']}; font-size: 11px; }}
