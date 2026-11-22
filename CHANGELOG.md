@@ -3,7 +3,7 @@
 ## 0.9.10 · private lock screen, tidy-up for 1.0 · 2026-11-22
 
 - **Lock screen is private**: no music or video title (a YouTube title, for example) on the lock screen anymore. Want it back? Settings → Power & lock → Show music on the lock screen
-- **Open windows ▦**: grouped per workspace, every letter tile in the colour of its workspace, with the app names from the taskbar
+- **Open windows ▦**: sorted per workspace, every letter tile in the colour of its workspace, with the app names from the taskbar
 - **Clean install fixed**: install.sh switches on Debian's "contrib" section for IBM Plex, and no longer stops at the mouse pointer step on a fresh account
 - Files and the start menu keep readable names when they are not in front
 - Tidy-up: unused code removed, every Python file checked, every Settings page and app opened in a test without errors, shell scripts checked with shellcheck; uninstall.sh also removes /usr/local/lib/glyph and /usr/local/share/glyph

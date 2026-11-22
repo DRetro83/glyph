@@ -1409,18 +1409,12 @@ def run_panel(kind):
                 box.pack_start(label("The window list is not available right now.", "dim", wrap=True), False, False, 0)
             elif not wins:
                 box.pack_start(label("No windows open. Press ▸ START to open an app.", "dim", wrap=True), False, False, 0)
-            # grouped per workspace, every tile in the colour of its workspace
+            # sorted per workspace, every tile in the colour of its workspace
             wsinfo = window_workspaces()
             wins = sorted(wins or [], key=lambda w: wsinfo.get((w[0], w[1]), ("9",))[0])
-            shown = None
             for app, wtitle, st in wins:
                 ws, col, ink, nice = wsinfo.get((app, wtitle), ("", None, None, ""))
                 name = nice or app_name(app, wtitle)
-                if ws and ws != shown and len({v[0] for v in wsinfo.values()}) > 1:
-                    shown = ws
-                    hd = label(f"WORKSPACE {ws}", "lab ovws")
-                    paint(hd, f"color: {col}; border-left: 3px solid {col};")
-                    box.pack_start(hd, False, False, 0)
                 row = Gtk.Box()
                 row.get_style_context().add_class("ovr")
                 if st == "on screen":
