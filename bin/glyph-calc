@@ -29,8 +29,21 @@ except Exception:
         return s
 
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
-OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
-       ast.Pow: operator.pow, ast.Mod: operator.mod, ast.USub: operator.neg, ast.UAdd: operator.pos}
+def safe_pow(a, b):
+    """a ** b, but never a number so big that the calculator would hang (9^9^9): then in floats."""
+    if isinstance(a, int) and isinstance(b, int) and b > 0 and abs(a) > 1 and b * math.log10(abs(a)) > 300:
+        return float(a) ** b        # raises OverflowError ("too big") instead of working for minutes
+    return operator.pow(a, b)
+
+
+def safe_mul(a, b):
+    if isinstance(a, int) and isinstance(b, int) and a and b and math.log10(abs(a)) + math.log10(abs(b)) > 300:
+        return float(a) * b
+    return a * b
+
+
+OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: safe_mul, ast.Div: operator.truediv,
+       ast.Pow: safe_pow, ast.Mod: operator.mod, ast.USub: operator.neg, ast.UAdd: operator.pos}
 FUNCS = {"sqrt": math.sqrt, "sin": lambda x: math.sin(math.radians(x)), "cos": lambda x: math.cos(math.radians(x)),
          "tan": lambda x: math.tan(math.radians(x)), "log": math.log10, "ln": math.log, "pi": math.pi}
 
@@ -55,6 +68,10 @@ def calc(text):
             return FUNCS[n.func.id](ev(n.args[0]))
         raise ValueError("not allowed")
     v = ev(ast.parse(t, mode="eval"))
+    if isinstance(v, complex):
+        raise ValueError("no real answer")
+    if isinstance(v, float) and (math.isinf(v) or math.isnan(v)):
+        raise OverflowError("too big")
     if isinstance(v, float):
         if v.is_integer() and abs(v) < 1e15:
             return str(int(v))
@@ -121,6 +138,8 @@ class Calc(Gtk.Window):
                 r = calc(self.text.replace("%", "/100"))
             except ZeroDivisionError:
                 r = "can't divide by 0"
+            except OverflowError:
+                r = "too big"
             except Exception:
                 r = "not a sum"
             self.expr.set_text(self.text + " =")

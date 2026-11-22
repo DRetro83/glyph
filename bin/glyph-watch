@@ -16,6 +16,27 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
 
+# Glyph in your language (Settings -> Language & region): see glyph_lang.py
+try:
+    import sys
+    sys.path[:0] = ["/usr/local/lib/glyph", os.path.dirname(os.path.realpath(__file__))]
+    import glyph_lang
+    glyph_lang.load()
+    _ = glyph_lang.tr
+except Exception:
+    def _(s):
+        return s
+
+
+def session_over():
+    """True when the Glyph session has ended (its Wayland socket is gone): then this helper stops too,
+    so nothing of Glyph keeps running after you sign out (and KDE gets Dolphin back for "show in folder")."""
+    name = os.environ.get("WAYLAND_DISPLAY", "")
+    if not name:
+        return False
+    path = name if name.startswith("/") else os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), name)
+    return not os.path.exists(path)
+
 
 def bg(cmd):
     try:
@@ -28,7 +49,7 @@ def notify(title, body, urgency="normal", actions=(), on_action=None):
     """notify-send with buttons; waits for the answer in a thread."""
     cmd = ["notify-send", "-a", "Glyph", "-u", urgency]
     for key, text in actions:
-        cmd += ["-A", f"{key}={text}"]
+        cmd += ["-A", f"{key}={_(text)}"]
     cmd += [title, body]
 
     def work():
@@ -49,14 +70,14 @@ class Usb:
         self.mon.connect("volume-removed", self.removed)
 
     def added(self, mon, vol):
-        name = vol.get_name() or "USB drive"
+        name = vol.get_name() or _("USB drive")
         bg(["glyph-sound", "plug"])
 
         def act(key):
             if key == "open":
                 self.open(vol)
             return False
-        notify("USB · " + name, "Plugged in.", actions=(("open", "Open"),), on_action=act)
+        notify("USB · " + name, _("Plugged in."), actions=(("open", "Open"),), on_action=act)
 
     def open(self, vol):
         m = vol.get_mount()
@@ -71,12 +92,12 @@ class Usb:
                 if mm:
                     bg(["glyph-files", mm.get_root().get_path()])
             except Exception as e:
-                notify("USB", f"Could not open it: {e}")
+                notify("USB", _("Could not open it") + f": {e}")
         vol.mount(Gio.MountMountFlags.NONE, None, None, done)
 
     def removed(self, mon, vol):
         bg(["glyph-sound", "unplug"])
-        notify("USB · " + (vol.get_name() or "drive"), "Taken out.")
+        notify("USB · " + (vol.get_name() or _("drive")), _("Taken out."))
 
 
 # ---------------------------------------------------------------- updates
@@ -113,14 +134,14 @@ class Updates:
             self.FILE.write_text(f"{n}\n")
         except Exception:
             pass
-        bg(["pkill", "-RTMIN+10", "-x", "waybar"])
+        bg(["pkill", "-RTMIN+10", "-u", str(os.getuid()), "-x", "waybar"])
         if n > self.told:
 
             def act(key):
                 if key == "open":
                     bg(["glyph-software", "updates"])
                 return False
-            notify("Updates", f"{n} updates are ready.", actions=(("open", "Update now"),), on_action=act)
+            notify(_("Updates"), _("{n} updates are ready.").replace("{n}", str(n)), actions=(("open", "Update now"),), on_action=act)
         self.told = n
         return False
 
@@ -136,14 +157,23 @@ class Battery:
             GLib.timeout_add_seconds(5, lambda: (self.check(), False)[1])
 
     def read(self):
+        """Charge of all batteries together (a laptop can have two), and whether it is plugged in."""
+        now = full = 0.0
         pct, charging = [], False
         for b in self.bats:
             try:
                 pct.append(int((b / "capacity").read_text()))
                 if (b / "status").read_text().strip() in ("Charging", "Full", "Not charging"):
                     charging = True
+                for a, z in (("energy_now", "energy_full"), ("charge_now", "charge_full")):
+                    if (b / a).exists() and (b / z).exists():
+                        now += float((b / a).read_text())
+                        full += float((b / z).read_text())
+                        break
             except Exception:
                 pass
+        if full > 0 and len(pct) > 1:
+            return round(100 * now / full), charging
         return (min(pct) if pct else None), charging
 
     def check(self):
@@ -155,20 +185,20 @@ class Battery:
             if self.sleep_timer:
                 GLib.source_remove(self.sleep_timer)
                 self.sleep_timer = None
-                notify("Battery", "Charging. The computer stays on.")
+                notify(_("Battery"), _("Charging. The computer stays on."))
             return True
         if pct <= 5 and not self.sleep_timer:
             bg(["glyph-sound", "error"])
-            notify("Battery almost empty", f"{pct} %. The computer goes to sleep in 1 minute. Plug in the charger to stop it.",
+            notify(_("Battery almost empty"), f"{pct} %. " + _("The computer goes to sleep in 1 minute. Plug in the charger to stop it."),
                    "critical")
             self.sleep_timer = GLib.timeout_add_seconds(60, self.sleep)
         elif pct <= 10 and self.warned > 10:
             self.warned = 10
             bg(["glyph-sound", "error"])
-            notify("Battery very low", f"{pct} % left. Plug in the charger soon.", "critical")
+            notify(_("Battery very low"), f"{pct} % " + _("left. Plug in the charger soon."), "critical")
         elif pct <= 15 and self.warned > 15:
             self.warned = 15
-            notify("Battery low", f"{pct} % left.")
+            notify(_("Battery low"), f"{pct} % " + _("left."))
         return True
 
     def sleep(self):
@@ -187,7 +217,9 @@ def main():
     Usb()
     Battery()
     Updates()
-    GLib.MainLoop().run()
+    loop = GLib.MainLoop()
+    GLib.timeout_add_seconds(10, lambda: (loop.quit(), False)[1] if session_over() else True)
+    loop.run()
 
 
 if __name__ == "__main__":

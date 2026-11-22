@@ -21,7 +21,6 @@ import struct
 import subprocess
 import sys
 import time
-from importlib.machinery import SourceFileLoader
 from pathlib import Path
 import shutil
 
@@ -31,6 +30,26 @@ WSFILE = RUN / "glyph-ws"
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
 HIDE = ("glyph-desk", "glyph-panel", "glyph-start", "glyph-osd-bar", "waybar", "glyph-catcher")
 SLOTS = 12
+
+
+def load_script(name, path):
+    """Load another Glyph program (a file without .py) as a module."""
+    import importlib.util
+    from importlib.machinery import SourceFileLoader
+    loader = SourceFileLoader(name, path)
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    loader.exec_module(mod)
+    return mod
+
+
+def session_over():
+    """True when the Glyph session has ended (its Wayland socket is gone): then this helper stops too,
+    so nothing of Glyph keeps running after you sign out (and KDE gets Dolphin back for "show in folder")."""
+    name = os.environ.get("WAYLAND_DISPLAY", "")
+    if not name:
+        return False
+    path = name if name.startswith("/") else os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), name)
+    return not os.path.exists(path)
 
 
 def current_ws():
@@ -80,7 +99,7 @@ def app_name(app, title, cache={}):
 # ---------------------------------------------------------------- the daemon
 def daemon():
     path = shutil.which("glyph-toplevel")
-    mod = SourceFileLoader("glyph_toplevel", path).load_module()
+    mod = load_script("glyph_toplevel", path)
 
     class W(mod.Wayland):
         """Windows (wlr-foreign-toplevel) plus workspaces (ext-workspace) from labwc."""
@@ -145,8 +164,8 @@ def daemon():
             last_ws = cur
             if current_ws() != cur:
                 WSFILE.write_text(cur + "\n")
-                subprocess.run(["pkill", "-RTMIN+8", "-x", "waybar"], check=False)
-                subprocess.run(["pkill", "-HUP", "-f", "bin/glyph-desk"], check=False)
+                subprocess.run(["pkill", "-RTMIN+8", "-u", str(os.getuid()), "-x", "waybar"], check=False)
+                subprocess.run(["pkill", "-HUP", "-u", str(os.getuid()), "-f", "bin/glyph-desk"], check=False)
                 if "ws_colours=own" in ((CONF / "theme.conf").read_text(errors="ignore") if (CONF / "theme.conf").exists() else ""):
                     subprocess.Popen(["glyph-theme", "--quick"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for t in w.order:
@@ -167,7 +186,7 @@ def daemon():
             tmp = STATE.with_suffix(".tmp")
             tmp.write_text(json.dumps(out))
             os.replace(tmp, STATE)
-            subprocess.run(["pkill", "-RTMIN+9", "-x", "waybar"], check=False)
+            subprocess.run(["pkill", "-RTMIN+9", "-u", str(os.getuid()), "-x", "waybar"], check=False)
 
 
 # ---------------------------------------------------------------- taskbar buttons
@@ -223,6 +242,8 @@ if __name__ == "__main__":
                 daemon()
             except Exception as e:
                 print("glyph-tasks:", e, file=sys.stderr)
+            if session_over():
+                sys.exit(0)
             time.sleep(2)
     elif a[:1] == ["slot"] and len(a) > 1:
         slot(int(a[1]) - 1)

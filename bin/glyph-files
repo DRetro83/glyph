@@ -911,7 +911,11 @@ class Pane(Gtk.Box):
             errors = []
             for f in files:
                 src = Path(f.get_path() or "")
-                if not src.exists():
+                if not src.exists() and not src.is_symlink():
+                    continue
+                # a folder cannot go into itself (that would copy forever and fill the disk)
+                if src.is_dir() and not src.is_symlink() and src.resolve() in (dest.resolve(), *dest.resolve().parents):
+                    errors.append(f"{src.name}: " + _("a folder cannot go inside itself"))
                     continue
                 target = dest / src.name
                 n = 2
@@ -924,6 +928,8 @@ class Pane(Gtk.Box):
                     if op == "cut":
                         if target != src:
                             shutil.move(str(src), str(target))
+                    elif src.is_symlink():
+                        shutil.copy2(src, target, follow_symlinks=False)     # the link itself, not what it points to
                     elif src.is_dir():
                         shutil.copytree(src, target, symlinks=True)
                     else:
@@ -934,6 +940,8 @@ class Pane(Gtk.Box):
         threading.Thread(target=work, daemon=True).start()
 
     def trash(self):
+        if self.cwd.get_uri_scheme() == "trash":       # already in the trash: Delete means delete for good (with a question)
+            return self.delete_for_good()
         files = self.selected_files()
         bad = []
         for f in files:

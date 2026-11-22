@@ -18,6 +18,7 @@ rm -rf "$CONF/glyph" "$DATA/themes/Glyph" "$DATA/icons/Glyph" "$DATA/icons/Glyph
 [ "$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null)" = "'Glyph'" ] && gsettings reset org.gnome.desktop.interface cursor-theme
 rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf" "$DATA"/applications/glyph-*.desktop "$CONF/glyph-mimeapps.list"
 # app colours that glyph-theme made (only files that are ours)
+rm -rf "$HOME/.themes/Glyph"      # the copy for Flatpak apps
 rm -f "$DATA"/gtksourceview-*/styles/glyph.xml "$CONF/qt5ct/colors/Glyph.conf" "$CONF/qt6ct/colors/Glyph.conf"
 for f in "$CONF/qt5ct/qt5ct.conf" "$CONF/qt6ct/qt6ct.conf"; do grep -qs "Glyph.conf" "$f" && rm -f "$f"; done
 grep -qs "Glyph colours come from" "$CONF/foot/foot.ini" && rm -f "$CONF/foot/foot.ini"

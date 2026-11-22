@@ -141,10 +141,22 @@ class DisksView(Gtk.Box):
         b.connect("clicked", lambda *_: cb())
         return b
 
-    def act(self, cmd, ok_text):
-        code, out = run(cmd, 60)
-        self.msg.set_text(ok_text if code == 0 else out.splitlines()[-1] if out else "That did not work.")
-        self.fill()
+    def act(self, cmd, ok_text, first=()):
+        """Run udisksctl in the background, so the window stays alive while a password box is open."""
+        import threading
+        self.msg.set_text(_("One moment…"))
+
+        def work():
+            for c in first:              # unmount every open part before the drive is switched off
+                run(c, 60)
+            code, out = run(cmd, 60)
+            GLib.idle_add(done, code, out)
+
+        def done(code, out):
+            self.msg.set_text(_(ok_text) if code == 0 else out.splitlines()[-1] if out else _("That did not work."))
+            self.fill()
+            return False
+        threading.Thread(target=work, daemon=True).start()
 
     def fill(self):
         ds = disks()
@@ -162,8 +174,9 @@ class DisksView(Gtk.Box):
             s.get_style_context().add_class("dim")
             h.pack_start(s, False, False, 0)
             if usb:
-                h.pack_end(self.button("Eject", lambda p=d["path"]: self.act(["udisksctl", "power-off", "-b", p],
-                                                                               "You can take the drive out now.")), False, False, 0)
+                opened = [["udisksctl", "unmount", "-b", c["path"]] for c in (d.get("children") or [d]) if c.get("mountpoint")]
+                h.pack_end(self.button("Eject", lambda p=d["path"], o=opened: self.act(
+                    ["udisksctl", "power-off", "-b", p], "You can take the drive out now.", o)), False, False, 0)
             self.list.pack_start(h, False, False, 0)
             parts = d.get("children") or ([d] if d.get("fstype") or d.get("mountpoint") else [])
             for p in parts:

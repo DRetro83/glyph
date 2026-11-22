@@ -101,7 +101,6 @@ if command -v ddcutil >/dev/null 2>&1 && (( ! CHECK )); then
   echo i2c-dev | sudo tee /etc/modules-load.d/glyph-i2c.conf >/dev/null
   sudo modprobe i2c-dev 2>/dev/null || true
 fi
-(( CHECK )) || flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
 ok "packages"
 
 # 1b. labwc-glyph: Debian's labwc with Glyph's small titlebar patch (stripes and
@@ -125,89 +124,27 @@ if (( ! PLAIN )) && [[ "$(dpkg --print-architecture)" == "amd64" ]]; then
   fi
 fi
 
-# 2. your Glyph settings (old ones are kept as a backup)
-if [[ -d "$GLYPH_CONF/labwc" ]] && (( ! CHECK )); then
-  BK="$GLYPH_CONF/labwc.bak-$(date +%Y%m%d-%H%M%S)"
-  cp -a "$GLYPH_CONF/labwc" "$BK"
-  ok "old settings saved in $BK"
-  # keep only the three newest backups (every update makes one)
-  ls -1d "$GLYPH_CONF"/labwc.bak-* 2>/dev/null | sort | head -n -3 | while read -r old; do rm -rf "$old"; done
-fi
-run mkdir -p "$GLYPH_CONF/labwc"
-run cp "$HERE"/config/labwc/{rc.xml,menu.xml,autostart,environment} "$GLYPH_CONF/labwc/"
-# keep your mouse and touchpad choices (Settings -> Mouse & touchpad) from the backup
-if [[ -n "${BK:-}" && -f "$BK/rc.xml" ]] && (( ! CHECK )); then
-  python3 - "$BK/rc.xml" "$GLYPH_CONF/labwc/rc.xml" <<'PY' || true
-import re, sys
-old, new = open(sys.argv[1]).read(), open(sys.argv[2]).read()
-m = re.search(r"<libinput>.*?</libinput>", old, re.S)
-if m:
-    new = re.sub(r"<libinput>.*?</libinput>", lambda _: m.group(0), new, count=1, flags=re.S)
-    open(sys.argv[2], "w").write(new)
-PY
-fi
-run mkdir -p "$GLYPH_CONF/waybar"
-run cp "$HERE/config/waybar/config.jsonc" "$GLYPH_CONF/waybar/"
-(( CHECK )) || "$HERE/bin/glyph-bar" >/dev/null 2>&1 || true   # keep your taskbar choice (Settings -> Taskbar)
-
-# keyboard layout: take the one Debian already uses
-if [[ -r /etc/default/keyboard ]] && (( ! CHECK )); then
-  . /etc/default/keyboard
-  {
-    [[ -n "${XKBLAYOUT:-}"  ]] && echo "XKB_DEFAULT_LAYOUT=$XKBLAYOUT"
-    [[ -n "${XKBVARIANT:-}" ]] && echo "XKB_DEFAULT_VARIANT=$XKBVARIANT"
-    [[ -n "${XKBOPTIONS:-}" ]] && echo "XKB_DEFAULT_OPTIONS=$XKBOPTIONS"
-  } >> "$GLYPH_CONF/labwc/environment"
-  ok "keyboard layout: ${XKBLAYOUT:-us}"
-fi
-# the Glyph mouse pointer, in your colour and size (Settings -> Mouse & touchpad)
-if (( ! CHECK )); then
-  CC=$(sed -n 's/^cursor_colour=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null || true); CC=${CC:-#e6dac4}
-  CS=$(sed -n 's/^cursor_size=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null || true); CS=${CS:-24}
-  sed -i "s/^XCURSOR_SIZE=.*/XCURSOR_SIZE=$CS/" "$GLYPH_CONF/labwc/environment"
-  "$HERE/bin/glyph-cursors" "$CC" "$CS" >/dev/null 2>&1 || true
-  gsettings set org.gnome.desktop.interface cursor-theme Glyph 2>/dev/null || true
-  gsettings set org.gnome.desktop.interface cursor-size "$CS" 2>/dev/null || true
-fi
-ok "settings in $GLYPH_CONF/labwc"
-
-# 3. programs and the session entry for the login screen
+# 2. programs, the files every user gets, and the session entry for the login screen
 run sudo install -m 755 "$HERE"/bin/glyph-* /usr/local/bin/
 run sudo install -D -m 644 "$HERE/bin/glyph_lang.py" /usr/local/lib/glyph/glyph_lang.py
-run sudo mkdir -p /usr/local/share/glyph/lang
+run sudo mkdir -p /usr/local/share/glyph/lang /usr/local/share/glyph/config/labwc /usr/local/share/glyph/config/waybar \
+  /usr/local/share/glyph/share/applications /usr/local/share/glyph/share/xdg-desktop-portal
 run sudo install -m 644 "$HERE"/share/lang/*.txt /usr/local/share/glyph/lang/
+# a copy for everyone on this computer: a second user gets Glyph set up at their first Glyph sign-in
+run sudo install -m 644 "$HERE"/config/labwc/{rc.xml,menu.xml,autostart,environment} /usr/local/share/glyph/config/labwc/
+run sudo install -m 644 "$HERE/config/waybar/config.jsonc" /usr/local/share/glyph/config/waybar/
+run sudo install -m 644 "$HERE"/share/applications/glyph-*.desktop /usr/local/share/glyph/share/applications/
+run sudo install -m 644 "$HERE/share/xdg-desktop-portal/glyph-portals.conf" /usr/local/share/glyph/share/xdg-desktop-portal/
 run sudo install -m 644 "$HERE/share/wayland-sessions/glyph.desktop" /usr/share/wayland-sessions/glyph.desktop
-run mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-run cp "$HERE"/share/applications/glyph-*.desktop "${XDG_DATA_HOME:-$HOME/.local/share}/applications/"
-# Glyph's own Files and Music open folders and songs, only in the Glyph session
-# (KDE keeps Dolphin and its own player: this file is read only when the desktop is Glyph)
-if (( ! CHECK )) && [[ ! -f "$CONF/glyph-mimeapps.list" ]]; then   # keep your choices (Settings -> Default apps)
-  cat > "$CONF/glyph-mimeapps.list" <<'MIME'
-[Default Applications]
-inode/directory=glyph-files.desktop
-audio/mpeg=glyph-music.desktop
-audio/flac=glyph-music.desktop
-audio/x-flac=glyph-music.desktop
-audio/ogg=glyph-music.desktop
-audio/x-vorbis+ogg=glyph-music.desktop
-audio/opus=glyph-music.desktop
-audio/mp4=glyph-music.desktop
-audio/x-m4a=glyph-music.desktop
-audio/aac=glyph-music.desktop
-audio/x-wav=glyph-music.desktop
-audio/wav=glyph-music.desktop
-MIME
-fi
-run mkdir -p "$CONF/xdg-desktop-portal"
-run cp "$HERE/share/xdg-desktop-portal/glyph-portals.conf" "$CONF/xdg-desktop-portal/"
 ok "Glyph added to the login screen"
+
+# 3. your Glyph settings (your own choices are kept, old labwc settings get a backup)
+run "$HERE/bin/glyph-setup-user" "$HERE"
+[[ -r /etc/default/keyboard ]] && (( ! CHECK )) && ok "keyboard layout: $(. /etc/default/keyboard; echo "${XKBLAYOUT:-us}")"
+ok "settings in $GLYPH_CONF"
 
 # 4. remember where the source is, for glyph-update
 (( CHECK )) || echo "$HERE" > "$GLYPH_CONF/source"
-
-# 5. build the look (dark, tan) unless you already chose one
-run /usr/local/bin/glyph-theme
-ok "theme"
 
 echo
 say "Done. Log out, pick \"Glyph\" in the session list at the login screen"

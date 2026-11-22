@@ -5,7 +5,7 @@ if python3 -c 'import gi; gi.require_version("GtkLayerShell", "0.1")' 2>/dev/nul
   exec glyph-panel power
 fi
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/fuzzel/fuzzel.ini"
-pkill -x fuzzel 2>/dev/null
+pkill -u "$(id -u)" -x fuzzel 2>/dev/null
 pick() { fuzzel --config="$CONF" --dmenu --lines="$1" --width=26 --prompt="$2"; }
 choice=$(printf 'Lock\nLog out\nRestart\nShut down\nSuspend\n' | pick 5 "POWER ▸ ")
 case "$choice" in

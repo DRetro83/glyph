@@ -10,7 +10,6 @@ import os
 import shutil
 import subprocess
 import threading
-from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 import gi
@@ -39,11 +38,21 @@ COLOURS = [("tan", "#a8957c", "Tan"), ("cream", "#e6dac4", "Cream"), ("amber", "
 DEFAULT_PICKS = {"vlc", "libreoffice", "timeshift"}
 
 
+def load_script(name, path):
+    """Load another Glyph program (a file without .py) as a module."""
+    import importlib.util
+    from importlib.machinery import SourceFileLoader
+    loader = SourceFileLoader(name, path)
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    loader.exec_module(mod)
+    return mod
+
+
 def catalog():
     """Software's list, without what is always there (CORE)."""
     path = shutil.which("glyph-software")
     try:
-        mod = SourceFileLoader("glyph_software", path).load_module()
+        mod = load_script("glyph_software", path)
         return [c for c in mod.CATALOG if c[0] not in mod.CORE]
     except Exception:
         return []
@@ -190,7 +199,7 @@ class Welcome(Gtk.Window):
         path = shutil.which("glyph-wifi")
         if path and not any("ethernet" in l and ":connected:" in l for l in con.splitlines()):
             try:
-                v = SourceFileLoader("glyph_wifi", path).load_module().WifiView()
+                v = load_script("glyph_wifi", path).WifiView()
                 v.set_size_request(-1, 330)
                 self.page.pack_start(v, True, True, 0)
             except Exception as e:
@@ -257,7 +266,7 @@ class Welcome(Gtk.Window):
 
     # ---------- installing
     def install(self, chosen):
-        sw = SourceFileLoader("glyph_software", shutil.which("glyph-software")).load_module()
+        sw = load_script("glyph_software", shutil.which("glyph-software"))
         debs = [c[0] for c in chosen if c[4] in ("deb", "auto")]
         status = sw.deb_status(debs) if debs else {}
         apt, flats, gets = [], [], []

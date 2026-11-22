@@ -21,5 +21,5 @@ esac
 echo "$v" > "$CACHE"
 glyph-osd brightness "$v"
 # the monitor is slow to answer: set it in the background, newest value wins
-pkill -f "ddcutil setvcp 10" 2>/dev/null
+pkill -u "$(id -u)" -f "ddcutil setvcp 10" 2>/dev/null
 setsid ddcutil setvcp 10 "$v" --noverify >/dev/null 2>&1 &

@@ -16,6 +16,17 @@ gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
 
 GLib.set_prgname("glyph-osd-bar")
+
+# Glyph in your language (Settings -> Language & region): see glyph_lang.py
+try:
+    import sys
+    sys.path[:0] = ["/usr/local/lib/glyph", os.path.dirname(os.path.realpath(__file__))]
+    import glyph_lang
+    glyph_lang.load()
+    _ = glyph_lang.tr
+except Exception:
+    def _(s):
+        return s
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 DATA, PID = RUN / "glyph-osd", RUN / "glyph-osd.pid"
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
@@ -74,8 +85,8 @@ class Bar(Gtk.Window):
         except Exception:
             return False
         muted = bool(rest and rest[0] == "muted")
-        self.t.set_text("■ " + NAMES.get(kind, kind.upper()) + (" · MUTED" if muted else ""))
-        self.v.set_text("muted" if muted else f"{v}%")
+        self.t.set_text("■ " + _(NAMES.get(kind, kind.upper())) + (" · " + _("MUTED") if muted else ""))
+        self.v.set_text(_("muted") if muted else f"{v}%")
         lit = round(v * N / 100)
         for i, c in enumerate(self.cells):
             ctx = c.get_style_context()
@@ -111,8 +122,9 @@ def main():
     Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 10)
     PID.write_text(str(os.getpid()))
     b = Bar()
-    signal.signal(signal.SIGUSR1, lambda *a: GLib.idle_add(b.show_value))
-    signal.signal(signal.SIGTERM, lambda *a: GLib.idle_add(b.leave))
+    # GLib's own signal watch: reacts at once, also while GTK waits
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, lambda *a: (b.show_value(), True)[1])
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda *a: (b.leave(), False)[1])
     b.show_value()
     Gtk.main()
 

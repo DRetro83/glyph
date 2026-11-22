@@ -17,9 +17,10 @@ case "$1" in
 esac || exit 1
 command -v glyph-sound >/dev/null && glyph-sound shot &
 command -v wl-copy >/dev/null && wl-copy < "$FILE"
+T() { python3 /usr/local/lib/glyph/glyph_lang.py "$1" 2>/dev/null || echo "$1"; }   # in your language
 (
-  A=$(notify-send -a Screenshot -A open="Open folder" -A view="Show" "Screenshot" \
-      "Saved as $(basename "$FILE") in Pictures. Also copied: paste it with Ctrl+V." 2>/dev/null)
+  A=$(notify-send -a "$(T Screenshot)" -A open="$(T "Open folder")" -A view="$(T Show)" "$(T Screenshot)" \
+      "$(T "Saved in Pictures. Also copied: paste it with Ctrl+V.") $(basename "$FILE")" 2>/dev/null)
   case "$A" in
     open) glyph-files "$FILE" ;;
     view) xdg-open "$FILE" ;;

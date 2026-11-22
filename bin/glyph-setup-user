@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# glyph-setup-user - set Glyph up (or up to date) for the person who runs it.
+#
+# install.sh runs it for you. The Glyph session runs it by itself the first time
+# someone else on this computer signs in to Glyph (a second user, or a new one
+# made in Settings -> Users), so they need no install.sh and no password.
+#
+#   glyph-setup-user            from the copy Glyph keeps in /usr/local/share/glyph
+#   glyph-setup-user SRC        from a source folder (install.sh uses the glyph folder)
+#
+# Your own choices are kept: theme.conf, glyph.conf, your mouse and touchpad
+# settings, Default apps. The old labwc settings get a backup (the three newest).
+set -euo pipefail
+SRC="${1:-/usr/local/share/glyph}"
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
+DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
+G="$CONF/glyph"
+[[ -f "$SRC/config/labwc/rc.xml" ]] || { echo "glyph-setup-user: no Glyph files in $SRC" >&2; exit 1; }
+BIN="$SRC/bin"; [[ -x "$BIN/glyph-theme" ]] || BIN=/usr/local/bin
+
+# 1. labwc and taskbar settings (a backup of the old ones)
+BK=""
+if [[ -d "$G/labwc" ]]; then
+  BK="$G/labwc.bak-$(date +%Y%m%d-%H%M%S)"
+  cp -a "$G/labwc" "$BK"
+  # keep only the three newest backups (every update makes one)
+  ls -1d "$G"/labwc.bak-* 2>/dev/null | sort | head -n -3 | while read -r old; do rm -rf "$old"; done
+fi
+mkdir -p "$G/labwc" "$G/waybar"
+cp "$SRC"/config/labwc/{rc.xml,menu.xml,autostart,environment} "$G/labwc/"
+# keep your mouse and touchpad choices (Settings -> Mouse & touchpad)
+if [[ -n "$BK" && -f "$BK/rc.xml" ]]; then
+  python3 - "$BK/rc.xml" "$G/labwc/rc.xml" <<'PY' || true
+import re, sys
+old, new = open(sys.argv[1]).read(), open(sys.argv[2]).read()
+m = re.search(r"<libinput>.*?</libinput>", old, re.S)
+if m:
+    new = re.sub(r"<libinput>.*?</libinput>", lambda _: m.group(0), new, count=1, flags=re.S)
+    open(sys.argv[2], "w").write(new)
+PY
+fi
+cp "$SRC/config/waybar/config.jsonc" "$G/waybar/"
+"$BIN/glyph-bar" >/dev/null 2>&1 || true      # your taskbar choices (Settings -> Taskbar)
+
+# 2. keyboard layout: the one Debian already uses
+if [[ -r /etc/default/keyboard ]]; then
+  # shellcheck disable=SC1091
+  . /etc/default/keyboard
+  {
+    if [[ -n "${XKBLAYOUT:-}"  ]]; then echo "XKB_DEFAULT_LAYOUT=$XKBLAYOUT"; fi
+    if [[ -n "${XKBVARIANT:-}" ]]; then echo "XKB_DEFAULT_VARIANT=$XKBVARIANT"; fi
+    if [[ -n "${XKBOPTIONS:-}" ]]; then echo "XKB_DEFAULT_OPTIONS=$XKBOPTIONS"; fi
+  } >> "$G/labwc/environment"
+fi
+
+# 3. the Glyph mouse pointer, in your colour and size (Settings -> Mouse & touchpad)
+CC=$(sed -n 's/^cursor_colour=//p' "$G/glyph.conf" 2>/dev/null || true); CC=${CC:-#e6dac4}
+CS=$(sed -n 's/^cursor_size=//p' "$G/glyph.conf" 2>/dev/null || true); CS=${CS:-24}
+sed -i "s/^XCURSOR_SIZE=.*/XCURSOR_SIZE=$CS/" "$G/labwc/environment"
+"$BIN/glyph-cursors" "$CC" "$CS" >/dev/null 2>&1 || true
+gsettings set org.gnome.desktop.interface cursor-theme Glyph 2>/dev/null || true
+gsettings set org.gnome.desktop.interface cursor-size "$CS" 2>/dev/null || true
+
+# 4. Glyph's apps in the start menu; Files and Music for folders and songs
+#    (only in the Glyph session: KDE keeps Dolphin and its own player)
+mkdir -p "$DATA/applications" "$CONF/xdg-desktop-portal"
+cp "$SRC"/share/applications/glyph-*.desktop "$DATA/applications/"
+cp "$SRC/share/xdg-desktop-portal/glyph-portals.conf" "$CONF/xdg-desktop-portal/"
+if [[ ! -f "$CONF/glyph-mimeapps.list" ]]; then      # keep your choices (Settings -> Default apps)
+  {
+    echo "[Default Applications]"
+    echo "inode/directory=glyph-files.desktop"
+    for m in audio/mpeg audio/flac audio/x-flac audio/ogg audio/x-vorbis+ogg audio/opus audio/mp4 \
+             audio/x-m4a audio/aac audio/x-wav audio/wav; do
+      echo "$m=glyph-music.desktop"
+    done
+  } > "$CONF/glyph-mimeapps.list"
+fi
+
+# 5. Flathub for Software (only for you, no password needed)
+command -v flatpak >/dev/null && flatpak remote-add --user --if-not-exists flathub \
+  https://dl.flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+
+# 6. the look (dark, tan) unless you already chose one
+"$BIN/glyph-theme" >/dev/null
+echo " ✓ Glyph is set up for $USER"

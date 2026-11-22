@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.1 · code review · 2026-11-22
+
+A full review of the code, looking for things that go wrong without crashing.
+
+- **More people on one computer**: someone else signing in to Glyph gets it set up by itself (`glyph-setup-user`, no install.sh, no password). Locking, the background, the night light and the taskbar helpers only look at your own programs, so another user's lock screen or apps no longer get in the way
+- **Signing out**: Glyph's background helpers stop with the session. Before, "show in folder" in KDE could still open Glyph Files after you had used Glyph
+- **Files**: a folder can no longer be pasted into itself (that copied forever and filled the disk); a link is copied as a link; Delete inside the trash asks and deletes for good
+- **Software**: before removing an app, Glyph checks what apt would remove with it and asks when that is more than the app; updates keep your own changes to system settings files
+- **Disks**: Eject closes every open part of the drive first (before, Eject failed while the drive was open); the window no longer freezes while the password box is open
+- **Calculator**: a huge sum (9^9^9) no longer freezes it; it says "too big"
+- **Terminal**: the warning before pasting several lines is back on
+- **Clipboard history**: pasting no longer goes through a shell
+- Battery warnings use the charge of all batteries together (laptops with two); the volume bar reacts at once; notifications, the volume bar and screenshots speak your language
+- uninstall.sh also removes the Flatpak copy of the Glyph look
+
 ## 1.0.0 · Glyph 1.0 · 2026-11-22
 
 The first full version: everything from the six steps is built, tested on a clean Debian 13 and in daily use.

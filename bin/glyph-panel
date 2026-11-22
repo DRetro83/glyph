@@ -170,7 +170,7 @@ def dnd_on():
 
 
 def night_on():
-    return sh(["pgrep", "-x", "wlsunset"]).strip() != ""
+    return sh(["pgrep", "-u", str(os.getuid()), "-x", "wlsunset"]).strip() != ""
 
 
 def airplane_on():
@@ -1316,7 +1316,10 @@ def run_panel(kind):
 
         def paste(cid):
             # put it back on the clipboard, close, then paste into the window you were in
-            subprocess.run(["sh", "-c", f"cliphist decode {cid} | wl-copy"], check=False)
+            if not cid.strip().isdigit():
+                return
+            data = subprocess.run(["cliphist", "decode", cid.strip()], capture_output=True).stdout
+            subprocess.run(["wl-copy"], input=data, check=False)
             quit_()
             bg(["sh", "-c", "sleep 0.25; wtype -M ctrl -k v -m ctrl"])
 

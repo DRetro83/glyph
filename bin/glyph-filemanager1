@@ -7,6 +7,7 @@ that starts Dolphin. In the Glyph session this small service takes the name
 first and opens Glyph Files instead, with the file selected.
 Started from the session's autostart.
 """
+import os
 import subprocess
 from urllib.parse import unquote, urlparse
 
@@ -17,6 +18,16 @@ XML = """<node><interface name="org.freedesktop.FileManager1">
   <method name="ShowItems"><arg type="as" name="URIs" direction="in"/><arg type="s" name="StartupId" direction="in"/></method>
   <method name="ShowItemProperties"><arg type="as" name="URIs" direction="in"/><arg type="s" name="StartupId" direction="in"/></method>
 </interface></node>"""
+
+
+def session_over():
+    """True when the Glyph session has ended (its Wayland socket is gone): then this helper stops too,
+    so nothing of Glyph keeps running after you sign out (and KDE gets Dolphin back for "show in folder")."""
+    name = os.environ.get("WAYLAND_DISPLAY", "")
+    if not name:
+        return False
+    path = name if name.startswith("/") else os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), name)
+    return not os.path.exists(path)
 
 
 def path(uri):
@@ -41,4 +52,6 @@ def on_bus(conn, name):
 Gio.bus_own_name(Gio.BusType.SESSION, "org.freedesktop.FileManager1",
                  Gio.BusNameOwnerFlags.REPLACE | Gio.BusNameOwnerFlags.ALLOW_REPLACEMENT,
                  on_bus, None, lambda *a: None)
-GLib.MainLoop().run()
+loop = GLib.MainLoop()
+GLib.timeout_add_seconds(10, lambda: (loop.quit(), False)[1] if session_over() else True)
+loop.run()

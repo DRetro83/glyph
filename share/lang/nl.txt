@@ -423,3 +423,36 @@ Workspace colours are on (Settings → Taskbar): a colour here is for the worksp
 Show music on the lock screen = Muziek tonen op het vergrendelscherm
 Off: the lock screen shows only the clock and the password field, nothing about what is playing or open. = Uit: het vergrendelscherm toont alleen de klok en het wachtwoordveld, niets over wat er speelt of openstaat.
 Still open = Nog open
+VOLUME = VOLUME
+BRIGHTNESS = HELDERHEID
+MUTED = GEDEMPT
+muted = gedempt
+
+# --- meldingen op de achtergrond
+USB drive = USB-schijf
+drive = schijf
+Plugged in. = Ingestoken.
+Taken out. = Uitgenomen.
+Could not open it = Kon niet geopend worden
+{n} updates are ready. = {n} updates staan klaar.
+Update now = Nu bijwerken
+Battery = Batterij
+Charging. The computer stays on. = Aan het laden. De computer blijft aan.
+Battery almost empty = Batterij bijna leeg
+The computer goes to sleep in 1 minute. Plug in the charger to stop it. = De computer gaat over 1 minuut in slaapstand. Steek de lader in om dat te stoppen.
+Battery very low = Batterij erg laag
+left. Plug in the charger soon. = over. Steek binnenkort de lader in.
+Battery low = Batterij laag
+left. = over.
+Show = Tonen
+Open folder = Map openen
+Saved in Pictures. Also copied: paste it with Ctrl+V. = Bewaard in Afbeeldingen. Ook gekopieerd: plak met Ctrl+V.
+can't divide by 0 = kan niet delen door 0
+too big = te groot
+not a sum = geen som
+One moment… = Even geduld…
+That did not work. = Dat is niet gelukt.
+You can take the drive out now. = Je kunt de schijf nu uitnemen.
+a folder cannot go inside itself = een map kan niet in zichzelf
+Removing {name} also removes: = Als je {name} verwijdert, verdwijnt ook:
+Other programs may need these. Remove them all? = Andere programma's hebben die misschien nodig. Alles verwijderen?

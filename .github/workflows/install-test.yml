@@ -59,6 +59,14 @@ jobs:
         run: su - glyph -c "glyph-update" | grep -q "up to date"
       - name: glyph-theme works for the user
         run: su - glyph -c "glyph-theme --print" | head -5
+      - name: A second person gets Glyph without install.sh (as at their first Glyph sign-in)
+        run: |
+          useradd -m -s /bin/bash anna
+          su - anna -c "glyph-setup-user"
+          test -f /home/anna/.config/glyph/labwc/rc.xml
+          test -f /home/anna/.config/glyph/theme.conf
+          test -f /home/anna/.local/share/applications/glyph-files.desktop
+          test -f /home/anna/.local/share/icons/Glyph/index.theme || ls /home/anna/.local/share/icons/Glyph | head
       - name: uninstall.sh
         run: su - glyph -c "cd ~/glyph && ./uninstall.sh"
       - name: Removed as it should be

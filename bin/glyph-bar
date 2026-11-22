@@ -82,7 +82,7 @@ def apply():
         pass
     text = re.sub(r'"height":\s*\d+', f'"height": {h}', text, count=1)
     CFG.write_text(text)
-    subprocess.run(["pkill", "-SIGUSR2", "-x", "waybar"], check=False)   # waybar reloads
+    subprocess.run(["pkill", "-SIGUSR2", "-u", str(os.getuid()), "-x", "waybar"], check=False)   # waybar reloads
 
 
 if __name__ == "__main__":

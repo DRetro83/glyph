@@ -3,8 +3,8 @@
 # LOCKED, a big clock, the date, and "password, then Enter  UNLOCK ▸").
 # Uses gtklock; falls back to swaylock (only a ring) when gtklock is missing.
 G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
-pgrep -x gtklock >/dev/null && exit 0
-pgrep -x swaylock >/dev/null && exit 0
+pgrep -u "$(id -u)" -x gtklock >/dev/null && exit 0   # (only your own: another user may be locked too)
+pgrep -u "$(id -u)" -x swaylock >/dev/null && exit 0
 if command -v gtklock >/dev/null; then
   [ -f "$G/gtklock/layout.ui" ] || glyph-theme >/dev/null 2>&1
   # music controls on the lock screen: only when you turned them on (Settings -> Power & lock),

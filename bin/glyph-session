@@ -1,11 +1,12 @@
 #!/bin/sh
 # Start the Glyph session. The login screen (SDDM) runs this.
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/labwc"
-if [ ! -d "$CONF" ]; then
-  echo "Glyph is not set up for $USER yet. Run ./install.sh from the glyph folder." >&2
-  exit 1
+# someone signs in to Glyph for the first time (a second user, a new account): set it up
+if [ ! -f "$CONF/rc.xml" ]; then
+  glyph-setup-user >/dev/null 2>&1 || { echo "Glyph could not be set up for $USER (glyph-setup-user)." >&2; exit 1; }
+else
+  [ -x /usr/local/bin/glyph-theme ] && /usr/local/bin/glyph-theme >/dev/null 2>&1
 fi
-[ -x /usr/local/bin/glyph-theme ] && /usr/local/bin/glyph-theme >/dev/null 2>&1
 export XDG_CURRENT_DESKTOP=Glyph:wlroots
 export XDG_SESSION_DESKTOP=glyph
 exec labwc -C "$CONF"

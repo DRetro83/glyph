@@ -3,8 +3,8 @@
 # glyph-desk draws the Glyph background (lines, corner marks, clock and info);
 # swaybg is the plain fallback when GTK layer-shell is missing.
 G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
-pkill -x swaybg 2>/dev/null
-pkill -f "bin/glyph-desk" 2>/dev/null
+pkill -u "$(id -u)" -x swaybg 2>/dev/null
+pkill -u "$(id -u)" -f "bin/glyph-desk" 2>/dev/null
 if python3 -c 'import gi; gi.require_version("GtkLayerShell", "0.1")' 2>/dev/null; then
   exec glyph-desk >/dev/null 2>&1
 fi

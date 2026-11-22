@@ -141,3 +141,10 @@ def hook_gtk():
         for n in names:
             wrap(cls, n)
     wrap(Gtk.Label, "set_markup")
+
+
+if __name__ == "__main__":
+    # for shell scripts:  python3 /usr/local/lib/glyph/glyph_lang.py "Text"  ->  the text in your language
+    import sys
+    load()
+    print(tr(" ".join(sys.argv[1:])))

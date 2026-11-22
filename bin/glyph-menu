@@ -5,5 +5,5 @@ if python3 -c 'import gi; gi.require_version("GtkLayerShell", "0.1")' 2>/dev/nul
   exec glyph-start "$@"
 fi
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/fuzzel/fuzzel.ini"
-if pkill -x fuzzel 2>/dev/null; then exit 0; fi
+if pkill -u "$(id -u)" -x fuzzel 2>/dev/null; then exit 0; fi
 exec fuzzel --config="$CONF" "$@"

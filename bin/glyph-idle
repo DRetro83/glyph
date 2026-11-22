@@ -3,7 +3,7 @@
 G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
 MIN=$(sed -n 's/^lock_after=//p' "$G/glyph.conf" 2>/dev/null)
 MIN=${MIN:-5}
-pkill -x swayidle 2>/dev/null
+pkill -u "$(id -u)" -x swayidle 2>/dev/null
 if [ "$MIN" -gt 0 ] 2>/dev/null; then
   exec swayidle -w timeout $((MIN * 60)) 'glyph-lock' before-sleep 'glyph-lock' >/dev/null 2>&1
 else
