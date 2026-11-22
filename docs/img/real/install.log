@@ -53,7 +53,7 @@ Hit:2 http://deb.debian.org/debian trixie-updates InRelease
 Hit:3 http://deb.debian.org/debian-security trixie-security InRelease
 Get:4 http://deb.debian.org/debian trixie/contrib amd64 Packages [53.9 kB]
 Get:5 http://deb.debian.org/debian-security trixie-security/contrib amd64 Packages [3152 B]
-Fetched 57.0 kB in 0s (919 kB/s)
+Fetched 57.0 kB in 0s (972 kB/s)
 Reading package lists...
 + ((  ! CHECK  ))
 + apt-cache show fonts-ibm-plex
@@ -1303,7 +1303,7 @@ debconf: unable to initialize frontend: Teletype
 debconf: (This frontend requires a controlling tty.)
 debconf: falling back to frontend: Noninteractive
 Preconfiguring packages ...
-Fetched 575 MB in 7s (78.4 MB/s)
+Fetched 575 MB in 4s (135 MB/s)
 Selecting previously unselected package libext2fs2t64:amd64.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 10883 files and directories currently installed.)
 Preparing to unpack .../libext2fs2t64_1.47.2-3+b12_amd64.deb ...
@@ -4757,7 +4757,7 @@ Setting up systemd-cryptsetup (257.13-1~deb13u1) ...
 Setting up libmagickcore-7.q16-10-extra:amd64 (8:7.1.1.43+dfsg1-1+deb13u14) ...
 Setting up parted (3.6-5+deb13u1) ...
 Setting up udisks2 (2.10.1-12.1+deb13u2) ...
-[0;1;31msda: Failed to write 'change' to '/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/f8b3781a-1e82-4818-a1c3-63d806ec15bb/host1/target1:0:0/1:0:0:0/block/sda/uevent': Read-only file system[0m
+[0;1;31mnvme0n1: Failed to write 'change' to '/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/7ad35d50-c05b-47ab-b3a0-56a9a845852b/pcic05b:00/c05b:00:00.0/nvme/nvme0/nvme0n1/uevent': Read-only file system[0m
 Created symlink '/etc/systemd/system/graphical.target.wants/udisks2.service' → '/usr/lib/systemd/system/udisks2.service'.
 Processing triggers for libc-bin (2.41-12+deb13u4) ...
 Processing triggers for systemd (257.13-1~deb13u1) ...
@@ -4912,8 +4912,8 @@ Processing triggers for libc-bin (2.41-12+deb13u4) ...
 + run sudo apt-get install -y gtklock-playerctl-module
 + command -v ddcutil
 + ((  ! CHECK  ))
-+ echo i2c-dev
 + sudo tee /etc/modules-load.d/glyph-i2c.conf
++ echo i2c-dev
 + sudo modprobe i2c-dev
 + true
 + ((  CHECK  ))
@@ -4928,13 +4928,13 @@ Processing triggers for libc-bin (2.41-12+deb13u4) ...
 + have=0.8.3-1
 + [[ 0.8.3-1 == \0\.\8\.\3\-\1 ]]
 ++ mktemp -d
-+ TMPD=/tmp/tmp.qKJ4lBoqSb
-+ run python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' https://github.com/DRetro83/glyph/releases/download/labwc-glyph/labwc_0.8.3-1%2Bglyph3_amd64.deb /tmp/tmp.qKJ4lBoqSb/labwc_0.8.3-1+glyph3_amd64.deb
++ TMPD=/tmp/tmp.dpZ496HfxF
++ run python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' https://github.com/DRetro83/glyph/releases/download/labwc-glyph/labwc_0.8.3-1%2Bglyph3_amd64.deb /tmp/tmp.dpZ496HfxF/labwc_0.8.3-1+glyph3_amd64.deb
 + ((  CHECK  ))
-+ python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' https://github.com/DRetro83/glyph/releases/download/labwc-glyph/labwc_0.8.3-1%2Bglyph3_amd64.deb /tmp/tmp.qKJ4lBoqSb/labwc_0.8.3-1+glyph3_amd64.deb
-+ run sudo apt-get install -y /tmp/tmp.qKJ4lBoqSb/labwc_0.8.3-1+glyph3_amd64.deb
++ python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' https://github.com/DRetro83/glyph/releases/download/labwc-glyph/labwc_0.8.3-1%2Bglyph3_amd64.deb /tmp/tmp.dpZ496HfxF/labwc_0.8.3-1+glyph3_amd64.deb
++ run sudo apt-get install -y /tmp/tmp.dpZ496HfxF/labwc_0.8.3-1+glyph3_amd64.deb
 + ((  CHECK  ))
-+ sudo apt-get install -y /tmp/tmp.qKJ4lBoqSb/labwc_0.8.3-1+glyph3_amd64.deb
++ sudo apt-get install -y /tmp/tmp.dpZ496HfxF/labwc_0.8.3-1+glyph3_amd64.deb
 Reading package lists...
 Building dependency tree...
 Reading state information...
@@ -4943,7 +4943,7 @@ The following packages will be upgraded:
 1 upgraded, 0 newly installed, 0 to remove and 4 not upgraded.
 Need to get 0 B/266 kB of archives.
 After this operation, 16.4 kB of additional disk space will be used.
-Get:1 /tmp/tmp.qKJ4lBoqSb/labwc_0.8.3-1+glyph3_amd64.deb labwc amd64 0.8.3-1+glyph3 [266 kB]
+Get:1 /tmp/tmp.dpZ496HfxF/labwc_0.8.3-1+glyph3_amd64.deb labwc amd64 0.8.3-1+glyph3 [266 kB]
 debconf: unable to initialize frontend: Dialog
 debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
 debconf: falling back to frontend: Readline
@@ -4961,7 +4961,7 @@ Processing triggers for hicolor-icon-theme (0.18-2) ...
 + ok 'labwc-glyph (striped title bars)'
 + printf '\033[1;32m ✓\033[0m %s\n' 'labwc-glyph (striped title bars)'
 [1;32m ✓[0m labwc-glyph (striped title bars)
-+ rm -rf /tmp/tmp.qKJ4lBoqSb
++ rm -rf /tmp/tmp.dpZ496HfxF
 + [[ -d /home/glyph/.config/glyph/labwc ]]
 + run mkdir -p /home/glyph/.config/glyph/labwc
 + ((  CHECK  ))
