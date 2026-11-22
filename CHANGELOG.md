@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.2 · more colour · 2026-11-22
+
+- Quick settings in more colours, like the prototype: every tile its own colour (Wi-Fi and Bluetooth blue, Do not disturb rose, Night light amber, power profile green / amber / rose), volume amber, brightness yellow, Lock blue, Power amber, the battery green / amber / rose, the sound device in use green
+- Icons that an icon theme does not have (the Lock and Power squares) fall back to a look-alike
+
 ## 0.9.1 · Glyph in your language · 2026-11-22
 
 - **Languages**: Settings → Language & region → GLYPH LANGUAGE. English stays the default; Dutch (Nederlands) comes with Glyph

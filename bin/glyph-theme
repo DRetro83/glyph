@@ -105,9 +105,9 @@ def make_palette(acc, mode):
         p.update(lo="#000000", panel="#000000", view="#000000", win="#000000",
                  hov=hsl(h0, s1, .09), hi=hsl(h0, s1, .24))
     if mode == "light":
-        p.update(greenhi="#4f6a10", olivehi="#6b6812", rosehi="#9e2f4a")
+        p.update(greenhi="#4f6a10", olivehi="#6b6812", rosehi="#9e2f4a", bluehi="#2f5c86")
     else:
-        p.update(greenhi="#aabe50", olivehi="#d0cb6a", rosehi="#d6607c")
+        p.update(greenhi="#aabe50", olivehi="#d0cb6a", rosehi="#d6607c", bluehi="#86a9c9")
     p.update(olive="#b5b03c", green="#8c9e3a", rose="#b8405c")
     p["tink"] = ("#111111" if mode == "light" else "#0c0b0a") if lum(p["title"]) > 0.28 else "#ffffff"
     return p
@@ -522,6 +522,28 @@ def panel_css(p):
     panel_shadow = (f"box-shadow: 8px 8px 0 0 {shcol}; margin: 0 8px 0 0;" if shadows_on()
                     else "box-shadow: none; margin: 0;")
     stripes = f"repeating-linear-gradient(to bottom, {p['title']} 0px, {p['title']} 2px, shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 4px)"
+    # more than one colour: every tile, slider and button its own colour, like the prototype
+    cols = {"blue": p["bluehi"], "amber": p["amber"], "rose": p["rosehi"], "green": p["greenhi"], "olive": p["olivehi"]}
+    colour_css = "\n".join(
+        f".tog.c-{n} .tico {{ border-color: {c}; }}\n.tog.c-{n} image {{ color: {c}; }}\n"
+        f".tog.on.c-{n} .tico {{ background: {c}; border-color: {c}; }}\n.tog.on.c-{n} .tico image {{ color: {p['panel']}; }}\n"
+        f".pbat.c-{n} {{ color: {c}; border-color: {c}; }}"
+        for n, c in cols.items()) + f"""
+.svol scale highlight {{ background: {p['amber']}; }}
+.svol button.sico {{ border-color: {p['amber']}; }}
+.svol image {{ color: {p['amber']}; }}
+.sbri scale highlight {{ background: {p['olivehi']}; }}
+.sbri button.sico {{ border-color: {p['olivehi']}; }}
+.sbri image {{ color: {p['olivehi']}; }}
+.pfoot button.fset image {{ color: {p['tanhi']}; }}
+.pfoot button.flock {{ border-color: {p['bluehi']}; }}
+.pfoot button.flock image, .pfoot button.flock label {{ color: {p['bluehi']}; }}
+.pfoot button.amber image {{ color: {p['amber']}; }}
+label.ok {{ color: {p['greenhi']}; }}
+.acc .accsum {{ font-weight: bold; }}
+.panel button.acc.open {{ box-shadow: inset 3px 0 0 {p['amber']}; }}
+.prow label.amber {{ font-weight: bold; }}
+"""
     return f"""/* Glyph quick settings and calendar - made by glyph-theme */
 #glyph-panel {{ background: transparent; }}
 .panel, .panel * {{ font-family: "IBM Plex Mono", monospace; }}
@@ -561,6 +583,7 @@ button.on, button.seg.on {{ border-color: {p['amber']}; color: {p['amber']}; bac
 .sliders image {{ color: {p['text']}; }}
 .pbat {{ background: {p['panel']}; color: {p['text']}; border: 1px solid {p['tink']}; padding: 1px 8px; font-size: 12px; }}
 .tiles .tog .tn {{ font-size: 12px; }}
+{colour_css}
 .tiles .tog .ts {{ font-size: 10px; }}
 /* power menu */
 .powerbody {{ padding: 4px 0; }}
