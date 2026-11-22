@@ -26,45 +26,36 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
 HIDDEN = CONF / "menu-hidden"
 
-# id, name, what, category, source (deb/flat), flatpak id
+# id, name, what, category, source, flatpak id
+#   source: deb (Debian), flat (Flathub), auto (Debian, else Flathub), get (glyph-get: Vivaldi, your GitHub apps)
 CATALOG = [
-    ("firefox-esr", "Firefox ESR", "web browser", "Internet", "deb", ""),
-    ("thunderbird", "Thunderbird", "email and calendar", "Internet", "deb", ""),
-    ("transmission-gtk", "Transmission", "torrents", "Internet", "deb", ""),
-    ("signal", "Signal", "private messages", "Internet", "flat", "org.signal.Signal"),
-    ("discord", "Discord", "chat and voice", "Internet", "flat", "com.discordapp.Discord"),
-    ("libreoffice", "LibreOffice", "documents, sheets, slides", "Office", "deb", ""),
-    ("atril", "Atril", "PDF and document viewer", "Office", "deb", ""),
-    ("gimp", "GIMP", "photo editing", "Graphics", "deb", ""),
-    ("krita", "Krita", "digital painting", "Graphics", "deb", ""),
-    ("inkscape", "Inkscape", "vector drawing", "Graphics", "deb", ""),
-    ("ristretto", "Ristretto", "image viewer", "Graphics", "deb", ""),
-    ("vlc", "VLC", "video and music player", "Multimedia", "deb", ""),
-    ("mpv", "mpv", "video player", "Multimedia", "deb", ""),
-    ("audacity", "Audacity", "audio editing", "Multimedia", "deb", ""),
-    ("obs-studio", "OBS Studio", "screen recording and streaming", "Multimedia", "deb", ""),
-    ("kdenlive", "Kdenlive", "video editing", "Multimedia", "deb", ""),
-    ("spotify", "Spotify", "music streaming", "Multimedia", "flat", "com.spotify.Client"),
-    ("steam-installer", "Steam", "game store (needs contrib and non-free)", "Games", "deb", ""),
-    ("lutris", "Lutris", "game launcher", "Games", "deb", ""),
-    ("supertuxkart", "SuperTuxKart", "kart racing", "Games", "deb", ""),
-    ("0ad", "0 A.D.", "real-time strategy", "Games", "deb", ""),
-    ("luanti", "Luanti", "block building game", "Games", "deb", ""),
-    ("wine", "Wine", "run Windows programs", "Wine", "deb", ""),
-    ("winetricks", "winetricks", "extra parts for Wine", "Wine", "deb", ""),
-    ("bottles", "Bottles", "Windows apps in bottles", "Wine", "flat", "com.usebottles.bottles"),
-    ("gcompris-qt", "GCompris", "learning games for kids", "Education", "deb", ""),
-    ("stellarium", "Stellarium", "planetarium", "Education", "deb", ""),
-    ("codium", "VSCodium", "code editor", "Development", "flat", "com.vscodium.codium"),
-    ("geany", "Geany", "light code editor", "Development", "deb", ""),
-    ("git", "git", "version control", "Development", "deb", ""),
-    ("btop", "btop", "system monitor in the terminal", "System", "deb", ""),
-    ("timeshift", "Timeshift", "system backups", "System", "deb", ""),
-    ("gparted", "GParted", "partitions and disks", "System", "deb", ""),
-    ("keepassxc", "KeePassXC", "password manager", "Utilities", "deb", ""),
-    ("galculator", "Galculator", "calculator", "Utilities", "deb", ""),
-    ("mousepad", "Mousepad", "text editor", "Utilities", "deb", ""),
+    ("firefox-esr", "Firefox ESR", "web browser", "Browsers", "deb", ""),
+    ("vivaldi", "Vivaldi", "web browser (from vivaldi.com, updates with Debian)", "Browsers", "get", ""),
+    ("libreoffice", "LibreOffice", "documents, sheets, slides", "Editing", "deb", ""),
+    ("inkscape", "Inkscape", "vector drawing", "Editing", "deb", ""),
+    ("gimp", "GIMP", "photo editing", "Editing", "deb", ""),
+    ("vlc", "VLC", "plays almost every video and music file, DVDs and streams", "Music & video", "deb", ""),
+    ("obs-studio", "OBS Studio", "record your screen and stream", "Music & video", "deb", ""),
+    ("strawberry", "Strawberry", "music library: covers, playlists, rip CDs, Last.fm", "Music & video", "deb", ""),
+    ("timeshift", "Timeshift", "system backups, go back when something breaks", "Backup", "deb", ""),
+    ("gparted", "GParted", "partitions and disks", "Backup", "deb", ""),
+    ("steam", "Steam", "game store and library", "Games", "flat", "com.valvesoftware.Steam"),
+    ("lutris", "Lutris", "game launcher for all your games", "Games", "auto", "net.lutris.Lutris"),
+    ("heroic", "Heroic Games Launcher", "Epic, GOG and Amazon games", "Games", "flat", "com.heroicgameslauncher.hgl"),
+    ("faugus", "Faugus Launcher", "Windows games with Proton, run an .exe directly", "Games", "flat", "io.github.Faugus.faugus-launcher"),
+    ("protonup", "ProtonUp-Qt", "install and update Proton-GE for Steam, Lutris, Heroic", "Games", "flat", "net.davidotek.pupgui2"),
+    ("mangohud", "MangoHud", "FPS and temperatures while you play", "Games", "deb", ""),
+    ("gamemode", "GameMode", "puts your PC in game mode while you play", "Games", "deb", ""),
+    ("retroarch", "RetroArch", "all the old consoles in one app", "Games", "auto", "org.libretro.RetroArch"),
+    ("wine", "Wine", "run Windows programs", "Games", "deb", ""),
+    ("winetricks", "winetricks", "extra parts for Wine", "Games", "deb", ""),
+    ("emu-vault", "Emu Vault", "your whole retro gaming setup in one folder (github.com/DRetro83)", "Glyph", "get", ""),
+    ("dbash", "DBash", "smart terminal with a local AI that helps you learn (github.com/DRetro83)", "Glyph", "get", ""),
 ]
+
+# always there in Glyph: shown as CORE, without a Remove button
+CORE = {"firefox-esr", "xfce4-terminal", "foot", "mousepad", "ristretto", "mpv", "atril", "xarchiver", "pavucontrol",
+        "blueman", "labwc", "waybar"}
 
 
 def run(cmd, timeout=20):
@@ -170,8 +161,12 @@ class Software(Gtk.Window):
     # ---------- state
     def refresh_status(self):
         def work():
-            st = deb_status([c[0] for c in CATALOG if c[4] == "deb"])
+            st = deb_status([c[0] for c in CATALOG if c[4] in ("deb", "auto")])
             fl = flat_installed()
+            for c in CATALOG:
+                if c[4] == "get":
+                    on = run(["glyph-get", "status", c[0]]).strip() == "installed"
+                    st[c[0]] = ("yes" if on else "", "yes")
             GLib.idle_add(self.got_status, st, fl)
         self.foot.set_text("Looking at what is installed…")
         threading.Thread(target=work, daemon=True).start()
@@ -182,11 +177,20 @@ class Software(Gtk.Window):
         self.draw()
         return False
 
+    def key(self, c):
+        return c[5] if c[4] != "get" and self.use_flat(c) else c[0]
+
+    def use_flat(self, c):
+        """auto: Debian when it has the app, else Flathub."""
+        return c[4] == "flat" or (c[4] == "auto" and not self.status.get(c[0], ("", ""))[1])
+
     def installed(self, c):
-        return (c[5] in self.flats) if c[4] == "flat" else bool(self.status.get(c[0], ("", ""))[0])
+        if c[4] in ("flat", "auto") and c[5] in self.flats:
+            return True
+        return c[4] != "flat" and bool(self.status.get(c[0], ("", ""))[0])
 
     def available(self, c):
-        return True if c[4] == "flat" else bool(self.status.get(c[0], ("", ""))[1])
+        return True if c[4] in ("flat", "auto", "get") else bool(self.status.get(c[0], ("", ""))[1])
 
     # ---------- ui
     def clear(self):
@@ -258,7 +262,7 @@ class Software(Gtk.Window):
             chips.set_margin_top(8)
             chips.set_margin_start(8)
             chips.set_margin_bottom(4)
-            for cat in ["All"] + sorted({c[3] for c in CATALOG}):
+            for cat in ["All"] + list(dict.fromkeys(c[3] for c in CATALOG)):
                 b = Gtk.Button(label=cat)
                 if cat == self.cat:
                     b.get_style_context().add_class("on")
@@ -270,10 +274,11 @@ class Software(Gtk.Window):
                 continue
             if not self.q and self.cat != "All" and c[3] != self.cat:
                 continue
-            self.row(c[1], "FLATPAK" if c[4] == "flat" else "DEB", f"{c[2]} · {c[3]}", self.actions(c))
+            src = {"get": "GITHUB" if c[3] == "Glyph" else "VIVALDI.COM"}.get(c[4]) or ("FLATPAK" if self.use_flat(c) else "DEB")
+            self.row(c[1], src, f"{c[2]} · {c[3]}", self.actions(c))
 
     def actions(self, c):
-        key = c[5] or c[0]
+        key = self.key(c)
         if key in self.busy:
             l = Gtk.Label(label=self.busy[key])
             l.get_style_context().add_class("busy")
@@ -324,7 +329,9 @@ class Software(Gtk.Window):
                 src, what = "DEB", pkg or "Debian"
             btns = [self.button("Open", lambda info=info: info.launch([], None)),
                     self.button("Show in Start" if hid else "Hide from Start", lambda aid=aid, hid=hid: self.hide(aid, not hid))]
-            if pkg and not pkg.startswith("glyph"):
+            if pkg in CORE:
+                src = "CORE"
+            if pkg and not pkg.startswith("glyph") and pkg not in CORE:
                 key = pkg
                 if key in self.busy:
                     l = Gtk.Label(label=self.busy[key])
@@ -408,16 +415,24 @@ class Software(Gtk.Window):
         return ["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-y", "-o", "APT::Status-Fd=1", *args]
 
     def install(self, c):
-        if c[4] == "flat":
+        if c[4] == "get":
+            self.task(c[0], "Installing", [["glyph-get", "install", c[0]]])
+            return
+        if self.use_flat(c):
             cmds = [["flatpak", "remote-add", "--user", "--if-not-exists", "flathub",
                      "https://dl.flathub.org/repo/flathub.flatpakrepo"],
                     ["flatpak", "install", "--user", "-y", "--noninteractive", "flathub", c[5]]]
         else:
             cmds = [self.apt("install", c[0])]
-        self.task(c[5] or c[0], "Installing", cmds)
+        self.task(self.key(c), "Installing", cmds)
 
     def remove(self, c):
-        self.remove_pkg(c[5] or c[0], c[4] == "flat")
+        if c[4] == "get":
+            self.task(c[0], "Removing", [["glyph-get", "remove", c[0]]])
+            return
+        flat = c[5] in self.flats
+        cmds = [["flatpak", "uninstall", "-y", "--noninteractive", c[5]]] if flat else [self.apt("remove", c[0])]
+        self.task(self.key(c), "Removing", cmds)
 
     def remove_pkg(self, pkg, flat):
         cmds = [["flatpak", "uninstall", "-y", "--noninteractive", pkg]] if flat else [self.apt("remove", pkg)]

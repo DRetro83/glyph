@@ -1,0 +1,58 @@
+#!/bin/sh
+# glyph-get - install or remove the apps in Software that are not plain Debian packages.
+#   glyph-get install vivaldi     Vivaldi from vivaldi.com, with their package source (it updates with Debian)
+#   glyph-get install emu-vault   the newest Emu Vault .deb from github.com/DRetro83/emu-vault
+#   glyph-get install dbash       the newest DBash from github.com/DRetro83/DBash (installs for you)
+#   glyph-get remove  vivaldi | emu-vault | dbash
+#   glyph-get status  vivaldi | emu-vault | dbash     prints "installed" or nothing
+# System changes go through pkexec (it asks your password).
+set -e
+what="$2"
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+
+latest() {   # latest() OWNER/REPO PATTERN -> download URL of the newest release file matching PATTERN
+  curl -fsSL "https://api.github.com/repos/$1/releases/latest" |
+    grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(http[^"]*\)"/\1/' | grep -E "$2" | head -1
+}
+
+case "$1:$what" in
+  status:vivaldi)   dpkg -s vivaldi-stable >/dev/null 2>&1 && echo installed || true ;;
+  status:emu-vault) dpkg -s emu-vault >/dev/null 2>&1 && echo installed || true ;;
+  status:dbash)     [ -f "$HOME/.local/share/applications/dbash.desktop" ] && echo installed || true ;;
+
+  install:vivaldi)
+    curl -fsSL https://repo.vivaldi.com/archive/linux_signing_key.pub -o "$TMP/vivaldi.pub"
+    pkexec sh -c "gpg --dearmor < '$TMP/vivaldi.pub' > /usr/share/keyrings/vivaldi.gpg &&
+      echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main' > /etc/apt/sources.list.d/vivaldi.list &&
+      apt-get update -o APT::Status-Fd=1 && DEBIAN_FRONTEND=noninteractive apt-get install -y -o APT::Status-Fd=1 vivaldi-stable" ;;
+  remove:vivaldi)
+    pkexec env DEBIAN_FRONTEND=noninteractive apt-get remove -y -o APT::Status-Fd=1 vivaldi-stable ;;
+
+  install:emu-vault)
+    url=$(latest DRetro83/emu-vault '_amd64\.deb$')
+    [ -n "$url" ] || { echo "no .deb in the newest Emu Vault release" >&2; exit 1; }
+    curl -fL "$url" -o "$TMP/emu-vault.deb"
+    chmod 644 "$TMP/emu-vault.deb"; chmod 755 "$TMP"
+    pkexec env DEBIAN_FRONTEND=noninteractive apt-get install -y -o APT::Status-Fd=1 "$TMP/emu-vault.deb" ;;
+  remove:emu-vault)
+    pkexec env DEBIAN_FRONTEND=noninteractive apt-get remove -y -o APT::Status-Fd=1 emu-vault ;;
+
+  install:dbash)
+    url=$(latest DRetro83/DBash '^.*/dbash-[0-9][^/]*\.sh$')
+    [ -n "$url" ] || { echo "no installer in the newest DBash release" >&2; exit 1; }
+    # DBash is one file that stays where it is (it can update itself there)
+    D="$HOME/.local/lib/glyph"; mkdir -p "$D"
+    curl -fL "$url" -o "$D/dbash.sh"
+    chmod +x "$D/dbash.sh"
+    # --menu adds it to Start and starts DBash; wait for the Start entry, then leave it running
+    setsid "$D/dbash.sh" --menu >/dev/null 2>&1 &
+    i=0; while [ $i -lt 120 ] && [ ! -f "$HOME/.local/share/applications/dbash.desktop" ]; do sleep 1; i=$((i + 1)); done
+    [ -f "$HOME/.local/share/applications/dbash.desktop" ] ;;
+  remove:dbash)
+    D="$HOME/.local/lib/glyph"
+    if [ -x "$D/dbash.sh" ]; then "$D/dbash.sh" --remove; rm -f "$D/dbash.sh"
+    else rm -f "$HOME/.local/share/applications/dbash.desktop"; fi ;;
+
+  *) sed -n '2,9p' "$0"; exit 1 ;;
+esac

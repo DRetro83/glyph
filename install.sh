@@ -48,7 +48,10 @@ PACKAGES=(
   pavucontrol blueman                  # volume per app, Bluetooth pairing
   qt6ct qt5ct                          # Qt apps in the Glyph colours
   xfce4-terminal                       # terminal with a right-click menu (foot stays as the light one)
-  mpv ristretto atril                     # video, pictures, PDF
+  mpv ristretto atril mousepad xarchiver  # video, pictures, PDF, text, zip/rar/7z
+  firefox-esr flatpak                     # a browser always; Flatpak for Steam, Heroic and more
+  fonts-noto-core fonts-noto-color-emoji  # letters for every language, and emoji
+  playerctl                               # music buttons on the taskbar
   gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-good gstreamer1.0-plugins-base gstreamer1.0-libav   # Glyph music player
 )
 
@@ -71,8 +74,9 @@ say "Glyph - installing next to your current desktop"
 say "Installing packages (asks for your password)"
 run sudo apt-get update
 run sudo apt-get install -y "${PACKAGES[@]}"
-# optional helpers that not every Debian has: monitor brightness, batteries
-for extra in ddcutil upower; do
+# optional helpers that not every Debian has: monitor brightness, batteries,
+# clipboard history, music on the lock screen
+for extra in ddcutil upower cliphist gtklock-playerctl-module; do
   run sudo apt-get install -y "$extra" >/dev/null 2>&1 || say "($extra not available, skipped)"
 done
 if command -v ddcutil >/dev/null 2>&1 && (( ! CHECK )); then
@@ -80,6 +84,7 @@ if command -v ddcutil >/dev/null 2>&1 && (( ! CHECK )); then
   echo i2c-dev | sudo tee /etc/modules-load.d/glyph-i2c.conf >/dev/null
   sudo modprobe i2c-dev 2>/dev/null || true
 fi
+(( CHECK )) || flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
 ok "packages"
 
 # 1b. labwc-glyph: Debian's labwc with Glyph's small titlebar patch (stripes and
