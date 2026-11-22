@@ -714,9 +714,12 @@ paned > separator {{ background: {p['hi']}; min-width: 1px; }}
 .start list.slist, .start .slist {{ background: transparent; }}
 .start row.srow {{ padding: 8px 8px; border-bottom: 1px solid {p['hov']}; background: transparent; }}
 .start row.srow:hover {{ background: {p['hov']}; }}
+.start row.srow label, .start row.srow label:backdrop, .start row.srow:backdrop label {{ color: {p['text']}; opacity: 1; }}
+.start row.srow .sdesc, .start row.srow .sdesc:backdrop {{ color: {p['dim']}; }}
+.start row.srow label.ltile, .start row.srow label.ltile:backdrop {{ color: {p['tink']}; }}
 .start row.srow:selected, .start row.srow:selected:hover {{ background: {p['title']}; }}
 .start row.srow:selected label, .start row.srow:selected label:backdrop, .start row.srow:selected .sdesc {{ color: {p['tink']}; opacity: 1; }}
-.start row.srow:selected .ltile {{ background: {p['tink']}; color: {p['title']}; }}
+.start row.srow:selected .ltile, .start row.srow:selected label.ltile, .start row.srow:selected label.ltile:backdrop {{ background: {p['tink']}; color: {p['title']}; }}
 .start .ltile {{ background: {p['title']}; color: {p['tink']}; font-weight: bold; min-width: 26px; min-height: 26px; font-size: 12px; }}
 .start .sdesc {{ font-size: 11px; color: {p['dim']}; padding-right: 4px; }}
 .start button.star {{ border: none; background: transparent; color: {p['dim']}; padding: 0 6px; }}

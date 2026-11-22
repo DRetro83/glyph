@@ -21,9 +21,9 @@ Glyph is a complete desktop for Debian, put together from small open-source part
 
 <div align="center">
 
-![The Glyph desktop: start menu, Files and the text editor](docs/img/desktop.png)
+![The real Glyph desktop: start menu, Files and Settings](docs/img/real/real-start.png)
 
-<sub>The Glyph design: start menu, Files and the text editor. This is the prototype that the real desktop is built from, step by step.</sub>
+<sub>The real Glyph session: start menu, Files, Settings and the taskbar. All screenshots on this page are made automatically on GitHub after a clean install on Debian 13.</sub>
 
 </div>
 
@@ -48,13 +48,32 @@ A few smaller things that come with it:
 - **Software for people, not packages.** Glyph Software shows a short, curated list (browsers, office, games, backup…) and installs from Debian, Flathub or the maker's site.
 - **No surprises.** USB sticks, a low battery and waiting updates show up as a notification, and nothing installs or updates without you saying so.
 
+## ◐ A colour for every workspace
+
+Turn on **Settings → Taskbar → Workspace colours** and every workspace gets its own colour. When you switch, *all* of Glyph takes it on: the title bars, the taskbar, the start menu, the panels and the clock on the desktop. The apps on the taskbar are the apps of that workspace, with their letter tile in its colour, so you always see where you are.
+
+| Workspace | Colour (you can change each one) |
+|---|---|
+| **1** | your system colour (tan here) |
+| **2** | green |
+| **3** | blue |
+| **4** | rose |
+
+![The four workspaces, each in its own colour](docs/img/real/real-workspaces.png)
+
+<sub>Workspace 1 with Files and Settings, 2 with Music, 3 with the System monitor and 4 with Software: one desktop, four colours.</sub>
+
+![The taskbar on each workspace](docs/img/real/real-workspace-bars.png)
+
+Prefer one colour everywhere? Leave it off: then the system colour is used on every workspace.
+
 ## ✦ What you get
 
-| Quick settings | Apps in the Glyph look |
+| Quick settings | Files and Settings |
 |---|---|
-| ![Quick settings: Wi-Fi, Bluetooth, drives, volume](docs/img/quick-settings.png) | ![System monitor and video player](docs/img/apps.png) |
-| **Light mode and one system colour** | **First start** |
-| ![Settings in light mode](docs/img/settings-light.png) | ![The first-start setup](docs/img/first-start.png) |
+| ![Quick settings: tiles, Wi-Fi, drives, now playing and the sliders](docs/img/real/real-quick.png) | ![Glyph Files and the Settings window](docs/img/real/real-windows.png) |
+| **Light mode, blue** | **Calendar** |
+| ![Glyph in light mode with blue as system colour](docs/img/real/real-light.png) | ![The calendar under the clock](docs/img/real/real-calendar.png) |
 
 | Part | What it does |
 |---|---|
@@ -68,9 +87,9 @@ A few smaller things that come with it:
 
 <div align="center">
 
-![Glyph on a phone-sized screen](docs/img/phone.png)
+![Glyph in light mode with quick settings open](docs/img/real/real-light-quick.png)
 
-<sub>Works with touch and keyboard, on a laptop and on a small screen.</sub>
+<sub>Light mode with rounded corners: the panels, the taskbar and the buttons follow the shape.</sub>
 
 </div>
 
@@ -86,21 +105,11 @@ cd glyph
 
 Then log out. At the login screen, pick **Glyph** in the session list (in SDDM it is bottom left) and sign in. To go back, log out and pick your old desktop again.
 
-![Glyph running for real: taskbar, start menu and a notification](docs/img/glyph-desktop.png)
+The first time, a short welcome helps you pick a look, connect to Wi-Fi and add apps.
 
-<sub>Glyph running for real on labwc: the taskbar, the start menu and a notification.</sub>
-
-| Power menu | Lock screen |
+| Sign-in screen (optional) | The HTML prototype Glyph is built from |
 |---|---|
-| ![Power menu: Lock, Log out, Restart, Shut down, Suspend](docs/img/glyph-power.png) | ![Lock screen in the Glyph colours](docs/img/glyph-lock.png) |
-
-| Quick settings and calendar | Settings |
-|---|---|
-| Click **SETTINGS ▴** or the clock on the taskbar | ![The Glyph Settings window](docs/img/settings.png) |
-
-| Your apps in the Glyph look (Files, text editor) | Sign-in screen (optional) |
-|---|---|
-| ![Thunar and Mousepad in the Glyph colours](docs/img/apps-themed.png) | ![The Glyph sign-in screen for SDDM](docs/img/sddm.png) |
+| ![The Glyph sign-in screen for SDDM](docs/img/sddm.png) | ![The Glyph design prototype](docs/img/desktop.png) |
 
 ### Start-up look (optional)
 
