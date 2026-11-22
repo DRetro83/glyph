@@ -329,6 +329,9 @@ class Settings(Gtk.Window):
         cur = t.get("colour", "#a8957c").lower()
         p.pack_start(self.opts([(c[1], f'<span foreground="{c[2]}">■</span> {c[0]}') for c in COLOURS], next((c[1] for c in COLOURS if c[2] == cur), ""),
                                lambda v: self.theme("--colour", v)), False, False, 0)
+        if t.get("ws_colours", "same") == "own":
+            p.pack_start(self.note("Workspace colours are on (Settings → Taskbar): a colour here is for the workspace you are on now."),
+                         False, False, 0)
         p.pack_start(self.lab("SECOND COLOUR · focus, START, power, warnings", "lab"), False, False, 0)
         accents = [("amber", "#ffb340", "Amber"), ("orange", "#ff8a3d", "Orange"), ("rose", "#e8708c", "Rose"),
                    ("green", "#a8c060", "Green"), ("blue", "#7fb0e0", "Blue"), ("violet", "#b590d8", "Violet"),

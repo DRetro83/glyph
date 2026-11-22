@@ -149,8 +149,8 @@ border.width: 1
 window.shadow.offset: 6
 window.active.shadow.size: 3
 window.inactive.shadow.size: 3
-window.active.shadow.color: {"#00000048" if mode == "light" else "#000000b0"}
-window.inactive.shadow.color: {"#00000030" if mode == "light" else "#00000080"}
+window.active.shadow.color: {"#00000066" if mode == "light" else "#000000b0"}
+window.inactive.shadow.color: {"#00000044" if mode == "light" else "#00000080"}
 padding.height: 4
 titlebar.height: 28
 window.titlebar.padding.width: 2
@@ -518,7 +518,7 @@ def shadows_on():
 def panel_css(p):
     # hard shadow like the prototype: 8px down-right; the panel window keeps room for it
     # no room below: the shadow never falls on the taskbar, only to the right
-    shcol = "rgba(0,0,0,0.25)" if is_light(p) else "rgba(0,0,0,0.6)"
+    shcol = "rgba(0,0,0,0.35)" if is_light(p) else "rgba(0,0,0,0.6)"
     panel_shadow = (f"box-shadow: 8px 8px 0 0 {shcol}; margin: 0 8px 0 0;" if shadows_on()
                     else "box-shadow: none; margin: 0;")
     stripes = f"repeating-linear-gradient(to bottom, {p['title']} 0px, {p['title']} 2px, shade({p['title']}, 0.82) 2px, shade({p['title']}, 0.82) 4px)"
@@ -995,6 +995,12 @@ def gtk_css(p, mode, gtk4=False):
 
 * {{ border-radius: 0; font-family: "IBM Plex Mono", monospace; -gtk-outline-radius: 0; }}
 window, .background, dialog {{ background-color: {p['view']}; color: {p['text']}; }}
+/* a window without focus keeps readable text (Adwaita greys it out, far too light in light mode) */
+label:backdrop, .view:backdrop, treeview.view:backdrop, iconview:backdrop, textview text:backdrop, entry:backdrop,
+button:backdrop, button:backdrop label, row:backdrop label, menuitem:backdrop label {{ color: {p['text']}; }}
+.dim:backdrop, label.dim:backdrop, .ts:backdrop, .lab:backdrop, .sdesc:backdrop, .dim-label:backdrop, entry:backdrop placeholder {{ color: {p['dim']}; }}
+.amber:backdrop, label.amber:backdrop {{ color: {p['amber']}; }}
+*:selected:backdrop, row:selected:backdrop label, treeview.view:selected:backdrop {{ color: {p['tink']}; }}
 toolbar, .toolbar, actionbar, .inline-toolbar, searchbar > revealer > box {{ background: {p['win']}; color: {p['text']}; border-color: {p['hi']}; box-shadow: none; }}
 menu, .menu, .context-menu {{ padding: 0; min-width: 220px; }}
 menu menuitem, .menu menuitem {{ padding: 9px 14px; min-height: 0; }}
@@ -1421,6 +1427,9 @@ def main():
         if not (c.startswith("#") and len(c) == 7):
             sys.exit("glyph-theme: colour must look like #a8957c or be one of: " + ", ".join(COLOURS))
         conf["colour"] = c
+        if conf.get("ws_colours", "same") == "own":
+            # workspaces have their own colour: the new colour is for the workspace you are on
+            conf["ws" + current_workspace()] = c
     if a.accent:
         c = ACCENTS.get(a.accent.lower(), a.accent.lower())
         if not (c.startswith("#") and len(c) == 7):

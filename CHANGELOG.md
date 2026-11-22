@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.8 · readable light mode · 2026-11-22
+
+- Light mode: windows without focus keep dark, readable text (GTK greyed it out far too much); for every system colour
+- System colour with workspace colours on: the colour you pick is for the workspace you are on (it seemed to do nothing before)
+- Shadows a bit stronger in light mode
+
 ## 0.9.7 · round Start, a bar without a gap · 2026-11-22
 
 - Rounded corners: the start menu and the panels are round at the bottom too, with room for their shadow

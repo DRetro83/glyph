@@ -419,3 +419,4 @@ WORKSPACE = WERKRUIMTE
 BATTERY = BATTERIJ
 How round windows, panels, buttons and cards are. Round ends gives buttons and fields round ends. Windows round only at the top: labwc cannot round the bottom of a window. = Hoe rond vensters, panelen, knoppen en kaders zijn. Bol geeft knoppen en velden ronde uiteinden. Vensters worden alleen bovenaan rond: labwc kan de onderkant van een venster niet afronden.
 Round ends = Bol
+Workspace colours are on (Settings → Taskbar): a colour here is for the workspace you are on now. = Werkruimtekleuren staan aan (Instellingen → Taakbalk): een kleur hier geldt voor de werkruimte waar je nu bent.
