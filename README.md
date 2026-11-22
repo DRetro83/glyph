@@ -38,12 +38,12 @@ Glyph is a complete desktop for Debian, put together from small open-source part
 | Part | What it does |
 |---|---|
 | **Windows** | Square windows with a coloured title bar and **_ □ ×** buttons. Drag a window to an edge for half the screen, or to the top to maximize it. Four workspaces. |
-| **Taskbar** | At the bottom: ▸ START, workspaces, your open windows, SETTINGS ▴ (network, volume, battery), the clock and POWER. |
+| **Taskbar** | At the bottom: ▸ START, workspaces, every open app with a letter tile in the colour of its workspace, ♪ now playing, ▦ open windows, SETTINGS ▴ (with the update count), the clock and POWER. |
 | **Start menu** | Categories on the left, apps on the right. One search box finds apps, settings and files. |
-| **Quick settings** | Wi-Fi, Bluetooth, mobile data, volume, brightness, power profile, night light, do not disturb and USB drives. |
-| **Settings** | Appearance, display, sound, keyboard, mouse, printers, power, disks, users, date, language, privacy, default apps, accessibility and updates. |
-| **Apps** | Files (Thunar), text editor (Mousepad), terminal (foot), image viewer (Ristretto), video (mpv), PDF (Atril), system monitor, software (apt + Flatpak), Firefox and Vivaldi. |
-| **Start-up** | Boot menu, splash screen, first-start setup, login with a guest account and a lock screen. |
+| **Quick settings** | Tiles for Wi-Fi, Bluetooth, do not disturb, night light, airplane mode and power profile; now playing; Wi-Fi, Bluetooth, drives, sound output, microphone and batteries in one list; volume and brightness. |
+| **Settings** | Appearance, background, taskbar, notifications, display, sound, keyboard, mouse, printers, power, disks, network, Bluetooth, users, date, language, privacy, default apps, accessibility, updates and about. |
+| **Apps** | Glyph Files, Music, System monitor, Software, Disks, Calculator and Screenshot; text editor (Mousepad), terminal (Xfce Terminal), image viewer (Ristretto), video (mpv), PDF (Atril), Firefox. More in Software. |
+| **Start-up** | Boot menu, splash screen, sign-in screen, a welcome at the first start, and a lock screen. |
 
 <div align="center">
 
@@ -98,6 +98,9 @@ They take your Glyph colours at the moment you run it; run it again after you ch
 | Do this | Keys |
 |---|---|
 | Start menu | tap Super, or Ctrl+Space, or click ▸ START |
+| Clipboard history | Super+V |
+| All shortcuts | Super+/ |
+| System monitor | Ctrl+Shift+Esc |
 | Power menu (lock, log out, restart, shut down) | click POWER, or Ctrl+Alt+Delete |
 | Lock the screen | Ctrl+Alt+L or Super+L |
 | Screenshot of the screen / an area | Print / Shift+Print (or Ctrl+Alt+P) |
@@ -114,7 +117,7 @@ They take your Glyph colours at the moment you run it; run it again after you ch
 
 ## 🗺 Roadmap
 
-Glyph is built in six steps. Each step is tested before the next one starts. All six are built; the next thing is **your test on a real PC**.
+Glyph is built in six steps. All six are built and in daily use (version 0.9.0, see the [changelog](CHANGELOG.md)).
 
 | Step | What | Built with | Status |
 |---|---|---|---|
@@ -125,7 +128,7 @@ Glyph is built in six steps. Each step is tested before the next one starts. All
 | 5 | **Start-up and sign-in** (optional extra) | GRUB theme, Plymouth, SDDM theme | ✅ done |
 | 6 | **Your apps in the Glyph look** | GTK 3/4 theme, qt6ct, foot, editor colours, Firefox and Vivaldi CSS | ✅ done |
 
-After that: a **Glyph ISO** to try it from a USB stick, and a clean install without another desktop. Details in [docs/ROADMAP.md](docs/ROADMAP.md).
+Next: a **Glyph OS ISO** to try it from a USB stick and install it, with its own installer and a choice of extra apps at the first start. Details in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## 🎨 Change the look
 

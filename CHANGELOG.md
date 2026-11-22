@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.9.0 · the whole design, and more · 2026-11-22
+
+**New apps**
+- **System monitor** (Ctrl+Shift+Esc): processes with letter tiles (filled for apps with a window), sort, filter, My apps, End task / Kill; resources with CPU per core, memory, network and disk graphs; an htop-like CORES strip
+- **Software**: apps by category (Browsers, Mail, Editing, Music & video, Backup, Games, Glyph) from Debian, Flathub, vivaldi.com and GitHub (Emu Vault, DBash); every app in Start with Open / Hide / Remove; updates with Update all; CORE apps marked
+- **Disks**, **Calculator**, **Screenshot** window (screen or area, with a wait), **Welcome** at the first start (look, Wi-Fi, apps), **About**
+
+**Taskbar and panels**
+- Every open app of every workspace on the taskbar, its letter tile in the colour of its workspace; click goes there (labwc-glyph 3 + glyph-tasks)
+- Workspace colours: each workspace its own colour, for the whole desktop
+- ▦ N open windows panel, ♪ music button with Now playing, update count (● N) on SETTINGS
+- Quick settings redesigned: tiles with icons, one list of details (one open at a time), sound output and microphone choice, Now playing card, sliders at the bottom
+- Start menu and panels close when you click next to them; Start search also finds Settings pages and recent files
+- Super+V clipboard history, Super+/ all shortcuts
+
+**Settings**
+- New pages: Taskbar, Notifications, Disks, Printers, Mobile network, Users (standard user or administrator), Language & region, Privacy, Default apps, Accessibility
+- Appearance: shadows, window corners, text size, start menu size, scanlines; Mouse: pointer colour and size, left-handed; Display: night light
+
+**Under the hood**
+- Lock screen like the design (gtklock); notifications start reliably (glyph-notifyd)
+- Log out, restart and shut down close apps politely first, so unsaved work can be saved
+- USB sounds with Open, low battery warnings and sleep at 5 %
+- Hard window shadows and a taskbar per workspace in labwc-glyph; Glyph's own Glyph pointer theme
+- "Show in folder" from browsers opens Glyph Files; colour changes no longer close apps
+- Glyph no longer changes LibreOffice
+
 ## 0.5.0 · own Files and Music · 2026-11-21
 
 - **Files** (glyph-files): the file manager from the design: SIDE, back/forward/up, path, search, LIST/GRID, places, devices with eject, network, trash, copy/cut/paste, rename, new folder, terminal here. Opens folders in the Glyph session; Thunar stays for advanced work

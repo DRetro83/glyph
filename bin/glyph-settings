@@ -892,7 +892,9 @@ class Settings(Gtk.Window):
         cpu = re.search(r"model name\s*:\s*(.+)", Path("/proc/cpuinfo").read_text()) if Path("/proc/cpuinfo").exists() else None
         gpu = re.search(r"(?:VGA|3D|Display)[^:]*: (.+)", sh(["lspci"]))
         src = (CONF / "source").read_text().strip() if (CONF / "source").exists() else ""
-        ver = sh(["git", "-C", src, "describe", "--tags", "--always"]).strip() if src else ""
+        ver = (Path(src) / "VERSION").read_text().strip() if src and (Path(src) / "VERSION").exists() else ""
+        commit = sh(["git", "-C", src, "rev-parse", "--short", "HEAD"]).strip() if src else ""
+        ver = (ver + (f" ({commit})" if commit else "")).strip()
         df = shutil.disk_usage("/")
         p.pack_start(self.lab("GLYPH", "h1"), False, False, 0)
         p.pack_start(self.lab("a light, text-first desktop", "dim"), False, False, 0)
