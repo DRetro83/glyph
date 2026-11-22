@@ -29,13 +29,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Copy of the repository, a few commits back (so glyph-update has something to do)
+      - name: Copy of the repository at release v1.0.0 (so glyph-update has something to do)
         run: |
           git config --global --add safe.directory '*'
           git clone "$GITHUB_WORKSPACE" /home/glyph/glyph
           cd /home/glyph/glyph
           git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git reset --hard HEAD~3
+          git reset --hard v1.0.0
           chown -R glyph:glyph /home/glyph/glyph
       - name: install.sh
         shell: bash
