@@ -17,19 +17,19 @@
 + touch /home/glyph/.config/glyph/welcome-done
 + mkdir -p /home/glyph/Documents /home/glyph/Downloads /home/glyph/Music /home/glyph/Pictures /home/glyph/Videos /home/glyph/Games /home/glyph/Projects
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 350640 /dev/urandom
++ head -c 844080 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 601640 /dev/urandom
++ head -c 142840 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 1245600 /dev/urandom
++ head -c 210000 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 615680 /dev/urandom
++ head -c 91280 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 546240 /dev/urandom
++ head -c 1022240 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 272920 /dev/urandom
++ head -c 991280 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 267600 /dev/urandom
++ head -c 697680 /dev/urandom
 + mkdir -p /tmp/fake
 + cat
 + chmod +x /tmp/fake/playerctl
@@ -37,47 +37,41 @@
 + PATH=/tmp/fake:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
 + python3 - /home/glyph/.config/glyph/labwc/rc.xml
 + glyph-theme --shadows yes --mode dark --colour tan
-extras/screenshots/take.sh: line 52: glyph-theme: command not found
+Glyph: dark mode, colour #a8957c
 + ws_own own
 + sed -i '/^ws_colours=/d' /home/glyph/.config/glyph/theme.conf
-sed: can't read /home/glyph/.config/glyph/theme.conf: No such file or directory
 + echo ws_colours=own
 ++ dbus-launch --sh-syntax
-+ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-QntUwylTK0,guid=c9f40437867e5c4c3b1b897b6b030939'\'';
++ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-dQX09m63ly,guid=d45219fbb380d2cc28371bd56b030a45'\'';
 export DBUS_SESSION_BUS_ADDRESS;
-DBUS_SESSION_BUS_PID=15501;'
-++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-QntUwylTK0,guid=c9f40437867e5c4c3b1b897b6b030939
+DBUS_SESSION_BUS_PID=15648;'
+++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-dQX09m63ly,guid=d45219fbb380d2cc28371bd56b030a45
 ++ export DBUS_SESSION_BUS_ADDRESS
-++ DBUS_SESSION_BUS_PID=15501
+++ DBUS_SESSION_BUS_PID=15648
 + sleep 12
 + glyph-session
 ++ ls /tmp/xdg-1000
 ++ grep -m1 -x 'wayland-[0-9]'
-+ export WAYLAND_DISPLAY=
-+ WAYLAND_DISPLAY=
++ export WAYLAND_DISPLAY=wayland-0
++ WAYLAND_DISPLAY=wayland-0
 ++ pgrep -x labwc
-+ export LABWC_PID=
-+ LABWC_PID=
++ export LABWC_PID=15649
++ LABWC_PID=15649
 + wlr-randr --output HEADLESS-1 --custom-mode 1920x1080
-failed to connect to display
-+ true
 + sleep 3
 + sleep 4
 + glyph-files /home/glyph
-extras/screenshots/take.sh: line 67: glyph-files: command not found
+
+(glyph-files:16069): GVFS-RemoteVolumeMonitor-WARNING **: 15:29:24.536: remote volume monitor with dbus name org.gtk.vfs.UDisks2VolumeMonitor is not supported
 + sleep 5
 + glyph-settings Appearance
-extras/screenshots/take.sh: line 68: glyph-settings: command not found
 + shot real-windows 2
 + sleep 2
 + grim /tmp/shots/real-windows.png
-failed to create display
 + shot real-start 4
 + glyph-start
 + sleep 4
-extras/screenshots/take.sh: line 70: glyph-start: command not found
 + grim /tmp/shots/real-start.png
-failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
@@ -85,9 +79,7 @@ failed to create display
 + shot real-quick 5
 + glyph-panel quick
 + sleep 5
-extras/screenshots/take.sh: line 74: glyph-panel: command not found
 + grim /tmp/shots/real-quick.png
-failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
@@ -95,94 +87,78 @@ failed to create display
 + shot real-calendar 4
 + glyph-panel cal
 + sleep 4
-extras/screenshots/take.sh: line 76: glyph-panel: command not found
 + grim /tmp/shots/real-calendar.png
-failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
 + sleep 1
 + glyph-ws 2
-extras/screenshots/take.sh: line 80: glyph-ws: command not found
 + sleep 3
 + sleep 4
 + glyph-music
-extras/screenshots/take.sh: line 80: glyph-music: command not found
 + glyph-ws 3
-extras/screenshots/take.sh: line 81: glyph-ws: command not found
 + sleep 3
 + sleep 4
 + glyph-monitor
-extras/screenshots/take.sh: line 81: glyph-monitor: command not found
 + glyph-ws 4
-extras/screenshots/take.sh: line 82: glyph-ws: command not found
 + sleep 3
 + sleep 5
 + glyph-software
-extras/screenshots/take.sh: line 82: glyph-software: command not found
 + for n in 1 2 3 4
 + glyph-ws 1
-extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws1 5
 + sleep 5
 + grim /tmp/shots/ws1.png
-failed to create display
 + for n in 1 2 3 4
 + glyph-ws 2
-extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws2 5
 + sleep 5
 + grim /tmp/shots/ws2.png
-failed to create display
 + for n in 1 2 3 4
 + glyph-ws 3
-extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws3 5
 + sleep 5
 + grim /tmp/shots/ws3.png
-failed to create display
 + for n in 1 2 3 4
 + glyph-ws 4
-extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws4 5
 + sleep 5
 + grim /tmp/shots/ws4.png
-failed to create display
 + glyph-ws 1
-extras/screenshots/take.sh: line 86: glyph-ws: command not found
 + sleep 3
 + ws_own same
 + sed -i '/^ws_colours=/d' /home/glyph/.config/glyph/theme.conf
 + echo ws_colours=same
 + glyph-theme --mode light --colour blue --set corners=round --set radius=10
-extras/screenshots/take.sh: line 88: glyph-theme: command not found
+Glyph: light mode, colour #8fb0c8
 + sleep 6
 + glyph-ws 1
-extras/screenshots/take.sh: line 90: glyph-ws: command not found
 + shot real-light 4
 + sleep 4
 + grim /tmp/shots/real-light.png
-failed to create display
 + shot real-light-quick 5
 + glyph-panel quick
 + sleep 5
-extras/screenshots/take.sh: line 91: glyph-panel: command not found
 + grim /tmp/shots/real-light-quick.png
-failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
 + sleep 1
 + glyph-theme --mode dark --colour tan --set corners=square --set radius=0
-extras/screenshots/take.sh: line 95: glyph-theme: command not found
+Glyph: dark mode, colour #a8957c
 + ls -la /tmp/shots
-total 12
-drwxrwxr-x 2 glyph glyph 4096 Nov 22 15:24 .
-drwxrwxrwt 1 root  root  4096 Nov 22 15:24 ..
--rw-rw-r-- 1 glyph glyph   70 Nov 22 15:24 session.log
+total 1276
+drwxrwxr-x 2 glyph glyph   4096 Nov 22 15:30 .
+drwxrwxrwt 1 root  root    4096 Nov 22 15:30 ..
+-rw-rw-r-- 1 glyph glyph 142221 Nov 22 15:29 real-calendar.png
+-rw-rw-r-- 1 glyph glyph 165821 Nov 22 15:30 real-light-quick.png
+-rw-rw-r-- 1 glyph glyph 145765 Nov 22 15:30 real-light.png
+-rw-rw-r-- 1 glyph glyph 139963 Nov 22 15:29 real-quick.png
+-rw-rw-r-- 1 glyph glyph 149238 Nov 22 15:29 real-start.png
+-rw-rw-r-- 1 glyph glyph 125602 Nov 22 15:29 real-windows.png
+-rw-rw-r-- 1 glyph glyph   2728 Nov 22 15:30 session.log
+-rw-rw-r-- 1 glyph glyph 130096 Nov 22 15:30 ws1.png
+-rw-rw-r-- 1 glyph glyph  68946 Nov 22 15:30 ws2.png
+-rw-rw-r-- 1 glyph glyph 108288 Nov 22 15:30 ws3.png
+-rw-rw-r-- 1 glyph glyph 101542 Nov 22 15:30 ws4.png
 + python3 - /tmp/shots
-Traceback (most recent call last):
-  File "<stdin>", line 4, in <module>
-  File "/usr/lib/python3/dist-packages/PIL/Image.py", line 3465, in open
-    fp = builtins.open(filename, "rb")
-FileNotFoundError: [Errno 2] No such file or directory: '/tmp/shots/ws1.png'
