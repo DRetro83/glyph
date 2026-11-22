@@ -21,8 +21,8 @@ rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf" "$DATA"/applications/glyph-*
 rm -f "$DATA"/gtksourceview-*/styles/glyph.xml "$CONF/qt5ct/colors/Glyph.conf" "$CONF/qt6ct/colors/Glyph.conf"
 for f in "$CONF/qt5ct/qt5ct.conf" "$CONF/qt6ct/qt6ct.conf"; do grep -qs "Glyph.conf" "$f" && rm -f "$f"; done
 grep -qs "Glyph colours come from" "$CONF/foot/foot.ini" && rm -f "$CONF/foot/foot.ini"
-grep -ls "X-Glyph-LibreOffice" "$DATA"/applications/libreoffice*.desktop 2>/dev/null | xargs -r rm -f
-for css in "$HOME"/.mozilla/firefox/*/chrome/userChrome.css; do head -c 8 "$css" 2>/dev/null | grep -q "glyph" && rm -f "$css"; done
+for f in "$DATA"/applications/libreoffice*.desktop; do grep -qs "X-Glyph-LibreOffice" "$f" && rm -f "$f"; done
+for css in "$HOME"/.mozilla/firefox/*/chrome/userChrome.css; do { head -c 8 "$css" 2>/dev/null || true; } | grep -q "glyph" && rm -f "$css"; done
 
 # labwc-glyph back to Debian's own labwc
 if dpkg-query -W -f='${Version}' labwc 2>/dev/null | grep -q glyph; then
@@ -37,7 +37,7 @@ if [[ "${1:-}" == "--packages" ]]; then
   sudo apt-get remove -y labwc swaybg xdg-desktop-portal-wlr brightnessctl waybar fuzzel mako-notifier swaylock swayidle wtype
   echo "   (foot, thunar, mousepad and fonts-ibm-plex are kept: you may use them in KDE too)"
 fi
-echo " ✓ Glyph is removed. Next login: pick Plasma."
+echo " ✓ Glyph is removed. Next login: pick your old desktop (Plasma, GNOME …)."
 [ -d /usr/share/sddm/themes/glyph ] || [ -d /boot/grub/themes/glyph ] || [ -d /usr/share/plymouth/themes/glyph ] &&
   echo "   The Glyph start-up look is still on. Remove it with: extras/boot/install-boot.sh --remove"
 exit 0
