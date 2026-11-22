@@ -17,19 +17,19 @@
 + touch /home/glyph/.config/glyph/welcome-done
 + mkdir -p /home/glyph/Documents /home/glyph/Downloads /home/glyph/Music /home/glyph/Pictures /home/glyph/Videos /home/glyph/Games /home/glyph/Projects
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 1281680 /dev/urandom
++ head -c 350640 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 664280 /dev/urandom
++ head -c 601640 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 55800 /dev/urandom
++ head -c 1245600 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 443560 /dev/urandom
++ head -c 615680 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 1154880 /dev/urandom
++ head -c 546240 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 409760 /dev/urandom
++ head -c 272920 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 170400 /dev/urandom
++ head -c 267600 /dev/urandom
 + mkdir -p /tmp/fake
 + cat
 + chmod +x /tmp/fake/playerctl
@@ -43,12 +43,12 @@ extras/screenshots/take.sh: line 52: glyph-theme: command not found
 sed: can't read /home/glyph/.config/glyph/theme.conf: No such file or directory
 + echo ws_colours=own
 ++ dbus-launch --sh-syntax
-+ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-6FH9jTpBAy,guid=0c72945d2aa1f8d0ee50e1b66b030835'\'';
++ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-QntUwylTK0,guid=c9f40437867e5c4c3b1b897b6b030939'\'';
 export DBUS_SESSION_BUS_ADDRESS;
-DBUS_SESSION_BUS_PID=15503;'
-++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-6FH9jTpBAy,guid=0c72945d2aa1f8d0ee50e1b66b030835
+DBUS_SESSION_BUS_PID=15501;'
+++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-QntUwylTK0,guid=c9f40437867e5c4c3b1b897b6b030939
 ++ export DBUS_SESSION_BUS_ADDRESS
-++ DBUS_SESSION_BUS_PID=15503
+++ DBUS_SESSION_BUS_PID=15501
 + sleep 12
 + glyph-session
 ++ ls /tmp/xdg-1000
@@ -177,9 +177,9 @@ failed to create display
 extras/screenshots/take.sh: line 95: glyph-theme: command not found
 + ls -la /tmp/shots
 total 12
-drwxrwxr-x 2 glyph glyph 4096 Nov 22 15:20 .
-drwxrwxrwt 1 root  root  4096 Nov 22 15:20 ..
--rw-rw-r-- 1 glyph glyph   70 Nov 22 15:20 session.log
+drwxrwxr-x 2 glyph glyph 4096 Nov 22 15:24 .
+drwxrwxrwt 1 root  root  4096 Nov 22 15:24 ..
+-rw-rw-r-- 1 glyph glyph   70 Nov 22 15:24 session.log
 + python3 - /tmp/shots
 Traceback (most recent call last):
   File "<stdin>", line 4, in <module>
