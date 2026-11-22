@@ -17,19 +17,19 @@
 + touch /home/glyph/.config/glyph/welcome-done
 + mkdir -p /home/glyph/Documents /home/glyph/Downloads /home/glyph/Music /home/glyph/Pictures /home/glyph/Videos /home/glyph/Games /home/glyph/Projects
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 856760 /dev/urandom
++ head -c 143720 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 152120 /dev/urandom
++ head -c 176960 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 238000 /dev/urandom
++ head -c 907520 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 240200 /dev/urandom
++ head -c 926840 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 1214120 /dev/urandom
++ head -c 971760 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 369320 /dev/urandom
++ head -c 1040760 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 190720 /dev/urandom
++ head -c 530760 /dev/urandom
 + mkdir -p /tmp/fake
 + cat
 + chmod +x /tmp/fake/playerctl
@@ -43,10 +43,10 @@ Glyph: dark mode, colour #a8957c
 + sed -i '/^ws_colours=/d' /home/glyph/.config/glyph/theme.conf
 + echo ws_colours=own
 ++ dbus-launch --sh-syntax
-+ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-YDBQDHmKME,guid=10d74d049ee9bbe59ccc138f6b030b6d'\'';
++ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-XkP4l4ECOL,guid=32743c9b5abd1316d273bfd46b030cb0'\'';
 export DBUS_SESSION_BUS_ADDRESS;
 DBUS_SESSION_BUS_PID=15649;'
-++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-YDBQDHmKME,guid=10d74d049ee9bbe59ccc138f6b030b6d
+++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-XkP4l4ECOL,guid=32743c9b5abd1316d273bfd46b030cb0
 ++ export DBUS_SESSION_BUS_ADDRESS
 ++ DBUS_SESSION_BUS_PID=15649
 + sleep 12
@@ -63,7 +63,7 @@ DBUS_SESSION_BUS_PID=15649;'
 + sleep 4
 + glyph-files /home/glyph
 
-(glyph-files:16093): GVFS-RemoteVolumeMonitor-WARNING **: 15:34:20.763: remote volume monitor with dbus name org.gtk.vfs.UDisks2VolumeMonitor is not supported
+(glyph-files:16079): GVFS-RemoteVolumeMonitor-WARNING **: 15:39:43.630: remote volume monitor with dbus name org.gtk.vfs.UDisks2VolumeMonitor is not supported
 + sleep 5
 + glyph-settings Appearance
 + shot real-windows 2
@@ -78,8 +78,8 @@ DBUS_SESSION_BUS_PID=15649;'
 + pkill -f bin/glyph-start
 + sleep 1
 + shot real-quick 5
-+ glyph-panel quick
 + sleep 5
++ glyph-panel quick
 + grim /tmp/shots/real-quick.png
 + closepanels
 + pkill -f bin/glyph-panel
@@ -99,8 +99,8 @@ DBUS_SESSION_BUS_PID=15649;'
 + glyph-music
 + glyph-ws 3
 + sleep 3
-+ sleep 4
 + glyph-monitor
++ sleep 4
 + glyph-ws 4
 + sleep 3
 + sleep 5
@@ -148,18 +148,18 @@ Glyph: light mode, colour #8fb0c8
 + glyph-theme --mode dark --colour tan --set corners=square --set radius=0
 Glyph: dark mode, colour #a8957c
 + ls -la /tmp/shots
-total 1236
-drwxrwxr-x 2 glyph glyph   4096 Nov 22 15:35 .
-drwxrwxrwt 1 root  root    4096 Nov 22 15:35 ..
--rw-rw-r-- 1 glyph glyph 138463 Nov 22 15:34 real-calendar.png
--rw-rw-r-- 1 glyph glyph 160580 Nov 22 15:35 real-light-quick.png
--rw-rw-r-- 1 glyph glyph 140421 Nov 22 15:35 real-light.png
--rw-rw-r-- 1 glyph glyph 137389 Nov 22 15:34 real-quick.png
--rw-rw-r-- 1 glyph glyph 146203 Nov 22 15:34 real-start.png
--rw-rw-r-- 1 glyph glyph 122680 Nov 22 15:34 real-windows.png
--rw-rw-r-- 1 glyph glyph   2728 Nov 22 15:35 session.log
--rw-rw-r-- 1 glyph glyph 127528 Nov 22 15:35 ws1.png
--rw-rw-r-- 1 glyph glyph  61922 Nov 22 15:35 ws2.png
--rw-rw-r-- 1 glyph glyph 101997 Nov 22 15:35 ws3.png
--rw-rw-r-- 1 glyph glyph  94938 Nov 22 15:35 ws4.png
+total 1248
+drwxrwxr-x 2 glyph glyph   4096 Nov 22 15:41 .
+drwxrwxrwt 1 root  root    4096 Nov 22 15:41 ..
+-rw-rw-r-- 1 glyph glyph 139397 Nov 22 15:40 real-calendar.png
+-rw-rw-r-- 1 glyph glyph 160251 Nov 22 15:41 real-light-quick.png
+-rw-rw-r-- 1 glyph glyph 139824 Nov 22 15:41 real-light.png
+-rw-rw-r-- 1 glyph glyph 137324 Nov 22 15:40 real-quick.png
+-rw-rw-r-- 1 glyph glyph 147023 Nov 22 15:39 real-start.png
+-rw-rw-r-- 1 glyph glyph 122971 Nov 22 15:39 real-windows.png
+-rw-rw-r-- 1 glyph glyph   2728 Nov 22 15:41 session.log
+-rw-rw-r-- 1 glyph glyph 127667 Nov 22 15:40 ws1.png
+-rw-rw-r-- 1 glyph glyph  63120 Nov 22 15:40 ws2.png
+-rw-rw-r-- 1 glyph glyph 102918 Nov 22 15:40 ws3.png
+-rw-rw-r-- 1 glyph glyph  96219 Nov 22 15:40 ws4.png
 + python3 - /tmp/shots
