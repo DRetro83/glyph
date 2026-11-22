@@ -43,12 +43,14 @@ jobs:
           cp "$GITHUB_WORKSPACE/extras/labwc/glyph-shadow.patch" debian/patches/
           echo glyph-titlebar.patch >> debian/patches/series
           echo glyph-shadow.patch >> debian/patches/series
+          cp "$GITHUB_WORKSPACE/extras/labwc/glyph-workspace-taskbar.patch" debian/patches/
+          echo glyph-workspace-taskbar.patch >> debian/patches/series
           export QUILT_PATCHES=debian/patches
           quilt push -a
           quilt pop -a
           DEBEMAIL="glyph@users.noreply.github.com" DEBFULLNAME="Glyph" \
-            dch -v "$(dpkg-parsechangelog -S Version)+glyph2" --distribution trixie --force-distribution \
-            "Glyph: fine titlebar stripes, a boxed window title and a hard window shadow."
+            dch -v "$(dpkg-parsechangelog -S Version)+glyph3" --distribution trixie --force-distribution \
+            "Glyph: fine titlebar stripes, a boxed window title, a hard window shadow and a taskbar per workspace."
           dpkg-buildpackage -b -uc -us
       - name: Collect
         if: always()

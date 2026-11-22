@@ -1,0 +1,50 @@
+diff --git a/src/foreign-toplevel/wlr-foreign.c b/src/foreign-toplevel/wlr-foreign.c
+index 76eb01e..1b373da 100644
+--- a/src/foreign-toplevel/wlr-foreign.c
++++ b/src/foreign-toplevel/wlr-foreign.c
+@@ -122,8 +122,15 @@ handle_new_outputs(struct wl_listener *listener, void *data)
+ 	 * wlr_foreign_toplevel handle the rest.
+ 	 */
+ 	struct output *output;
++	/*
++	 * Glyph: a window on another workspace is not on any output for the
++	 * taskbar, so the taskbar only shows the windows of this workspace.
++	 */
++	struct view *view = toplevel->view;
++	bool here = view->visible_on_all_workspaces
++		|| view->workspace == view->server->workspaces.current;
+ 	wl_list_for_each(output, &toplevel->view->server->outputs, link) {
+-		if (view_on_output(toplevel->view, output)) {
++		if (here && view_on_output(toplevel->view, output)) {
+ 			wlr_foreign_toplevel_handle_v1_output_enter(
+ 				toplevel->wlr_toplevel.handle, output->wlr_output);
+ 		} else {
+diff --git a/src/view.c b/src/view.c
+index cc5af20..6f91c12 100644
+--- a/src/view.c
++++ b/src/view.c
+@@ -1607,6 +1607,8 @@ view_move_to_workspace(struct view *view, struct workspace *workspace)
+ 		view->workspace = workspace;
+ 		wlr_scene_node_reparent(&view->scene_tree->node,
+ 			workspace->tree);
++		/* Glyph: let the taskbar know (see wlr-foreign.c) */
++		wl_signal_emit_mutable(&view->events.new_outputs, NULL);
+ 	}
+ }
+ 
+diff --git a/src/workspaces.c b/src/workspaces.c
+index 79f416b..2bb80bb 100644
+--- a/src/workspaces.c
++++ b/src/workspaces.c
+@@ -369,6 +369,11 @@ workspaces_switch_to(struct workspace *target, bool update_focus)
+ 	/* Make sure new views will spawn on the new workspace */
+ 	server->workspaces.current = target;
+ 
++	/* Glyph: the taskbar shows only the windows of this workspace */
++	for_each_view(view, &server->views, LAB_VIEW_CRITERIA_NONE) {
++		wl_signal_emit_mutable(&view->events.new_outputs, NULL);
++	}
++
+ 	/*
+ 	 * Make sure we are focusing what the user sees. Only refocus if
+ 	 * the focus is not already on an omnipresent or always-on-top view.

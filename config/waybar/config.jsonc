@@ -23,6 +23,7 @@
   // open windows: a letter tile and the name, no icons
   "wlr/taskbar": {
     "format": "{icon}  {title}",
+    "all-outputs": false,
     "icon-theme": "GlyphLetters",
     "icon-size": 22,
     "rewrite": {

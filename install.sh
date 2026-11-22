@@ -20,7 +20,7 @@ for a in "$@"; do
     --plain-titlebars) PLAIN=1 ;;
   esac
 done
-LABWC_GLYPH_URL="https://github.com/DRetro83/glyph/releases/download/labwc-glyph/labwc_0.8.3-1%2Bglyph2_amd64.deb"
+LABWC_GLYPH_URL="https://github.com/DRetro83/glyph/releases/download/labwc-glyph/labwc_0.8.3-1%2Bglyph3_amd64.deb"
 
 PACKAGES=(
   labwc            # window manager (Wayland)
@@ -92,11 +92,11 @@ ok "packages"
 #     not use labwc, so nothing else changes. Skip with --plain-titlebars.
 if (( ! PLAIN )) && [[ "$(dpkg --print-architecture)" == "amd64" ]]; then
   have=$(dpkg-query -W -f='${Version}' labwc 2>/dev/null || true)
-  if [[ "$have" == "0.8.3-1" || "$have" == "0.8.3-1+glyph1" ]]; then
+  if [[ "$have" == "0.8.3-1" || "$have" == "0.8.3-1+glyph1" || "$have" == "0.8.3-1+glyph2" ]]; then
     TMPD=$(mktemp -d)
     if run python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' \
-         "$LABWC_GLYPH_URL" "$TMPD/labwc_0.8.3-1+glyph2_amd64.deb"; then
-      run sudo apt-get install -y "$TMPD/labwc_0.8.3-1+glyph2_amd64.deb" && ok "labwc-glyph (striped title bars)"
+         "$LABWC_GLYPH_URL" "$TMPD/labwc_0.8.3-1+glyph3_amd64.deb"; then
+      run sudo apt-get install -y "$TMPD/labwc_0.8.3-1+glyph3_amd64.deb" && ok "labwc-glyph (striped title bars)"
     else
       say "Could not download labwc-glyph; keeping Debian's labwc (plain title bars)."
     fi
