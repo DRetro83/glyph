@@ -18,7 +18,8 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # noqa: E402
 
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
 HZ = os.sysconf("SC_CLK_TCK")
@@ -180,37 +181,33 @@ class Graph(Gtk.DrawingArea):
     def __init__(self, win, key, maxv=None, colour="tan"):
         super().__init__()
         self.win, self.key, self.maxv, self.colour = win, key, maxv, colour
-        self.set_size_request(-1, 54)
+        self.set_size_request(-1, 46)
         self.connect("draw", self.draw)
 
     def draw(self, w, cr):
         p = self.win.pal
         W, H = w.get_allocated_width(), w.get_allocated_height()
-        cr.set_source_rgba(*hexrgb(p.get("GLYPH_VIEW")))
-        cr.rectangle(0, 0, W, H)
-        cr.fill()
-        data = self.win.s.hist[self.key]
+        data = self.win.s.hist[self.key][-HIST:]
         mx = self.maxv() if callable(self.maxv) else (self.maxv or max([1] + data))
         bw = W / HIST
         cr.set_source_rgba(*hexrgb(p.get("GLYPH_" + self.colour.upper(), p.get("GLYPH_TAN"))))
-        for j, v in enumerate(data[-HIST:]):
-            x = (HIST - len(data[-HIST:]) + j) * bw
+        for j, v in enumerate(data):
+            x = (HIST - len(data) + j) * bw
             h = max(2, min(1, v / mx) * (H - 4)) if v > 0 else 2
-            cr.rectangle(x + 1, H - h, max(1, bw - 2), h)
+            cr.rectangle(x + 1, H - 1 - h, max(1, bw - 2), h)
         cr.fill()
         cr.set_source_rgba(*hexrgb(p.get("GLYPH_HI")))
-        cr.set_line_width(1)
-        cr.rectangle(0.5, 0.5, W - 1, H - 1)
-        cr.stroke()
+        cr.rectangle(0, H - 1, W, 1)
+        cr.fill()
         return False
 
 
 class Meter(Gtk.DrawingArea):
     """20 blocks, lit up to the percentage (amber; rose above 85 %)."""
 
-    def __init__(self, win, height=12):
+    def __init__(self, win, height=12, colour="AMBER"):
         super().__init__()
-        self.win, self.pct = win, 0
+        self.win, self.pct, self.colour = win, 0, colour
         self.set_size_request(-1, height)
         self.connect("draw", self.draw)
 
@@ -226,7 +223,7 @@ class Meter(Gtk.DrawingArea):
         for j in range(20):
             col = p.get("GLYPH_HOV")
             if j < n:
-                col = p.get("GLYPH_ROSE") if self.pct > 85 else p.get("GLYPH_AMBER")
+                col = p.get("GLYPH_ROSE") if self.pct > 85 else p.get("GLYPH_" + self.colour)
             cr.set_source_rgba(*hexrgb(col))
             cr.rectangle(j * sw + 1, 0, sw - 2, H)
             cr.fill()
@@ -246,8 +243,17 @@ class Monitor(Gtk.Window):
         except Exception:
             pass
         extra = Gtk.CssProvider()
-        extra.load_from_data(b".mon .mh { font-weight: bold; } .mon .msec { padding: 10px 12px; }"
-                             b" .mon .msum { padding: 6px 12px; font-size: 12px; }")
+        hi, hov, txt = self.pal.get("GLYPH_HI", "#555"), self.pal.get("GLYPH_HOV", "#333"), self.pal.get("GLYPH_TEXT", "#ddd")
+        extra.load_from_data((
+            ".mon .mh { font-weight: bold; } .mon .msec { padding: 12px; border: 1px solid %s; margin: 12px 12px 0 12px; }"
+            ".mon .htop { padding: 8px 12px; border-bottom: 1px solid %s; }"
+            ".mon .msum { padding: 6px 12px; font-size: 12px; }"
+            ".mon treeview.flist header button { border: none; border-bottom: 1px solid %s; background: transparent; "
+            "  font-size: 11px; letter-spacing: 1px; padding: 6px 8px; }"
+            ".mon treeview.flist { -GtkTreeView-horizontal-separator: 8; -GtkTreeView-grid-line-width: 1; "
+            "  -GtkTreeView-grid-line-pattern: ''; border-color: %s; }"
+            ".mon treeview.flist:selected { background: %s; color: %s; }"
+            ".mon .kill { font-weight: bold; }" % (hi, hi, hi, hov, hov, txt)).encode())
         for c in (css, extra):
             Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), c, Gtk.STYLE_PROVIDER_PRIORITY_USER)
         self.s = Sampler()
@@ -264,9 +270,11 @@ class Monitor(Gtk.Window):
         tb.pack_start(self.b_proc, False, False, 0)
         tb.pack_start(self.b_res, False, False, 0)
         self.search = Gtk.SearchEntry()
-        self.search.set_placeholder_text("Search a program or PID…")
+        self.search.set_placeholder_text("Filter…")
         self.search.connect("search-changed", lambda e: self.set_q(e.get_text()))
         tb.pack_start(self.search, True, True, 0)
+        self.b_cores = self.btn("CORES", self.flip_cores)
+        tb.pack_start(self.b_cores, False, False, 0)
         self.b_mine = self.btn("MY APPS", self.flip_mine)
         tb.pack_start(self.b_mine, False, False, 0)
         root.pack_start(tb, False, False, 0)
@@ -275,24 +283,42 @@ class Monitor(Gtk.Window):
         root.pack_start(self.stack, True, True, 0)
 
         # processes
-        self.store = Gtk.ListStore(int, str, str, str, str, float, int)  # pid, name, cpu, mem, user, cpu#, mem#
+        # pid, name, cpu, mem, user, cpu#, mem#, tile, name+what (markup)
+        self.store = Gtk.ListStore(int, str, str, str, str, float, int, GdkPixbuf.Pixbuf, str)
         self.tree = Gtk.TreeView(model=self.store)
         self.tree.get_style_context().add_class("flist")
         self.tree.set_enable_search(False)
-        for i, (k, title) in enumerate(self.COLS):
-            r = Gtk.CellRendererText()
+        self.tiles = {}
+        self.tree.set_grid_lines(Gtk.TreeViewGridLines.HORIZONTAL)
+        for k, title in self.COLS:
+            c = Gtk.TreeViewColumn(title)
             if k == "name":
+                pr = Gtk.CellRendererPixbuf()
+                pr.set_property("xpad", 4)
+                c.pack_start(pr, False)
+                c.add_attribute(pr, "pixbuf", 7)
+                r = Gtk.CellRendererText()
                 r.set_property("ellipsize", Pango.EllipsizeMode.END)
-            if k in ("pid", "cpu", "mem"):
-                r.set_property("xalign", 1.0)
-            if k == "pid":
-                c = Gtk.TreeViewColumn(title, r)
-                c.set_cell_data_func(r, lambda col, cell, m, it, _: cell.set_property("text", str(m[it][0])))
+                r.set_property("ypad", 3)
+                c.pack_start(r, True)
+                c.add_attribute(r, "markup", 8)
             else:
-                c = Gtk.TreeViewColumn(title, r, text={"name": 1, "cpu": 2, "mem": 3, "user": 4}[k])
+                r = Gtk.CellRendererText()
+                if k in ("pid", "cpu", "mem"):
+                    r.set_property("xalign", 1.0)
+                c.pack_start(r, True)
+                if k == "pid":
+                    c.set_cell_data_func(r, lambda col, cell, m, it, _: cell.set_property("text", str(m[it][0])))
+                else:
+                    c.add_attribute(r, "text", {"cpu": 2, "mem": 3, "user": 4}[k])
+                if k == "cpu":
+                    r.set_property("weight", 600)
+                    r.set_property("foreground", self.pal.get("GLYPH_TEXT", "#ddd"))
+                else:
+                    r.set_property("foreground", self.pal.get("GLYPH_DIM", "#999"))
             c.set_clickable(True)
             c.set_expand(k == "name")
-            c.set_min_width(220 if k == "name" else 90)
+            c.set_min_width({"name": 240, "pid": 70, "cpu": 80, "mem": 90, "user": 90}[k])
             c.connect("clicked", lambda col, k=k: self.set_sort(k))
             self.tree.append_column(c)
         self.cols = self.tree.get_columns()
@@ -305,7 +331,8 @@ class Monitor(Gtk.Window):
         # an htop-like strip on top: every core, memory, swap, tasks and load
         procpage = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         top = Gtk.Grid(column_spacing=10, row_spacing=3)
-        top.get_style_context().add_class("msec")
+        top.get_style_context().add_class("htop")
+        self.htop = top
         self.htop_cores = []
         n = len(self.s.cores)
         half = (n + 1) // 2
@@ -351,24 +378,29 @@ class Monitor(Gtk.Window):
         rsw = Gtk.ScrolledWindow()
         rsw.add(res)
         self.stack.add_named(rsw, "res")
-        self.lab_cpu = self.section(res, "CPU", Graph(self, "cpu", 100))
-        self.core_box = Gtk.Grid(column_spacing=12, row_spacing=4)
+        self.lab_cpu = self.section(res, "CPU", Graph(self, "cpu", 100, "amber"))
+        self.core_box = Gtk.Grid(column_spacing=8, row_spacing=6)
         self.core_meters = []
         for j in range(len(self.s.cores)):
             l = Gtk.Label(label=f"CPU{j + 1}", xalign=0)
             l.get_style_context().add_class("dim")
             m = Meter(self, 10)
             m.set_hexpand(True)
-            self.core_box.attach(l, (j % 2) * 2, j // 2, 1, 1)
-            self.core_box.attach(m, (j % 2) * 2 + 1, j // 2, 1, 1)
-            self.core_meters.append(m)
+            m.set_valign(Gtk.Align.CENTER)
+            v = Gtk.Label(label="0%", xalign=1)
+            v.set_width_chars(4)
+            c, r = (j % 3) * 3, j // 3
+            self.core_box.attach(l, c, r, 1, 1)
+            self.core_box.attach(m, c + 1, r, 1, 1)
+            self.core_box.attach(v, c + 2, r, 1, 1)
+            self.core_meters.append((m, v))
         self.last_sec.pack_start(self.core_box, False, False, 0)
-        self.lab_mem = self.section(res, "MEMORY", Graph(self, "mem", lambda: self.s.mem.get("MemTotal", 1), "amber"))
-        self.mem_meter = Meter(self)
+        self.lab_mem = self.section(res, "MEMORY", Graph(self, "mem", lambda: self.s.mem.get("MemTotal", 1), "tan"))
+        self.mem_meter = Meter(self, 12, "TAN")
         self.last_sec.pack_start(self.mem_meter, False, False, 0)
         self.lab_net = self.section(res, "NETWORK", Graph(self, "down", lambda: max([100 * 1024] + self.s.hist["down"]), "green"))
         self.lab_disk = self.section(res, "DISK", None)
-        self.disk_meter = Meter(self)
+        self.disk_meter = Meter(self, 12, "TAN")
         self.last_sec.pack_start(self.disk_meter, False, False, 0)
         self.lab_sys = self.section(res, "SYSTEM", None)
 
@@ -382,6 +414,7 @@ class Monitor(Gtk.Window):
         self.b_end = self.btn("End task", lambda: self.end(False))
         self.b_kill = self.btn("Kill", lambda: self.end(True))
         self.b_kill.get_style_context().add_class("amber")
+        self.b_kill.get_style_context().add_class("kill")
         foot.pack_end(self.b_kill, False, False, 4)
         foot.pack_end(self.b_end, False, False, 0)
         root.pack_start(foot, False, False, 0)
@@ -423,11 +456,18 @@ class Monitor(Gtk.Window):
             (b.get_style_context().add_class if on else b.get_style_context().remove_class)("on")
         self.search.set_visible(t == "proc")
         self.b_mine.set_visible(t == "proc")
+        self.b_cores.set_visible(t == "proc")
         self.draw()
 
     def set_q(self, q):
         self.q = q.lower()
         self.draw_proc()
+
+    def flip_cores(self):
+        """The htop-like strip with every core, memory and load (CORES button)."""
+        on = not self.htop.get_visible()
+        self.htop.set_visible(on)
+        (self.b_cores.get_style_context().add_class if on else self.b_cores.get_style_context().remove_class)("on")
 
     def flip_mine(self):
         self.mine = not self.mine
@@ -444,6 +484,71 @@ class Monitor(Gtk.Window):
     def selected(self):
         m, it = self.tree.get_selection().get_selected()
         return m[it][0] if it else None
+
+    def tile(self, letter, filled):
+        """A small letter square like in the prototype: filled for apps with a window."""
+        key = (letter, filled)
+        if key not in self.tiles:
+            import cairo
+            n = 22
+            surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, n, n)
+            cr = cairo.Context(surf)
+            col = hexrgb(self.pal.get("GLYPH_TITLE", "#a8957c"))
+            if filled:
+                cr.set_source_rgba(*col)
+                cr.rectangle(0, 0, n, n)
+                cr.fill()
+                cr.set_source_rgba(*hexrgb(self.pal.get("GLYPH_TINK", "#111111")))
+            else:
+                cr.set_source_rgba(*hexrgb(self.pal.get("GLYPH_HI", "#555555")))
+                cr.set_line_width(1)
+                cr.rectangle(0.5, 0.5, n - 1, n - 1)
+                cr.stroke()
+                cr.set_source_rgba(*hexrgb(self.pal.get("GLYPH_DIM", "#999999")))
+            cr.select_font_face("IBM Plex Mono", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+            cr.set_font_size(12)
+            e = cr.text_extents(letter)
+            cr.move_to((n - e.width) / 2 - e.x_bearing, (n - e.height) / 2 - e.y_bearing)
+            cr.show_text(letter)
+            surf.flush()
+            self.tiles[key] = Gdk.pixbuf_get_from_surface(surf, 0, 0, n, n)
+        return self.tiles[key]
+
+    def windows(self):
+        """{app_id lower: nice app name} of open windows (via glyph-toplevel), refreshed now and then."""
+        now = time.time()
+        if now - getattr(self, "_wtime", 0) < 4:
+            return self._wins
+        self._wtime, self._wins = now, {}
+        try:
+            import json
+            data = json.loads(subprocess.run(["glyph-toplevel", "list"], capture_output=True, text=True, timeout=2).stdout or "[]")
+        except Exception:
+            data = []
+        from gi.repository import Gio
+        for w in data or []:
+            aid = (w.get("app_id") or "").lower()
+            if not aid:
+                continue
+            try:
+                info = Gio.DesktopAppInfo.new(w.get("app_id") + ".desktop")
+            except TypeError:      # no .desktop file with that name
+                info = None
+            name = info.get_display_name() if info else (w.get("app_id") or "").split(".")[-1].replace("glyph-", "")
+            self._wins[aid] = (name[:1].upper() + name[1:]) if name else (w.get("title") or aid)
+        return self._wins
+
+    def proc_key(self, p):
+        """The name to match a process with a window: the program, or the script for python ones."""
+        if p["name"].startswith("python"):
+            try:
+                args = Path(f"/proc/{p['pid']}/cmdline").read_bytes().split(b"\0")
+                for a in args[1:]:
+                    if a and not a.startswith(b"-"):
+                        return os.path.basename(a.decode(errors="ignore")).lower()
+            except Exception:
+                pass
+        return p["name"].lower()
 
     # ---------- drawing
     def tick_once(self):
@@ -488,8 +593,15 @@ class Monitor(Gtk.Window):
         adj = self.proc_sw.get_vadjustment()
         pos = adj.get_value() if adj else 0
         self.store.clear()
+        wins = self.windows()
         for p in rows:
-            self.store.append([p["pid"], p["name"], f"{p['cpu']:.1f} %", fmt_mem(p["mem"]), p["user"], p["cpu"], p["mem"]])
+            key = self.proc_key(p)
+            app = wins.get(key) or next((v for k, v in wins.items() if k.split(".")[-1] == key or key.startswith(k[:15])), None)
+            name = key if key != p["name"].lower() else p["name"]
+            sub = f"{app} · window" if app else "background"
+            mk = f"{GLib.markup_escape_text(name)}\n<small><span foreground='{self.pal.get('GLYPH_DIM', '#999')}'>{GLib.markup_escape_text(sub)}</span></small>"
+            self.store.append([p["pid"], p["name"], f"{p['cpu']:.1f}%", fmt_mem(p["mem"]), p["user"], p["cpu"], p["mem"],
+                               self.tile((name[:1] or "?").upper(), bool(app)), mk])
         for c, (k, t) in zip(self.cols, self.COLS):
             c.set_title(t + ((" ▾" if self.desc else " ▴") if k == self.sort else ""))
         if sel is not None:
@@ -505,8 +617,9 @@ class Monitor(Gtk.Window):
         cpu = h["cpu"][-1] if h["cpu"] else 0
         t = temperature()
         self.lab_cpu.set_text(f"{cpu:.0f}% · {len(self.s.cores)} cores" + (f" · {t:.0f} °C" if t else ""))
-        for m, v in zip(self.core_meters, self.s.cores):
+        for (m, l), v in zip(self.core_meters, self.s.cores):
             m.set(v)
+            l.set_text(f"{v:.0f}%")
         mi = self.s.mem
         used = h["mem"][-1] if h["mem"] else 0
         tot = mi.get("MemTotal", 1)
@@ -611,6 +724,9 @@ def main():
     w.connect("destroy", Gtk.main_quit)
     w.show_all()
     import sys
+    w.htop.set_visible("cores" in sys.argv[1:])
+    if "cores" in sys.argv[1:]:
+        w.b_cores.get_style_context().add_class("on")
     w.set_tab("res" if "resources" in sys.argv[1:] else "proc")
     Gtk.main()
 
