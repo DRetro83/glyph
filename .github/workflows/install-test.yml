@@ -12,6 +12,9 @@ on:
       - ".github/workflows/install-test.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -35,7 +38,10 @@ jobs:
           git reset --hard HEAD~3
           chown -R glyph:glyph /home/glyph/glyph
       - name: install.sh
-        run: su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh"
+        shell: bash
+        run: |
+          set -o pipefail
+          su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh" 2>&1 | tee -a /tmp/test.log
       - name: Installed as it should be
         run: |
           set -x
@@ -50,8 +56,10 @@ jobs:
           dpkg -l labwc | tail -1 | grep -q glyph
           fc-list | grep -qi "IBM Plex Mono"
       - name: glyph-update (pulls the newest commits and installs again)
+        shell: bash
         run: |
-          su - glyph -c "glyph-update"
+          set -o pipefail
+          su - glyph -c "glyph-update" 2>&1 | tee -a /tmp/test.log
           su - glyph -c "cd ~/glyph && git status -sb | head -1"
           test "$(su - glyph -c 'cd ~/glyph && git rev-parse HEAD')" = "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" || \
             test "$(su - glyph -c 'cd ~/glyph && git rev-parse HEAD')" = "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)"
@@ -81,3 +89,15 @@ jobs:
           ! dpkg -l labwc | tail -1 | grep -q glyph
       - name: install.sh again after removing
         run: su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh" && test -x /usr/local/bin/glyph-theme
+      - name: When something failed, keep the log (branch ci-logs, file install-test.log)
+        if: failure()
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name glyph-ci; git config user.email glyph@users.noreply.github.com
+          git checkout --orphan ci-logs
+          git rm -rfq . >/dev/null
+          tail -300 /tmp/test.log > install-test.log
+          git add install-test.log
+          git commit -qm "install-test log"
+          git push -f origin ci-logs
