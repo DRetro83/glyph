@@ -36,7 +36,7 @@ LAYOUTS = [("us", "English (US)"), ("gb", "English (UK)"), ("be", "Belgian (AZER
 SECTIONS = [("PERSONAL", ["Appearance", "Background", "Taskbar", "Notifications"]),
             ("DEVICES", ["Display", "Sound", "Keyboard", "Mouse & touchpad", "Power & lock"]),
             ("CONNECTIONS", ["Network", "Bluetooth"]),
-            ("SYSTEM", ["Date & time", "Updates", "About"])]
+            ("SYSTEM", ["Default apps", "Date & time", "Updates", "About"])]
 
 
 def sh(cmd, timeout=5):
@@ -665,6 +665,63 @@ class Settings(Gtk.Window):
         row.pack_start(self.btn("Set", lambda: (sh(["timedatectl", "set-timezone", combo.get_child().get_text().strip()], 60), self.refresh()), "amber"), False, False, 0)
         p.pack_start(row, False, False, 0)
         p.pack_start(self.note("Debian asks for your password to change the time zone."), False, False, 0)
+
+    DEFAULTS = [("WEB BROWSER", ["x-scheme-handler/http", "x-scheme-handler/https", "text/html"]),
+                ("FILES", ["inode/directory"]),
+                ("MUSIC", ["audio/mpeg", "audio/flac", "audio/ogg", "audio/x-vorbis+ogg", "audio/opus", "audio/mp4",
+                           "audio/x-m4a", "audio/aac", "audio/x-wav", "audio/wav"]),
+                ("VIDEO", ["video/mp4", "video/x-matroska", "video/webm", "video/x-msvideo", "video/quicktime"]),
+                ("PICTURES", ["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/svg+xml"]),
+                ("PDF", ["application/pdf"]),
+                ("TEXT FILES", ["text/plain"]),
+                ("MAIL", ["x-scheme-handler/mailto"])]
+
+    def page_default_apps(self, p):
+        from gi.repository import Gio
+        mime = CONF.parent / "glyph-mimeapps.list"
+        cur = {}
+        try:
+            for line in mime.read_text().splitlines():
+                if "=" in line and not line.startswith("["):
+                    k, v = line.split("=", 1)
+                    cur[k.strip()] = v.strip().split(";")[0]
+        except Exception:
+            pass
+
+        def save(types, app_id):
+            lines = []
+            try:
+                lines = [l for l in mime.read_text().splitlines() if l.split("=", 1)[0].strip() not in types]
+            except Exception:
+                pass
+            if not lines or lines[0].strip() != "[Default Applications]":
+                lines = ["[Default Applications]"] + [l for l in lines if l.strip() != "[Default Applications]"]
+            lines += [f"{t}={app_id}" for t in types]
+            mime.write_text("\n".join(lines) + "\n")
+
+        p.pack_start(self.note("Which app opens a file or link in Glyph. KDE keeps its own choices."), False, False, 0)
+        for title, types in self.DEFAULTS:
+            apps, seen = [], set()
+            for t in types[:2]:
+                for a in Gio.AppInfo.get_all_for_type(t):
+                    if a.get_id() not in seen and a.should_show():
+                        seen.add(a.get_id())
+                        apps.append(a)
+            if not apps:
+                continue
+            now = cur.get(types[0])
+            if not now:
+                d = Gio.AppInfo.get_default_for_type(types[0], False)
+                now = d.get_id() if d else ""
+            p.pack_start(self.lab(title, "lab"), False, False, 0)
+            p.pack_start(self.opts([(a.get_id(), a.get_display_name()) for a in apps[:8]], now,
+                                   lambda v, types=types: save(types, v)), False, False, 0)
+        terms = [(t, n) for t, n in (("xfce4-terminal", "Xfce Terminal"), ("foot", "foot"), ("kitty", "kitty"),
+                                     ("alacritty", "Alacritty"), ("konsole", "Konsole")) if has(t)]
+        if terms:
+            p.pack_start(self.lab("TERMINAL", "lab"), False, False, 0)
+            p.pack_start(self.opts(terms, read_kv(GCONF).get("terminal", terms[0][0]),
+                                   lambda v: write_kv(GCONF, "terminal", v)), False, False, 0)
 
     def page_updates(self, p):
         p.pack_start(self.note("Debian and your apps: this opens a terminal that asks for your password, "

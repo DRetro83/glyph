@@ -154,7 +154,7 @@ run mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 run cp "$HERE"/share/applications/glyph-*.desktop "${XDG_DATA_HOME:-$HOME/.local/share}/applications/"
 # Glyph's own Files and Music open folders and songs, only in the Glyph session
 # (KDE keeps Dolphin and its own player: this file is read only when the desktop is Glyph)
-if (( ! CHECK )); then
+if (( ! CHECK )) && [[ ! -f "$CONF/glyph-mimeapps.list" ]]; then   # keep your choices (Settings -> Default apps)
   cat > "$CONF/glyph-mimeapps.list" <<'MIME'
 [Default Applications]
 inode/directory=glyph-files.desktop
