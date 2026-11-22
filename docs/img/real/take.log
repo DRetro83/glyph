@@ -15,45 +15,40 @@
 + G=/home/glyph/.config/glyph
 + T=/home/glyph/.config/glyph/theme.conf
 + touch /home/glyph/.config/glyph/welcome-done
-touch: cannot touch '/home/glyph/.config/glyph/welcome-done': No such file or directory
 + mkdir -p /home/glyph/Documents /home/glyph/Downloads /home/glyph/Music /home/glyph/Pictures /home/glyph/Videos /home/glyph/Games /home/glyph/Projects
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 896280 /dev/urandom
++ head -c 1281680 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 532840 /dev/urandom
++ head -c 664280 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 324800 /dev/urandom
++ head -c 55800 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 1251040 /dev/urandom
++ head -c 443560 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 652360 /dev/urandom
++ head -c 1154880 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 875680 /dev/urandom
++ head -c 409760 /dev/urandom
 + for f in Documents/letter.odt Documents/budget-2026.ods Documents/notes.txt Pictures/holiday.jpg Music/midnight-city.mp3 Downloads/debian-13.iso Projects/glyph.html
-+ head -c 484160 /dev/urandom
++ head -c 170400 /dev/urandom
 + mkdir -p /tmp/fake
 + cat
 + chmod +x /tmp/fake/playerctl
 + export PATH=/tmp/fake:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
 + PATH=/tmp/fake:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
 + python3 - /home/glyph/.config/glyph/labwc/rc.xml
-Traceback (most recent call last):
-  File "<stdin>", line 2, in <module>
-FileNotFoundError: [Errno 2] No such file or directory: '/home/glyph/.config/glyph/labwc/rc.xml'
 + glyph-theme --shadows yes --mode dark --colour tan
-extras/screenshots/take.sh: line 51: glyph-theme: command not found
+extras/screenshots/take.sh: line 52: glyph-theme: command not found
 + ws_own own
 + sed -i '/^ws_colours=/d' /home/glyph/.config/glyph/theme.conf
 sed: can't read /home/glyph/.config/glyph/theme.conf: No such file or directory
 + echo ws_colours=own
-extras/screenshots/take.sh: line 50: /home/glyph/.config/glyph/theme.conf: No such file or directory
 ++ dbus-launch --sh-syntax
-+ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-ca6GMG29cL,guid=c89bf4954b25d49bd9bbe61c6b030730'\'';
++ eval 'DBUS_SESSION_BUS_ADDRESS='\''unix:path=/tmp/dbus-6FH9jTpBAy,guid=0c72945d2aa1f8d0ee50e1b66b030835'\'';
 export DBUS_SESSION_BUS_ADDRESS;
-DBUS_SESSION_BUS_PID=3979;'
-++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-ca6GMG29cL,guid=c89bf4954b25d49bd9bbe61c6b030730
+DBUS_SESSION_BUS_PID=15503;'
+++ DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-6FH9jTpBAy,guid=0c72945d2aa1f8d0ee50e1b66b030835
 ++ export DBUS_SESSION_BUS_ADDRESS
-++ DBUS_SESSION_BUS_PID=3979
+++ DBUS_SESSION_BUS_PID=15503
 + sleep 12
 + glyph-session
 ++ ls /tmp/xdg-1000
@@ -69,30 +64,30 @@ failed to connect to display
 + sleep 3
 + sleep 4
 + glyph-files /home/glyph
-extras/screenshots/take.sh: line 66: glyph-files: command not found
+extras/screenshots/take.sh: line 67: glyph-files: command not found
 + sleep 5
 + glyph-settings Appearance
-extras/screenshots/take.sh: line 67: glyph-settings: command not found
+extras/screenshots/take.sh: line 68: glyph-settings: command not found
 + shot real-windows 2
 + sleep 2
 + grim /tmp/shots/real-windows.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + shot real-start 4
-+ sleep 4
 + glyph-start
-extras/screenshots/take.sh: line 69: glyph-start: command not found
++ sleep 4
+extras/screenshots/take.sh: line 70: glyph-start: command not found
 + grim /tmp/shots/real-start.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
 + sleep 1
 + shot real-quick 5
-+ sleep 5
 + glyph-panel quick
-extras/screenshots/take.sh: line 73: glyph-panel: command not found
++ sleep 5
+extras/screenshots/take.sh: line 74: glyph-panel: command not found
 + grim /tmp/shots/real-quick.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
@@ -100,93 +95,91 @@ extras/screenshots/take.sh: line 62: grim: command not found
 + shot real-calendar 4
 + glyph-panel cal
 + sleep 4
-extras/screenshots/take.sh: line 75: glyph-panel: command not found
+extras/screenshots/take.sh: line 76: glyph-panel: command not found
 + grim /tmp/shots/real-calendar.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
 + sleep 1
 + glyph-ws 2
-extras/screenshots/take.sh: line 79: glyph-ws: command not found
-+ sleep 3
-+ sleep 4
-+ glyph-music
-extras/screenshots/take.sh: line 79: glyph-music: command not found
-+ glyph-ws 3
 extras/screenshots/take.sh: line 80: glyph-ws: command not found
 + sleep 3
 + sleep 4
-+ glyph-monitor
-extras/screenshots/take.sh: line 80: glyph-monitor: command not found
-+ glyph-ws 4
++ glyph-music
+extras/screenshots/take.sh: line 80: glyph-music: command not found
++ glyph-ws 3
 extras/screenshots/take.sh: line 81: glyph-ws: command not found
++ sleep 3
++ sleep 4
++ glyph-monitor
+extras/screenshots/take.sh: line 81: glyph-monitor: command not found
++ glyph-ws 4
+extras/screenshots/take.sh: line 82: glyph-ws: command not found
 + sleep 3
 + sleep 5
 + glyph-software
-extras/screenshots/take.sh: line 81: glyph-software: command not found
+extras/screenshots/take.sh: line 82: glyph-software: command not found
 + for n in 1 2 3 4
 + glyph-ws 1
-extras/screenshots/take.sh: line 82: glyph-ws: command not found
+extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws1 5
 + sleep 5
 + grim /tmp/shots/ws1.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + for n in 1 2 3 4
 + glyph-ws 2
-extras/screenshots/take.sh: line 82: glyph-ws: command not found
+extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws2 5
 + sleep 5
 + grim /tmp/shots/ws2.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + for n in 1 2 3 4
 + glyph-ws 3
-extras/screenshots/take.sh: line 82: glyph-ws: command not found
+extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws3 5
 + sleep 5
 + grim /tmp/shots/ws3.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + for n in 1 2 3 4
 + glyph-ws 4
-extras/screenshots/take.sh: line 82: glyph-ws: command not found
+extras/screenshots/take.sh: line 83: glyph-ws: command not found
 + shot ws4 5
 + sleep 5
 + grim /tmp/shots/ws4.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + glyph-ws 1
-extras/screenshots/take.sh: line 85: glyph-ws: command not found
+extras/screenshots/take.sh: line 86: glyph-ws: command not found
 + sleep 3
 + ws_own same
 + sed -i '/^ws_colours=/d' /home/glyph/.config/glyph/theme.conf
-sed: can't read /home/glyph/.config/glyph/theme.conf: No such file or directory
 + echo ws_colours=same
-extras/screenshots/take.sh: line 50: /home/glyph/.config/glyph/theme.conf: No such file or directory
 + glyph-theme --mode light --colour blue --set corners=round --set radius=10
-extras/screenshots/take.sh: line 87: glyph-theme: command not found
+extras/screenshots/take.sh: line 88: glyph-theme: command not found
 + sleep 6
 + glyph-ws 1
-extras/screenshots/take.sh: line 89: glyph-ws: command not found
+extras/screenshots/take.sh: line 90: glyph-ws: command not found
 + shot real-light 4
 + sleep 4
 + grim /tmp/shots/real-light.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + shot real-light-quick 5
 + glyph-panel quick
 + sleep 5
-extras/screenshots/take.sh: line 90: glyph-panel: command not found
+extras/screenshots/take.sh: line 91: glyph-panel: command not found
 + grim /tmp/shots/real-light-quick.png
-extras/screenshots/take.sh: line 62: grim: command not found
+failed to create display
 + closepanels
 + pkill -f bin/glyph-panel
 + pkill -f bin/glyph-start
 + sleep 1
 + glyph-theme --mode dark --colour tan --set corners=square --set radius=0
-extras/screenshots/take.sh: line 94: glyph-theme: command not found
+extras/screenshots/take.sh: line 95: glyph-theme: command not found
 + ls -la /tmp/shots
 total 12
-drwxrwxr-x 2 glyph glyph 4096 Nov 22 15:16 .
-drwxrwxrwt 1 root  root  4096 Nov 22 15:16 ..
--rw-rw-r-- 1 glyph glyph   70 Nov 22 15:16 session.log
+drwxrwxr-x 2 glyph glyph 4096 Nov 22 15:20 .
+drwxrwxrwt 1 root  root  4096 Nov 22 15:20 ..
+-rw-rw-r-- 1 glyph glyph   70 Nov 22 15:20 session.log
 + python3 - /tmp/shots
 Traceback (most recent call last):
   File "<stdin>", line 4, in <module>
