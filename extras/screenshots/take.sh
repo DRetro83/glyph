@@ -1,6 +1,7 @@
 #!/bin/bash
 # Takes the screenshots for the README from the real Glyph session, headless.
 # (the first runs found a real install bug: IBM Plex needs Debian's contrib section)
+# run: 2
 # Runs on GitHub (see .github/workflows/screenshots.yml) as a normal user after ./install.sh.
 #   extras/screenshots/take.sh OUTDIR
 OUT=$(realpath "${1:-shots}")
