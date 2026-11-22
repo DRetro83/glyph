@@ -34,9 +34,10 @@ COLOURS = [("Tan", "tan", "#a8957c"), ("Light tan", "light-tan", "#cdbb9f"), ("C
 LAYOUTS = [("us", "English (US)"), ("gb", "English (UK)"), ("be", "Belgian (AZERTY)"), ("fr", "French (AZERTY)"),
            ("de", "German (QWERTZ)"), ("nl", "Dutch"), ("es", "Spanish"), ("it", "Italian"), ("pt", "Portuguese")]
 SECTIONS = [("PERSONAL", ["Appearance", "Background", "Taskbar", "Notifications"]),
-            ("DEVICES", ["Display", "Sound", "Keyboard", "Mouse & touchpad", "Power & lock", "Disks"]),
-            ("CONNECTIONS", ["Network", "Bluetooth"]),
-            ("SYSTEM", ["Default apps", "Date & time", "Updates", "About"])]
+            ("DEVICES", ["Display", "Sound", "Keyboard", "Mouse & touchpad", "Printers", "Power & lock", "Disks"]),
+            ("CONNECTIONS", ["Network", "Mobile network", "Bluetooth"]),
+            ("SYSTEM", ["Users", "Date & time", "Language & region", "Privacy", "Default apps", "Accessibility",
+                        "Updates", "About"])]
 
 
 def sh(cmd, timeout=5):
@@ -742,6 +743,117 @@ class Settings(Gtk.Window):
             p.pack_start(self.lab("TERMINAL", "lab"), False, False, 0)
             p.pack_start(self.opts(terms, read_kv(GCONF).get("terminal", terms[0][0]),
                                    lambda v: write_kv(GCONF, "terminal", v)), False, False, 0)
+
+    def in_terminal(self, title, cmd):
+        """Run a command that asks for your password in a small terminal window."""
+        bg(["foot", "-T", title, "sh", "-c", cmd + "; echo; read -p 'Press Enter to close ' x"])
+
+    def page_printers(self, p):
+        if not has("lpstat"):
+            p.pack_start(self.note("Printing is not installed. In a terminal: sudo apt install cups system-config-printer"), False, False, 0)
+            p.pack_start(self.btn("Install printing…", lambda: self.in_terminal("Printing", "sudo apt install cups system-config-printer")), False, False, 0)
+            return
+        default = sh(["lpstat", "-d"]).split(":")[-1].strip()
+        printers = [l.split()[1] for l in sh(["lpstat", "-p"]).splitlines() if l.startswith("printer ")]
+        if printers:
+            for pr in printers:
+                state = next((l for l in sh(["lpstat", "-p", pr]).splitlines() if l.startswith("printer")), "")
+                row = Gtk.Box(spacing=8)
+                row.pack_start(self.lab(pr + ("  · default" if pr == default else ""), "pname" if pr == default else ""), False, False, 0)
+                row.pack_start(self.lab("idle" if "idle" in state else "busy" if "printing" in state else "off" if "disabled" in state else "", "dim"), False, False, 0)
+                if pr != default:
+                    row.pack_end(self.btn("Make default", lambda pr=pr: (sh(["lpoptions", "-d", pr]), self.refresh())), False, False, 0)
+                row.pack_end(self.btn("Test page", lambda pr=pr: bg(["lp", "-d", pr, "/usr/share/cups/data/testprint"])), False, False, 0)
+                p.pack_start(row, False, False, 0)
+        else:
+            p.pack_start(self.note("No printers yet. Most network and USB printers are found by themselves; "
+                                   "otherwise add one here."), False, False, 0)
+        if has("system-config-printer"):
+            p.pack_start(self.btn("Add or change printers…", lambda: bg(["system-config-printer"]), "amber"), False, False, 0)
+        p.pack_start(self.btn("Printer page in the browser (CUPS)…", lambda: bg(["xdg-open", "http://localhost:631/printers/"])), False, False, 0)
+
+    def page_mobile_network(self, p):
+        if not has("mmcli"):
+            p.pack_start(self.note("No mobile modem software. Only needed for a laptop with a SIM card: sudo apt install modemmanager"), False, False, 0)
+            return
+        modems = re.findall(r"/Modem/(\d+)", sh(["mmcli", "-L"]))
+        if not modems:
+            p.pack_start(self.note("No mobile modem found. A laptop with a SIM card shows it here."), False, False, 0)
+            return
+        info = sh(["mmcli", "-m", modems[0]])
+        get = lambda k: (re.search(rf"{k}\s*:\s*(.+)", info).group(1).strip() if re.search(rf"{k}\s*:\s*(.+)", info) else "?")
+        p.pack_start(self.info([("Modem", get("model")), ("Operator", get("operator name")), ("Signal", get("signal quality")),
+                                ("State", get("  state"))]), False, False, 0)
+        p.pack_start(self.toggle("Mobile data", "Use the SIM card for internet.", sh(["nmcli", "radio", "wwan"]).strip() == "enabled",
+                                 lambda on: (sh(["nmcli", "radio", "wwan", "on" if on else "off"]), self.refresh())), False, False, 0)
+        if has("nm-connection-editor"):
+            p.pack_start(self.btn("APN and more…", lambda: bg(["nm-connection-editor"])), False, False, 0)
+
+    def page_users(self, p):
+        import pwd
+        import grp
+        me = pwd.getpwuid(os.getuid())
+        groups = sorted(g.gr_name for g in grp.getgrall() if me.pw_name in g.gr_mem)
+        p.pack_start(self.info([("You", me.pw_name), ("Full name", me.pw_gecos.split(",")[0] or "—"), ("Home folder", me.pw_dir),
+                                ("Administrator", "yes" if "sudo" in groups else "no"), ("Groups", ", ".join(groups) or "—")]),
+                     False, False, 0)
+        p.pack_start(self.btn("Change your password…", lambda: self.in_terminal("Password", "passwd"), "amber"), False, False, 0)
+        p.pack_start(self.btn("Change your full name…", lambda: self.in_terminal("Full name", "read -p 'Full name: ' n && chfn -f \"$n\"")), False, False, 0)
+        others = [u for u in pwd.getpwall() if 1000 <= u.pw_uid < 60000 and u.pw_name != me.pw_name]
+        if others:
+            p.pack_start(self.lab("OTHER PEOPLE", "lab"), False, False, 0)
+            p.pack_start(self.info([(u.pw_name, u.pw_gecos.split(",")[0] or u.pw_dir) for u in others]), False, False, 0)
+        p.pack_start(self.btn("Add a person…", lambda: self.in_terminal("Add a person", "read -p 'Login name (small letters): ' n && sudo adduser \"$n\"")),
+                     False, False, 0)
+
+    def page_language_region(self, p):
+        st = sh(["localectl", "status"])
+        loc = re.search(r"LANG=(\S+)", st)
+        kb = re.search(r"X11 Layout:\s*(\S+)", st)
+        p.pack_start(self.info([("Language", loc.group(1) if loc else os.environ.get("LANG", "?")),
+                                ("Keyboard", kb.group(1) if kb else "?"),
+                                ("Time zone", sh(["timedatectl", "show", "-p", "Timezone", "--value"]).strip() or "?")]), False, False, 0)
+        p.pack_start(self.note("Glyph itself speaks English. The language and formats here are used by your apps, "
+                               "for example dates and numbers in LibreOffice."), False, False, 0)
+        p.pack_start(self.btn("Change language and formats…", lambda: self.in_terminal("Language", "sudo dpkg-reconfigure locales")), False, False, 0)
+        p.pack_start(self.btn("Change the keyboard layout…", lambda: self.in_terminal("Keyboard", "sudo dpkg-reconfigure keyboard-configuration && echo 'Run glyph-update, then sign in again.'")), False, False, 0)
+
+    def page_privacy(self, p):
+        recent = Path.home() / ".local/share/recently-used.xbel"
+        n = len(re.findall("<bookmark ", recent.read_text(errors="ignore"))) if recent.exists() else 0
+        p.pack_start(self.lab("RECENT FILES", "lab"), False, False, 0)
+        p.pack_start(self.note(f"Apps remember {n} recently opened files."), False, False, 0)
+        p.pack_start(self.btn("Forget recent files", lambda: (recent.write_text('<?xml version="1.0" encoding="UTF-8"?>\n<xbel version="1.0"></xbel>\n'), self.refresh())),
+                     False, False, 0)
+        p.pack_start(self.lab("NOTIFICATIONS", "lab"), False, False, 0)
+        p.pack_start(self.btn("Clear notification history", self.clear_notifs), False, False, 0)
+        p.pack_start(self.lab("TRASH", "lab"), False, False, 0)
+        p.pack_start(self.btn("Empty the trash", lambda: (sh(["gio", "trash", "--empty"]), self.refresh())), False, False, 0)
+        p.pack_start(self.lab("SCREEN LOCK", "lab"), False, False, 0)
+        p.pack_start(self.note("The screen locks by itself after a while and always before sleep: Power & lock."), False, False, 0)
+        p.pack_start(self.btn("Power & lock…", lambda: self.show_page("Power & lock")), False, False, 0)
+        users = [l for l in sh(["fuser", "-v", "/dev/video0"]).splitlines()] if Path("/dev/video0").exists() else []
+        p.pack_start(self.lab("CAMERA", "lab"), False, False, 0)
+        p.pack_start(self.note("Camera in use right now." if users else "The camera is not in use." if Path("/dev/video0").exists()
+                               else "No camera found."), False, False, 0)
+
+    def page_accessibility(self, p):
+        t = read_kv(THEME)
+        p.pack_start(self.lab("BIGGER TEXT", "lab"), False, False, 0)
+        p.pack_start(self.opts([("13", "Normal"), ("15", "Large")], t.get("textsize", "13"),
+                               lambda v: self.theme("--set", "textsize=" + v)), False, False, 0)
+        p.pack_start(self.lab("MORE CONTRAST", "lab"), False, False, 0)
+        p.pack_start(self.opts([("dark", "Dark"), ("oled", "Black (most contrast)"), ("light", "Light")], t.get("mode", "dark"),
+                               lambda v: self.theme("--mode", v)), False, False, 0)
+        p.pack_start(self.lab("BIGGER POINTER", "lab"), False, False, 0)
+        p.pack_start(self.opts([("24", "Small"), ("32", "Normal"), ("48", "Large")], read_kv(GCONF).get("cursor_size", "24"),
+                               lambda v: apply_cursor(read_kv(GCONF).get("cursor_colour", "#e6dac4"), v)), False, False, 0)
+        p.pack_start(self.lab("SCANLINES", "lab"), False, False, 0)
+        p.pack_start(self.opts([("on", "On"), ("off", "Off (calmer)")], t.get("scanlines", "on"),
+                               lambda v: self.theme("--set", "scanlines=" + v)), False, False, 0)
+        p.pack_start(self.lab("EVERYTHING BIGGER", "lab"), False, False, 0)
+        p.pack_start(self.btn("Display scale…", lambda: self.show_page("Display")), False, False, 0)
+        p.pack_start(self.note("Keyboard: Ctrl+plus makes text bigger in most apps and the terminal."), False, False, 0)
 
     def page_updates(self, p):
         p.pack_start(self.note("Debian and your apps: this opens a terminal that asks for your password, "

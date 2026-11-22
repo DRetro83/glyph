@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Calculator
+Comment=maths
+Exec=glyph-calc
+Terminal=false
+Categories=Utility;Calculator;
+Keywords=calculator;maths;sum;
+StartupWMClass=glyph-calc
+Icon=accessories-calculator

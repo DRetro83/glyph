@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=About
+Comment=this computer
+Exec=glyph-settings About
+Terminal=false
+Categories=System;
+Keywords=about;system;info;version;computer;
+Icon=help-about

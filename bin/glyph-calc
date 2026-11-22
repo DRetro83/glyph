@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""glyph-calc - a small calculator in the Glyph look.
+
+Type with the keyboard or click: digits, + - × ÷, %, ( ), Enter = result,
+Backspace, Escape clears. Ctrl+C copies the result. The last sums stay in a
+short list above.
+"""
+import ast
+import math
+import operator
+import os
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
+       ast.Pow: operator.pow, ast.Mod: operator.mod, ast.USub: operator.neg, ast.UAdd: operator.pos}
+FUNCS = {"sqrt": math.sqrt, "sin": lambda x: math.sin(math.radians(x)), "cos": lambda x: math.cos(math.radians(x)),
+         "tan": lambda x: math.tan(math.radians(x)), "log": math.log10, "ln": math.log, "pi": math.pi}
+
+
+def calc(text):
+    """Safe maths: numbers, + - * / ** %, brackets and a few functions (no Python code)."""
+    t = text.replace("×", "*").replace("÷", "/").replace("−", "-").replace(",", ".").replace("^", "**").replace("√", "sqrt")
+    t = t.replace("π", "pi")
+
+    def ev(n):
+        if isinstance(n, ast.Expression):
+            return ev(n.body)
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return n.value
+        if isinstance(n, ast.BinOp) and type(n.op) in OPS:
+            return OPS[type(n.op)](ev(n.left), ev(n.right))
+        if isinstance(n, ast.UnaryOp) and type(n.op) in OPS:
+            return OPS[type(n.op)](ev(n.operand))
+        if isinstance(n, ast.Name) and n.id in FUNCS and not callable(FUNCS[n.id]):
+            return FUNCS[n.id]
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in FUNCS and len(n.args) == 1:
+            return FUNCS[n.func.id](ev(n.args[0]))
+        raise ValueError("not allowed")
+    v = ev(ast.parse(t, mode="eval"))
+    if isinstance(v, float):
+        if v.is_integer() and abs(v) < 1e15:
+            return str(int(v))
+        return f"{v:.10g}"
+    return str(v)
+
+
+class Calc(Gtk.Window):
+    KEYS = [["C", "(", ")", "÷"], ["7", "8", "9", "×"], ["4", "5", "6", "−"], ["1", "2", "3", "+"], ["%", "0", ".", "="]]
+
+    def __init__(self):
+        super().__init__(title="Calculator")
+        self.set_default_size(300, 440)
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        extra = Gtk.CssProvider()
+        extra.load_from_data(b".calc { padding: 10px; } .calc .disp { font-size: 28px; font-weight: bold; padding: 6px 4px; }"
+                             b" .calc .hist { font-size: 12px; } .calc button { font-size: 16px; min-height: 44px; }")
+        for c in (css, extra):
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), c, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.get_style_context().add_class("files")
+        box.get_style_context().add_class("calc")
+        self.add(box)
+        self.hist = Gtk.Label(xalign=1)
+        self.hist.get_style_context().add_class("hist")
+        self.hist.get_style_context().add_class("dim")
+        self.hist.set_selectable(True)
+        box.pack_start(self.hist, False, False, 0)
+        self.expr = Gtk.Label(xalign=1)
+        self.expr.get_style_context().add_class("dim")
+        box.pack_start(self.expr, False, False, 0)
+        self.disp = Gtk.Label(label="0", xalign=1)
+        self.disp.get_style_context().add_class("disp")
+        self.disp.set_selectable(True)
+        box.pack_start(self.disp, False, False, 0)
+        grid = Gtk.Grid(row_spacing=6, column_spacing=6, row_homogeneous=True, column_homogeneous=True)
+        for r, row in enumerate(self.KEYS):
+            for c, k in enumerate(row):
+                b = Gtk.Button(label=k)
+                if k == "=":
+                    b.get_style_context().add_class("amber")
+                b.connect("clicked", lambda *_, k=k: self.press(k))
+                b.set_can_focus(False)
+                grid.attach(b, c, r, 1, 1)
+        box.pack_start(grid, True, True, 0)
+        self.text, self.done, self.past = "", False, []
+        self.connect("key-press-event", self.on_key)
+
+    def show(self):
+        self.disp.set_text(self.text or "0")
+
+    def press(self, k):
+        if k == "C":
+            self.text, self.done = "", False
+            self.expr.set_text("")
+        elif k == "=":
+            if not self.text:
+                return
+            try:
+                r = calc(self.text.replace("%", "/100"))
+            except ZeroDivisionError:
+                r = "can't divide by 0"
+            except Exception:
+                r = "not a sum"
+            self.expr.set_text(self.text + " =")
+            if r[0].isdigit() or r[0] == "-":
+                self.past = (self.past + [f"{self.text} = {r}"])[-3:]
+                self.hist.set_text("\n".join(self.past))
+            self.text, self.done = (r if r[0].isdigit() or r[0] == "-" else ""), True
+            self.disp.set_text(r)
+            return
+        elif k == "⌫":
+            self.text = self.text[:-1]
+        else:
+            if self.done and k[0].isdigit():
+                self.text = ""
+            self.done = False
+            self.text += k
+        self.show()
+
+    def on_key(self, w, e):
+        ctrl = e.state & Gdk.ModifierType.CONTROL_MASK
+        name = Gdk.keyval_name(e.keyval) or ""
+        ch = chr(Gdk.keyval_to_unicode(e.keyval)) if Gdk.keyval_to_unicode(e.keyval) else ""
+        if ctrl and name.lower() == "c":
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(self.disp.get_text(), -1)
+            return True
+        if ctrl and name.lower() in ("q", "w"):
+            self.destroy()
+            return True
+        if name in ("Return", "KP_Enter") or ch == "=":
+            self.press("=")
+        elif name == "BackSpace":
+            self.press("⌫")
+        elif name == "Escape" or name == "Delete":
+            self.press("C")
+        elif ch in "0123456789.,()%^":
+            self.press("." if ch == "," else ch)
+        elif ch == "*":
+            self.press("×")
+        elif ch == "/":
+            self.press("÷")
+        elif ch == "-":
+            self.press("−")
+        elif ch == "+":
+            self.press("+")
+        else:
+            return False
+        return True
+
+
+if __name__ == "__main__":
+    try:
+        os.setsid()
+    except Exception:
+        pass
+    GLib.set_prgname("glyph-calc")
+    w = Calc()
+    w.connect("destroy", Gtk.main_quit)
+    w.show_all()
+    Gtk.main()
