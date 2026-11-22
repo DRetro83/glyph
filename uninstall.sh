@@ -11,6 +11,7 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 echo ":: Removing the Glyph session (asks for your password)"
 sudo rm -f /usr/share/wayland-sessions/glyph.desktop /usr/local/bin/glyph-*
+sudo rm -rf /usr/local/lib/glyph /usr/local/share/glyph
 rm -rf "$CONF/glyph" "$DATA/themes/Glyph" "$DATA/icons/Glyph" "$DATA/icons/GlyphLetters"
 [ "$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null)" = "'Glyph'" ] && gsettings reset org.gnome.desktop.interface cursor-theme
 rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf" "$DATA"/applications/glyph-*.desktop "$CONF/glyph-mimeapps.list"

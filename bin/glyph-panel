@@ -402,6 +402,33 @@ def open_windows():
     return out
 
 
+def window_workspaces():
+    """{(app_id, title): (workspace, colour, ink, app name)} from the taskbar helper (glyph-tasks)."""
+    try:
+        tasks = json.loads((RUN / "glyph-tasks.json").read_text())
+    except Exception:
+        return {}
+    pal = {}
+    try:
+        for line in (CONF / "palette.env").read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                pal[k] = v.strip()
+    except Exception:
+        pass
+    out = {}
+    for t in tasks:
+        ws = str(t.get("ws", ""))
+        col = pal.get("GLYPH_WS" + ws) or pal.get("GLYPH_TITLE", "#a8957c")
+        h = col.lstrip("#")
+        try:
+            lum = (0.2126 * int(h[0:2], 16) + 0.7152 * int(h[2:4], 16) + 0.0722 * int(h[4:6], 16)) / 255
+        except ValueError:
+            lum = 0.5
+        out[(t.get("app", ""), t.get("title", ""))] = (ws, col, "#111111" if lum > 0.35 else "#ffffff", t.get("name", ""))
+    return out
+
+
 def app_name(app, title):
     """A short, readable name: 'org.gnome.Nautilus' -> 'Nautilus', 'glyph-files' -> 'Files'."""
     a = app.split(".")[-1] if app else title
@@ -519,37 +546,6 @@ def media_players():
             out.append((pl, st, meta[0] if meta else "", meta[1] if len(meta) > 1 else ""))
     out.sort(key=lambda x: x[1] != "Playing")
     return out
-
-
-ICON_FALLBACK = {
-    "system-lock-screen-symbolic": ["changes-prevent-symbolic", "channel-secure-symbolic", "security-high-symbolic"],
-    "system-shutdown-symbolic": ["system-log-out-symbolic", "application-exit-symbolic"],
-    "emblem-system-symbolic": ["preferences-system-symbolic", "applications-system-symbolic"],
-    "night-light-symbolic": ["weather-clear-night-symbolic"],
-    "airplane-mode-symbolic": ["send-to-symbolic"],
-    "notifications-disabled-symbolic": ["notification-disabled-symbolic", "preferences-system-notifications-symbolic"],
-    "power-profile-balanced-symbolic": ["battery-good-symbolic", "battery-symbolic"],
-    "power-profile-power-saver-symbolic": ["battery-low-symbolic", "battery-symbolic"],
-    "power-profile-performance-symbolic": ["battery-full-charging-symbolic", "battery-symbolic"],
-    "display-brightness-symbolic": ["weather-clear-symbolic"],
-}
-
-# Each tile its own colour, like the prototype
-TILE_COLOUR = {"network-wireless-symbolic": "c-blue", "bluetooth-active-symbolic": "c-blue",
-               "bluetooth-disabled-symbolic": "c-blue", "network-cellular-symbolic": "c-olive",
-               "notifications-disabled-symbolic": "c-rose", "night-light-symbolic": "c-amber",
-               "airplane-mode-symbolic": "c-olive", "power-profile-power-saver-symbolic": "c-green",
-               "power-profile-balanced-symbolic": "c-amber", "power-profile-performance-symbolic": "c-rose"}
-
-
-def icon_name(name):
-    """name, or a look-alike the icon theme really has."""
-    from gi.repository import Gtk
-    th = Gtk.IconTheme.get_default()
-    for n in [name] + ICON_FALLBACK.get(name, []):
-        if th and th.has_icon(n):
-            return n
-    return name
 
 
 def run_panel(kind):
@@ -701,6 +697,12 @@ def run_panel(kind):
         lab.set_max_width_chars(chars)
         lab.set_width_chars(1)
         return lab
+
+    def paint(widget, css):
+        """Give one widget its own colours (the colour of a workspace)."""
+        pr = Gtk.CssProvider()
+        pr.load_from_data(("* { " + css + " }").encode())
+        widget.get_style_context().add_provider(pr, Gtk.STYLE_PROVIDER_PRIORITY_USER + 10)
 
     def tile_label(ch):
         t = Gtk.Label(label=ch)
@@ -1407,8 +1409,18 @@ def run_panel(kind):
                 box.pack_start(label("The window list is not available right now.", "dim", wrap=True), False, False, 0)
             elif not wins:
                 box.pack_start(label("No windows open. Press ▸ START to open an app.", "dim", wrap=True), False, False, 0)
-            for app, wtitle, st in wins or []:
-                name = app_name(app, wtitle)
+            # grouped per workspace, every tile in the colour of its workspace
+            wsinfo = window_workspaces()
+            wins = sorted(wins or [], key=lambda w: wsinfo.get((w[0], w[1]), ("9",))[0])
+            shown = None
+            for app, wtitle, st in wins:
+                ws, col, ink, nice = wsinfo.get((app, wtitle), ("", None, None, ""))
+                name = nice or app_name(app, wtitle)
+                if ws and ws != shown and len({v[0] for v in wsinfo.values()}) > 1:
+                    shown = ws
+                    hd = label(f"WORKSPACE {ws}", "lab ovws")
+                    paint(hd, f"color: {col}; border-left: 3px solid {col};")
+                    box.pack_start(hd, False, False, 0)
                 row = Gtk.Box()
                 row.get_style_context().add_class("ovr")
                 if st == "on screen":
@@ -1416,7 +1428,10 @@ def run_panel(kind):
                 go = Gtk.Button()
                 go.get_style_context().add_class("ovgo")
                 h = Gtk.Box(spacing=10)
-                h.pack_start(tile_label(name[:1]), False, False, 0)
+                tl = tile_label(name[:1])
+                if col:
+                    paint(tl, f"background: {col}; color: {ink};")
+                h.pack_start(tl, False, False, 0)
                 v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                 v.set_valign(Gtk.Align.CENTER)
                 v.pack_start(label(name, "tn"), False, False, 0)

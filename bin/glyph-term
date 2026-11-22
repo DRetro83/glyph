@@ -12,5 +12,5 @@ case "$T" in
   kitty)          [ -n "$D" ] && exec kitty -d "$D"; exec kitty ;;
   alacritty)      [ -n "$D" ] && exec alacritty --working-directory "$D"; exec alacritty ;;
   konsole)        [ -n "$D" ] && exec konsole --workdir "$D"; exec konsole ;;
-  *)              [ -n "$D" ] && cd "$D"; exec "$T" ;;
+  *)              [ -n "$D" ] && { cd "$D" || exit 1; }; exec "$T" ;;
 esac

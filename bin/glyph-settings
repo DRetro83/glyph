@@ -666,6 +666,10 @@ class Settings(Gtk.Window):
                                read_kv(GCONF).get("lock_after", "5"),
                                lambda v: (write_kv(GCONF, "lock_after", v), bg(["glyph-idle"]), self.refresh())), False, False, 0)
         p.pack_start(self.note("The screen always locks before the computer goes to sleep."), False, False, 0)
+        p.pack_start(self.toggle("Show music on the lock screen", "Off: the lock screen shows only the clock and the password field, "
+                                 "nothing about what is playing or open.",
+                                 read_kv(GCONF).get("lock_media", "no") == "yes",
+                                 lambda on: (write_kv(GCONF, "lock_media", "yes" if on else "no"), self.refresh())), False, False, 0)
         p.pack_start(self.btn("Lock now", lambda: bg(["glyph-lock"])), False, False, 0)
 
     def embed(self, p, script, cls):
