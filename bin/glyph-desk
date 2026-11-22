@@ -21,6 +21,18 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell, Pango, PangoCairo  # noqa: E402
+
+# Glyph in your language (Settings -> Language & region): see glyph_lang.py
+try:
+    import sys as _sys
+    _sys.path[:0] = ["/usr/local/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
+    import glyph_lang
+    glyph_lang.hook_gtk()
+    _ = glyph_lang.tr
+except Exception:
+    def _(s):
+        return s
+glyph_tr = _
 import cairo  # noqa: E402
 
 GLib.set_prgname("glyph-desk")
@@ -81,7 +93,7 @@ class Info:
         except Exception:
             ws = "1"
         n = sh(["glyph-windows", "count"])
-        L.append(("WORKSPACE", f"{ws}/4" + (f" · WINDOWS {n}" if n else "")))
+        L.append(("WORKSPACE", f"{ws}/4" + (f" · {glyph_tr('WINDOWS')} {n}" if n else "")))
         prof = sh(["powerprofilesctl", "get"])
         if prof:
             L.append(("POWER", {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}.get(prof, prof)))
@@ -272,7 +284,7 @@ class Desk(Gtk.Window):
         for lab, val in rows:
             vw, _ = self.text(cr, val, "IBM Plex Mono 14px", self.c("tan"), x, y)
             if lab:
-                self.text(cr, lab + " ", "IBM Plex Mono 14px", self.c("dim"), x - vw, y, spacing=1)
+                self.text(cr, glyph_tr(lab) + " ", "IBM Plex Mono 14px", self.c("dim"), x - vw, y, spacing=1)
             y += lh
         # bracket next to the info
         cr.set_source_rgba(*self.wsc("hi"))
@@ -302,6 +314,10 @@ def main():
         return True
 
     def reload_(*_):
+        try:
+            glyph_lang.load()
+        except Exception:
+            pass
         info.refresh()
         for d in wins:
             d.load()

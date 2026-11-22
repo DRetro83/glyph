@@ -30,6 +30,19 @@ from pathlib import Path
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 
+# Glyph in your language (Settings -> Language & region): see glyph_lang.py
+try:
+    sys.path[:0] = ["/usr/local/lib/glyph", os.path.dirname(os.path.realpath(__file__))]
+    import glyph_lang as _lang
+except Exception:
+    _lang = None
+
+
+def _(s):
+    if _lang and not _lang._T and _lang.current() != "en":
+        _lang.load()
+    return _lang.tr(s) if _lang else s
+
 
 # ---------------------------------------------------------------- helpers
 
@@ -406,7 +419,7 @@ def window_do(action, app, title):
 
 
 def status():
-    txt = "SETTINGS ▴"
+    txt = _("SETTINGS") + " ▴"
     tips = []
     usb = len([d for d in drives() if d["mnt"]])
     if usb:
@@ -514,6 +527,8 @@ def run_panel(kind):
     gi.require_version("Gdk", "3.0")
     gi.require_version("GtkLayerShell", "0.1")
     from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
+    if _lang:
+        _lang.hook_gtk()
     GLib.set_prgname("glyph-panel")
 
     pidfile = RUN / f"glyph-panel-{kind}.pid"

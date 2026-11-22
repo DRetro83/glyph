@@ -155,6 +155,9 @@ ok "settings in $GLYPH_CONF/labwc"
 
 # 3. programs and the session entry for the login screen
 run sudo install -m 755 "$HERE"/bin/glyph-* /usr/local/bin/
+run sudo install -D -m 644 "$HERE/bin/glyph_lang.py" /usr/local/lib/glyph/glyph_lang.py
+run sudo mkdir -p /usr/local/share/glyph/lang
+run sudo install -m 644 "$HERE"/share/lang/*.txt /usr/local/share/glyph/lang/
 run sudo install -m 644 "$HERE/share/wayland-sessions/glyph.desktop" /usr/share/wayland-sessions/glyph.desktop
 run mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 run cp "$HERE"/share/applications/glyph-*.desktop "${XDG_DATA_HOME:-$HOME/.local/share}/applications/"

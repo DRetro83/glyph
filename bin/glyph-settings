@@ -22,6 +22,17 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
+# Glyph in your language (Settings -> Language & region): see glyph_lang.py
+try:
+    import sys as _sys
+    _sys.path[:0] = ["/usr/local/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
+    import glyph_lang
+    glyph_lang.hook_gtk()
+    _ = glyph_lang.tr
+except Exception:
+    def _(s):
+        return s
+
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
 THEME = CONF / "theme.conf"
 GCONF = CONF / "glyph.conf"
@@ -835,10 +846,39 @@ class Settings(Gtk.Window):
         p.pack_start(self.info([("Language", loc.group(1) if loc else os.environ.get("LANG", "?")),
                                 ("Keyboard", kb.group(1) if kb else "?"),
                                 ("Time zone", sh(["timedatectl", "show", "-p", "Timezone", "--value"]).strip() or "?")]), False, False, 0)
-        p.pack_start(self.note("Glyph itself speaks English. The language and formats here are used by your apps, "
+        p.pack_start(self.lab("GLYPH LANGUAGE", "lab"), False, False, 0)
+        try:
+            langs = glyph_lang.languages()
+            cur = glyph_lang.current()
+        except Exception:
+            langs, cur = [("en", "English")], "en"
+        p.pack_start(self.opts(langs, cur, self.set_language), False, False, 0)
+        p.pack_start(self.note("Glyph is English by default. Every language is a text file: copy "
+                               "/usr/local/share/glyph/lang/nl.txt to ~/.config/glyph/lang/, rename it (de.txt, fr.txt…) "
+                               "and translate the right-hand side. Anything missing stays English."), False, False, 0)
+        p.pack_start(self.btn("Open the language folder", self.open_lang_dir), False, False, 0)
+        p.pack_start(self.lab("LANGUAGE OF YOUR APPS", "lab"), False, False, 0)
+        p.pack_start(self.note("The language and formats here are used by your apps, "
                                "for example dates and numbers in LibreOffice."), False, False, 0)
         p.pack_start(self.btn("Change language and formats…", lambda: self.in_terminal("Language", "sudo dpkg-reconfigure locales")), False, False, 0)
         p.pack_start(self.btn("Change the keyboard layout…", lambda: self.in_terminal("Keyboard", "sudo dpkg-reconfigure keyboard-configuration && echo 'Run glyph-update, then sign in again.'")), False, False, 0)
+
+    def set_language(self, code):
+        write_kv(GCONF, "lang", code)
+        bg(["pkill", "-RTMIN+10", "waybar"])
+        bg(["pkill", "-HUP", "-f", "glyph-desk"])
+        # reopen Settings in the new language, on the same page
+        GLib.timeout_add(150, lambda: os.execv(sys.executable, [sys.executable, os.path.realpath(__file__), "Language & region"]))
+
+    def open_lang_dir(self):
+        d = Path.home() / ".config/glyph/lang"
+        d.mkdir(parents=True, exist_ok=True)
+        for src in (Path("/usr/local/share/glyph/lang"), Path(os.path.realpath(__file__)).parent.parent / "share/lang"):
+            for f in src.glob("*.txt") if src.is_dir() else []:
+                if not (d / f.name).exists():
+                    (d / f.name).write_text("# name: " + f.read_text().splitlines()[0].split(":", 1)[-1].strip()
+                                            + "\n# Your own lines. They go before the ones that come with Glyph.\n")
+        bg(["glyph-files", str(d)])
 
     def page_privacy(self, p):
         recent = Path.home() / ".local/share/recently-used.xbel"

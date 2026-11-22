@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 · Glyph in your language · 2026-11-22
+
+- **Languages**: Settings → Language & region → GLYPH LANGUAGE. English stays the default; Dutch (Nederlands) comes with Glyph
+- A language is one text file: `English text = translation`, one per line. Glyph's own files are in /usr/local/share/glyph/lang; your own lines go in ~/.config/glyph/lang/<code>.txt and win. Anything missing stays English
+- Every Glyph app, the panels, the start menu and the desktop clock follow the chosen language
+
 ## 0.9.0 · the whole design, and more · 2026-11-22
 
 **New apps**

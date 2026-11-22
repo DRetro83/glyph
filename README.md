@@ -144,6 +144,13 @@ Windows, taskbar, menus and panels change at once; apps such as Files change whe
 
 Firefox gets the Glyph colours by itself. For **Vivaldi**: open `vivaldi://experiments`, turn on *Allow CSS modifications*, then in Vivaldi's Settings → Appearance → *Custom UI modifications* choose the folder `~/.config/glyph/vivaldi`. Don't want the browsers coloured? Turn it off in Settings → Appearance.
 
+## 🌐 Your language
+
+Glyph speaks English. Choose another language in **Settings → Language & region**; Dutch comes with it.
+A language is a plain text file with one line per text: `Shut down = Afsluiten`. Copy
+`/usr/local/share/glyph/lang/nl.txt` to `~/.config/glyph/lang/de.txt` (or any code), translate the right-hand
+side, and it shows up in Settings. Missing lines simply stay English.
+
 ## ⟳ Update and remove
 
 ```sh
