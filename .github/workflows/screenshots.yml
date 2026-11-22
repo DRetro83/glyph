@@ -30,7 +30,7 @@ jobs:
         run: |
           cp -r "$GITHUB_WORKSPACE" /home/glyph/glyph
           chown -R glyph:glyph /home/glyph/glyph
-          su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh" > /tmp/install.log 2>&1 || echo "install.sh failed: $?" >> /tmp/install.log
+          su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive bash -x ./install.sh" > /tmp/install.log 2>&1 || echo "install.sh failed: $?" >> /tmp/install.log
           tail -60 /tmp/install.log
           dpkg -l labwc | tail -1 || true
       - name: Take the screenshots
