@@ -160,8 +160,8 @@ if [[ -r /etc/default/keyboard ]] && (( ! CHECK )); then
 fi
 # the Glyph mouse pointer, in your colour and size (Settings -> Mouse & touchpad)
 if (( ! CHECK )); then
-  CC=$(sed -n 's/^cursor_colour=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null); CC=${CC:-#e6dac4}
-  CS=$(sed -n 's/^cursor_size=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null); CS=${CS:-24}
+  CC=$(sed -n 's/^cursor_colour=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null || true); CC=${CC:-#e6dac4}
+  CS=$(sed -n 's/^cursor_size=//p' "$GLYPH_CONF/glyph.conf" 2>/dev/null || true); CS=${CS:-24}
   sed -i "s/^XCURSOR_SIZE=.*/XCURSOR_SIZE=$CS/" "$GLYPH_CONF/labwc/environment"
   "$HERE/bin/glyph-cursors" "$CC" "$CS" >/dev/null 2>&1 || true
   gsettings set org.gnome.desktop.interface cursor-theme Glyph 2>/dev/null || true
