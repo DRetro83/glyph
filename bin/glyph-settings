@@ -799,12 +799,33 @@ class Settings(Gtk.Window):
                      False, False, 0)
         p.pack_start(self.btn("Change your password…", lambda: self.in_terminal("Password", "passwd"), "amber"), False, False, 0)
         p.pack_start(self.btn("Change your full name…", lambda: self.in_terminal("Full name", "read -p 'Full name: ' n && chfn -f \"$n\"")), False, False, 0)
-        others = [u for u in pwd.getpwall() if 1000 <= u.pw_uid < 60000 and u.pw_name != me.pw_name]
+        others = [u for u in pwd.getpwall() if 1000 <= u.pw_uid < 60000 and u.pw_name != me.pw_name
+                  and not u.pw_shell.endswith(("nologin", "false"))]
+        admins = set(grp.getgrnam("sudo").gr_mem) if "sudo" in [g.gr_name for g in grp.getgrall()] else set()
         if others:
             p.pack_start(self.lab("OTHER PEOPLE", "lab"), False, False, 0)
-            p.pack_start(self.info([(u.pw_name, u.pw_gecos.split(",")[0] or u.pw_dir) for u in others]), False, False, 0)
-        p.pack_start(self.btn("Add a person…", lambda: self.in_terminal("Add a person", "read -p 'Login name (small letters): ' n && sudo adduser \"$n\"")),
-                     False, False, 0)
+            for u in others:
+                row = Gtk.Box(spacing=8)
+                adm = u.pw_name in admins
+                row.pack_start(self.lab(u.pw_name, "pname"), False, False, 0)
+                row.pack_start(self.lab((u.pw_gecos.split(",")[0] + " · " if u.pw_gecos.split(",")[0] else "")
+                                        + ("administrator" if adm else "standard user"), "dim"), False, False, 0)
+                row.pack_end(self.btn("Remove…", lambda n=u.pw_name: self.in_terminal(
+                    "Remove a person", f"read -p 'Remove {n}? Their home folder stays. Type yes: ' a && [ \"$a\" = yes ] && sudo deluser {n}")),
+                    False, False, 0)
+                row.pack_end(self.btn("Make standard user" if adm else "Make administrator", lambda n=u.pw_name, adm=adm: self.in_terminal(
+                    "Administrator", f"sudo deluser {n} sudo" if adm else f"sudo adduser {n} sudo")), False, False, 0)
+                p.pack_start(row, False, False, 0)
+        p.pack_start(self.lab("ADD A PERSON", "lab"), False, False, 0)
+        p.pack_start(self.note("A standard user can use the computer but cannot install apps or change the system "
+                               "(no sudo). An administrator can. Adding someone needs your password once."), False, False, 0)
+        add = ("read -p 'Login name (small letters, no spaces): ' n && read -p 'Full name: ' f && "
+               "sudo adduser --comment \"$f\" \"$n\"")
+        row = Gtk.Box(spacing=8)
+        row.pack_start(self.btn("Add a standard user…", lambda: self.in_terminal("Add a person", add), "amber"), False, False, 0)
+        row.pack_start(self.btn("Add an administrator…", lambda: self.in_terminal("Add an administrator", add + " && sudo adduser \"$n\" sudo")),
+                       False, False, 0)
+        p.pack_start(row, False, False, 0)
 
     def page_language_region(self, p):
         st = sh(["localectl", "status"])
