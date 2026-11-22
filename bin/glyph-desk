@@ -213,10 +213,14 @@ class Desk(Gtk.Window):
                 Gdk.cairo_set_source_pixbuf(cr, self.pix, 0, 0)
                 cr.paint()
                 cr.restore()
-        else:
-            # fine scan lines, like an old screen
+        elif self.theme.get("scanlines", "on") != "off":
+            # fine scan lines, like an old screen (Settings -> Appearance -> Scanlines)
             light = self.theme.get("mode") == "light"
-            cr.set_source_rgba(*(self.c("hi", 0.18) if light else self.c("lo", 0.35)))
+            try:
+                k = int(self.theme.get("scanstrength", "12")) / 12
+            except ValueError:
+                k = 1
+            cr.set_source_rgba(*(self.c("hi", min(1, 0.18 * k)) if light else self.c("lo", min(1, 0.35 * k))))
             for y in range(0, h, 3):
                 cr.rectangle(0, y, w, 1)
             cr.fill()

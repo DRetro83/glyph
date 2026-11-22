@@ -197,7 +197,16 @@ class Start(Gtk.Window):
 
         mon = Gdk.Display.get_default().get_monitor(0)
         h = mon.get_geometry().height if mon else 900
-        self.set_size_request(680, max(420, min(600, h - 90)))
+        # Settings -> Appearance -> Start menu size
+        size = "normal"
+        try:
+            for line in (CONF / "theme.conf").read_text().splitlines():
+                if line.startswith("startsize="):
+                    size = line.split("=", 1)[1].strip()
+        except Exception:
+            pass
+        sw, sh_ = {"compact": (560, 500), "large": (780, 720)}.get(size, (680, 600))
+        self.set_size_request(sw, max(420, min(sh_, h - 90)))
         self.build_side()
         self.fill()
         self.search.grab_focus()

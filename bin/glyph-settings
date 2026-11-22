@@ -325,6 +325,26 @@ class Settings(Gtk.Window):
         p.pack_start(self.opts([(k, f'<span foreground="{h}">■</span> {n}') for k, h, n in accents],
                                next((k for k, h, n in accents if h == cur2), ""),
                                lambda v: self.theme("--accent", v)), False, False, 0)
+        p.pack_start(self.lab("WINDOW CORNERS", "lab"), False, False, 0)
+        p.pack_start(self.opts([("square", "Square"), ("round", "Rounded")], t.get("corners", "square"),
+                               lambda v: self.theme("--set", "corners=" + v)), False, False, 0)
+        p.pack_start(self.lab("TEXT SIZE", "lab"), False, False, 0)
+        p.pack_start(self.opts([("12", "Small"), ("13", "Normal"), ("15", "Large")], t.get("textsize", "13"),
+                               lambda v: self.theme("--set", "textsize=" + v)), False, False, 0)
+        p.pack_start(self.lab("START MENU SIZE", "lab"), False, False, 0)
+        p.pack_start(self.opts([("compact", "Compact · 560×500"), ("normal", "Normal · 680×600"), ("large", "Large · 780×720")],
+                               t.get("startsize", "normal"), lambda v: self.theme("--set", "startsize=" + v)), False, False, 0)
+        p.pack_start(self.lab("SCANLINES", "lab"), False, False, 0)
+        p.pack_start(self.opts([("on", "On"), ("off", "Off")], t.get("scanlines", "on"),
+                               lambda v: (self.theme("--set", "scanlines=" + v), bg(["pkill", "-HUP", "-f", "bin/glyph-desk"]))),
+                     False, False, 0)
+        if t.get("scanlines", "on") != "off":
+            sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 4, 30, 1)
+            sc.set_value(int(t.get("scanstrength", "12")))
+            sc.set_tooltip_text("Strength")
+            sc.connect("button-release-event", lambda w, e: (self.theme("--set", f"scanstrength={int(w.get_value())}"),
+                                                              GLib.timeout_add(800, lambda: (bg(["pkill", "-HUP", "-f", "bin/glyph-desk"]), False)[1]), False)[2])
+            p.pack_start(sc, False, False, 0)
         p.pack_start(self.toggle("Shadows", "A shadow under windows, the start menu and the panels, like the prototype.",
                                  t.get("shadows", "yes") != "no",
                                  lambda on: self.theme("--shadows", "yes" if on else "no")), False, False, 0)
