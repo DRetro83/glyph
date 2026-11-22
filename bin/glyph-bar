@@ -58,6 +58,16 @@ def apply():
     for name, mods in (("modules-left", LEFT), ("modules-right", RIGHT)):
         keep = [m for m, k in mods if k is None or c[k]]
         text = re.sub(r'"%s"\s*:\s*\[[^\]]*\]' % name, f'"{name}": {json.dumps(keep, ensure_ascii=False)}', text, count=1)
+    # round corners (Settings -> Appearance): the bar floats a little above the screen edge
+    r = 0
+    try:
+        t = dict(l.split("=", 1) for l in (G / "theme.conf").read_text().splitlines() if "=" in l and not l.startswith("#"))
+        r = int(t.get("radius", "")) if t.get("radius", "").strip() else {"round": 8, "bol": 16}.get(t.get("corners", ""), 0)
+    except Exception:
+        pass
+    text = re.sub(r'\n  "margin": "[^"]*",', "", text)
+    if r:
+        text = text.replace('"position": "bottom",', '"position": "bottom",\n  "margin": "0 6 6 6",', 1)
     CFG.write_text(text)
     subprocess.run(["pkill", "-SIGUSR2", "-x", "waybar"], check=False)   # waybar reloads
 

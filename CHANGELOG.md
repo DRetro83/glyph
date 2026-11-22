@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.6 · the taskbar follows the corners · 2026-11-22
+
+- Rounded corners everywhere: the taskbar floats a little above the edge with round corners, every taskbar button follows the shape, and so do pop-up notifications and the lock screen
+
 ## 0.9.5 · corner shapes · 2026-11-22
 
 - Window corners: Square, Rounded or Round ends (pill-shaped buttons and fields), plus the slider for how round
