@@ -662,7 +662,6 @@ def run_panel(kind):
         if _bat:
             bl = Gtk.Label(label=f"{'⚡ ' if _bat[1].lower() == 'charging' else ''}{_bat[0]}%")
             bl.get_style_context().add_class("pbat")
-            bl.get_style_context().add_class("c-green" if _bat[0] > 40 else "c-amber" if _bat[0] > 15 else "c-rose")
             bl.set_valign(Gtk.Align.CENTER)
             title.pack_end(bl, False, False, 6)
     outer.pack_start(title, False, False, 0)
@@ -767,15 +766,6 @@ def run_panel(kind):
             if on:
                 b.get_style_context().add_class("on")
             h = Gtk.Box(spacing=10)
-            if icon:
-                ib = Gtk.Box()
-                ib.get_style_context().add_class("tico")
-                b.get_style_context().add_class(TILE_COLOUR.get(icon, "c-amber"))
-                img = Gtk.Image.new_from_icon_name(icon_name(icon), Gtk.IconSize.LARGE_TOOLBAR)
-                ib.set_center_widget(img)
-                ib.set_size_request(30, 30)
-                ib.set_valign(Gtk.Align.CENTER)
-                h.pack_start(ib, False, False, 0)
             v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             v.set_valign(Gtk.Align.CENTER)
             v.pack_start(label(name, "tn"), False, False, 0)
@@ -1120,9 +1110,11 @@ def run_panel(kind):
             sliders.get_style_context().add_class("sliders")
 
             def icon_btn(icon, cb, cls="sico"):
-                ib = Gtk.Button()
-                ib.get_style_context().add_class(cls)
-                ib.add(Gtk.Image.new_from_icon_name(icon_name(icon), Gtk.IconSize.LARGE_TOOLBAR))
+                # text, not icons: the Glyph way
+                ib = Gtk.Button(label={"audio-volume-muted-symbolic": "MUTE", "audio-volume-high-symbolic": "VOL",
+                                       "display-brightness-symbolic": "LIGHT"}.get(icon, icon))
+                for c in cls.split():
+                    ib.get_style_context().add_class(c)
                 ib.set_valign(Gtk.Align.CENTER)
                 if cb:
                     ib.connect("clicked", lambda *_: cb())
@@ -1225,7 +1217,6 @@ def run_panel(kind):
                 fb.get_style_context().add_class(cls)
             hb = Gtk.Box(spacing=8)
             hb.set_halign(Gtk.Align.CENTER)
-            hb.pack_start(Gtk.Image.new_from_icon_name(icon_name(icon), Gtk.IconSize.MENU), False, False, 0)
             hb.pack_start(Gtk.Label(label=txt), False, False, 0)
             fb.add(hb)
             fb.connect("clicked", lambda *_, c=cmd: (bg(c), quit_()))

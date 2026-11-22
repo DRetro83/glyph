@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.3 · layered panels, no icons · 2026-11-22
+
+- Panels in layers like Start and Files: a lighter back, darker framed tiles and lists on it; the 0.9.2 colours are gone again
+- Quick settings without icons: tiles are text only, the sliders have VOL / MUTE / LIGHT buttons, the footer is Settings · Lock · Power
+
 ## 0.9.2 · more colour · 2026-11-22
 
 - Quick settings in more colours, like the prototype: every tile its own colour (Wi-Fi and Bluetooth blue, Do not disturb rose, Night light amber, power profile green / amber / rose), volume amber, brightness yellow, Lock blue, Power amber, the battery green / amber / rose, the sound device in use green
