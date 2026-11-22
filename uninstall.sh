@@ -12,6 +12,8 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 echo ":: Removing the Glyph session (asks for your password)"
 sudo rm -f /usr/share/wayland-sessions/glyph.desktop /usr/local/bin/glyph-*
 sudo rm -rf /usr/local/lib/glyph /usr/local/share/glyph
+# your Glyph settings go too; a copy is kept in ~/.config/glyph.removed (delete it when you like)
+[ -d "$CONF/glyph" ] && { rm -rf "$CONF/glyph.removed"; cp -a "$CONF/glyph" "$CONF/glyph.removed"; }
 rm -rf "$CONF/glyph" "$DATA/themes/Glyph" "$DATA/icons/Glyph" "$DATA/icons/GlyphLetters"
 [ "$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null)" = "'Glyph'" ] && gsettings reset org.gnome.desktop.interface cursor-theme
 rm -f "$CONF/xdg-desktop-portal/glyph-portals.conf" "$DATA"/applications/glyph-*.desktop "$CONF/glyph-mimeapps.list"
@@ -25,7 +27,9 @@ for css in "$HOME"/.mozilla/firefox/*/chrome/userChrome.css; do head -c 8 "$css"
 # labwc-glyph back to Debian's own labwc
 if dpkg-query -W -f='${Version}' labwc 2>/dev/null | grep -q glyph; then
   echo ":: Putting back Debian's own labwc"
-  sudo apt-get install -y --allow-downgrades "labwc=0.8.3-1" || true
+  # the labwc of your Debian release (also when Debian has updated it since)
+  REL=$(. /etc/os-release 2>/dev/null; echo "${VERSION_CODENAME:-trixie}")
+  sudo apt-get install -y --allow-downgrades "labwc/$REL" || sudo apt-get install -y --allow-downgrades "labwc=0.8.3-1" || true
 fi
 
 if [[ "${1:-}" == "--packages" ]]; then

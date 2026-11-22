@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.9.10 · private lock screen, tidy-up for 1.0 · 2026-11-22
+## 1.0.0 · Glyph 1.0 · 2026-11-22
+
+The first full version: everything from the six steps is built, tested on a clean Debian 13 and in daily use.
 
 - **Lock screen is private**: no music or video title (a YouTube title, for example) on the lock screen anymore. Want it back? Settings → Power & lock → Show music on the lock screen
 - **Open windows ▦**: sorted per workspace, every letter tile in the colour of its workspace, with the app names from the taskbar

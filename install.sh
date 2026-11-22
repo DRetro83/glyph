@@ -130,6 +130,8 @@ if [[ -d "$GLYPH_CONF/labwc" ]] && (( ! CHECK )); then
   BK="$GLYPH_CONF/labwc.bak-$(date +%Y%m%d-%H%M%S)"
   cp -a "$GLYPH_CONF/labwc" "$BK"
   ok "old settings saved in $BK"
+  # keep only the three newest backups (every update makes one)
+  ls -1d "$GLYPH_CONF"/labwc.bak-* 2>/dev/null | sort | head -n -3 | while read -r old; do rm -rf "$old"; done
 fi
 run mkdir -p "$GLYPH_CONF/labwc"
 run cp "$HERE"/config/labwc/{rc.xml,menu.xml,autostart,environment} "$GLYPH_CONF/labwc/"

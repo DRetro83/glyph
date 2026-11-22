@@ -422,3 +422,4 @@ Round ends = Bol
 Workspace colours are on (Settings → Taskbar): a colour here is for the workspace you are on now. = Werkruimtekleuren staan aan (Instellingen → Taakbalk): een kleur hier geldt voor de werkruimte waar je nu bent.
 Show music on the lock screen = Muziek tonen op het vergrendelscherm
 Off: the lock screen shows only the clock and the password field, nothing about what is playing or open. = Uit: het vergrendelscherm toont alleen de klok en het wachtwoordveld, niets over wat er speelt of openstaat.
+Still open = Nog open

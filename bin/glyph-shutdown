@@ -120,8 +120,8 @@ def main():
             finish()
             return False
         names = sorted({name(x) for x in (w or [])})
-        msg.set_text("Closing your apps. If an app asks to save your work, answer it first.\n\n"
-                      "Still open: " + (", ".join(names) if names else "…"))
+        msg.set_text(_("Closing your apps. If an app asks to save your work, answer it first.") + "\n\n"
+                     + _("Still open") + ": " + (", ".join(names) if names else "…"))
         return True
     check()
     GLib.timeout_add(700, check)

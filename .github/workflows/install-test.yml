@@ -1,0 +1,75 @@
+# Tests install.sh, glyph-update and uninstall.sh on a clean Debian 13,
+# as a normal user with sudo, like on a real PC.
+name: install-test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "install.sh"
+      - "uninstall.sh"
+      - "bin/glyph-update"
+      - ".github/workflows/install-test.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: A user with sudo, like a normal PC
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends sudo git ca-certificates python3 procps
+          useradd -m -s /bin/bash glyph
+          echo "glyph ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/glyph
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Copy of the repository, a few commits back (so glyph-update has something to do)
+        run: |
+          git config --global --add safe.directory '*'
+          git clone "$GITHUB_WORKSPACE" /home/glyph/glyph
+          cd /home/glyph/glyph
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git reset --hard HEAD~3
+          chown -R glyph:glyph /home/glyph/glyph
+      - name: install.sh
+        run: su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh"
+      - name: Installed as it should be
+        run: |
+          set -x
+          test -x /usr/local/bin/glyph-theme
+          test -f /usr/local/lib/glyph/glyph_lang.py
+          test -f /usr/local/share/glyph/lang/nl.txt
+          test -f /usr/share/wayland-sessions/glyph.desktop
+          test -f /home/glyph/.config/glyph/labwc/rc.xml
+          test -f /home/glyph/.config/glyph/theme.conf
+          test -f /home/glyph/.config/glyph/waybar/style.css
+          test -f /home/glyph/.local/share/themes/Glyph/labwc/themerc
+          dpkg -l labwc | tail -1 | grep -q glyph
+          fc-list | grep -qi "IBM Plex Mono"
+      - name: glyph-update (pulls the newest commits and installs again)
+        run: |
+          su - glyph -c "glyph-update"
+          su - glyph -c "cd ~/glyph && git status -sb | head -1"
+          test "$(su - glyph -c 'cd ~/glyph && git rev-parse HEAD')" = "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" || \
+            test "$(su - glyph -c 'cd ~/glyph && git rev-parse HEAD')" = "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)"
+      - name: glyph-update again (nothing to do)
+        run: su - glyph -c "glyph-update" | grep -q "up to date"
+      - name: glyph-theme works for the user
+        run: su - glyph -c "glyph-theme --print" | head -5
+      - name: uninstall.sh
+        run: su - glyph -c "cd ~/glyph && ./uninstall.sh"
+      - name: Removed as it should be
+        run: |
+          set -x
+          ! ls /usr/local/bin/glyph-* 2>/dev/null
+          test ! -e /usr/local/lib/glyph
+          test ! -e /usr/local/share/glyph
+          test ! -e /usr/share/wayland-sessions/glyph.desktop
+          test ! -e /home/glyph/.config/glyph
+          test -d /home/glyph/.config/glyph.removed
+          ! dpkg -l labwc | tail -1 | grep -q glyph
+      - name: install.sh again after removing
+        run: su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh" && test -x /usr/local/bin/glyph-theme
