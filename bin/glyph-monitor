@@ -301,7 +301,50 @@ class Monitor(Gtk.Window):
         self.tree.get_selection().connect("changed", lambda *_: self.update_foot())
         sw = Gtk.ScrolledWindow()
         sw.add(self.tree)
-        self.stack.add_named(sw, "proc")
+        self.proc_sw = sw
+        # an htop-like strip on top: every core, memory, swap, tasks and load
+        procpage = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        top = Gtk.Grid(column_spacing=10, row_spacing=3)
+        top.get_style_context().add_class("msec")
+        self.htop_cores = []
+        n = len(self.s.cores)
+        half = (n + 1) // 2
+        for j in range(n):
+            l = Gtk.Label(label=f"{j + 1:>2}", xalign=1)
+            l.get_style_context().add_class("dim")
+            m = Meter(self, 8)
+            m.set_hexpand(True)
+            m.set_valign(Gtk.Align.CENTER)
+            v = Gtk.Label(label="0%", xalign=1)
+            v.set_width_chars(5)
+            v.get_style_context().add_class("dim")
+            col, row = (j // half) * 3, j % half
+            top.attach(l, col, row, 1, 1)
+            top.attach(m, col + 1, row, 1, 1)
+            top.attach(v, col + 2, row, 1, 1)
+            self.htop_cores.append((m, v))
+        r = half
+        self.htop_mem = []
+        for name in ("Mem", "Swp"):
+            l = Gtk.Label(label=name, xalign=1)
+            l.get_style_context().add_class("dim")
+            m = Meter(self, 8)
+            m.set_hexpand(True)
+            m.set_valign(Gtk.Align.CENTER)
+            v = Gtk.Label(xalign=1)
+            v.get_style_context().add_class("dim")
+            top.attach(l, 0, r, 1, 1)
+            top.attach(m, 1, r, 1, 1)
+            top.attach(v, 2, r, 1, 1)
+            self.htop_mem.append((m, v))
+            r += 1
+        self.htop_info = Gtk.Label(xalign=0)
+        self.htop_info.get_style_context().add_class("dim")
+        self.htop_info.set_valign(Gtk.Align.START)
+        top.attach(self.htop_info, 3, half, 3, 2)
+        procpage.pack_start(top, False, False, 0)
+        procpage.pack_start(sw, True, True, 0)
+        self.stack.add_named(procpage, "proc")
 
         # resources
         res = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -419,12 +462,30 @@ class Monitor(Gtk.Window):
             self.draw_res()
         self.update_foot()
 
+    def draw_htop(self):
+        for (m, v), c in zip(self.htop_cores, self.s.cores):
+            m.set(c)
+            v.set_text(f"{c:.0f}%")
+        mi = self.s.mem
+        tot = mi.get("MemTotal", 1)
+        used = tot - mi.get("MemAvailable", 0)
+        st, sf = mi.get("SwapTotal", 0), mi.get("SwapFree", 0)
+        for (m, v), (u, t) in zip(self.htop_mem, ((used, tot), (st - sf, st))):
+            m.set(100 * u / t if t else 0)
+            v.set_text(f"{fmt_mem(u)} / {fmt_mem(t)}")
+        load = Path("/proc/loadavg").read_text().split()
+        up = float(Path("/proc/uptime").read_text().split()[0])
+        running = sum(1 for p in self.s.procs if p["state"] == "R")
+        self.htop_info.set_text(f"Tasks {len(self.s.procs)}, {running} running\nLoad {load[0]} {load[1]} {load[2]}\n"
+                                f"Uptime {int(up // 3600):02d}:{int(up % 3600 // 60):02d}")
+
     def draw_proc(self):
+        self.draw_htop()
         sel = self.selected()
         rows = [p for p in self.s.procs if (not self.mine or p["uid"] == ME)
                 and (not self.q or self.q in f"{p['name']} {p['pid']}".lower())]
         rows.sort(key=lambda p: p[self.sort] if self.sort != "name" else p["name"].lower(), reverse=self.desc)
-        adj = self.tree.get_parent().get_vadjustment() if self.tree.get_parent() else None
+        adj = self.proc_sw.get_vadjustment()
         pos = adj.get_value() if adj else 0
         self.store.clear()
         for p in rows:

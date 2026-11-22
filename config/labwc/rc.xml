@@ -147,4 +147,13 @@
     </device>
   </libinput>
 
+  <!-- the password window for installing (lxpolkit): small and in the middle -->
+  <windowRules>
+    <windowRule identifier="lxpolkit*">
+      <action name="ResizeTo" width="440" height="230" />
+      <action name="AutoPlace" policy="center" />
+      <action name="ToggleAlwaysOnTop" />
+    </windowRule>
+  </windowRules>
+
 </labwc_config>
