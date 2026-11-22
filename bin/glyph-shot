@@ -1,14 +1,27 @@
 #!/bin/sh
-# glyph-shot - take a screenshot and save it in Pictures.
-#   glyph-shot          the whole screen   (Print)
-#   glyph-shot area     drag a rectangle   (Shift+Print, Ctrl+Alt+P)
+# glyph-shot - take a screenshot and save it in Pictures (also copied, ready to paste).
+#   glyph-shot             the whole screen        (Print)
+#   glyph-shot area        drag a rectangle        (Shift+Print, Ctrl+Alt+P, Super+Shift+S)
+#   glyph-shot screen N    the whole screen after N seconds
+#   glyph-shot area N      a rectangle, the picture taken N seconds later
+#   glyph-shot menu        small window: screen or area, delay   (Start -> Screenshot)
+case "$1" in menu) exec glyph-shot-menu ;; esac
 DIR="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")"
 mkdir -p "$DIR"
 FILE="$DIR/Screenshot-$(date +%Y-%m-%d-%H%M%S).png"
+WAIT="${2:-0}"
 case "$1" in
   area) GEO=$(slurp -b '#00000066' -c '#ffb340' -w 2) || exit 0
-        grim -g "$GEO" "$FILE" ;;
-  *)    grim "$FILE" ;;
+        sleep "$WAIT"; grim -g "$GEO" "$FILE" ;;
+  *)    sleep "$WAIT"; grim "$FILE" ;;
 esac || exit 1
+command -v glyph-sound >/dev/null && glyph-sound shot &
 command -v wl-copy >/dev/null && wl-copy < "$FILE"
-notify-send -a Screenshot "Screenshot" "Saved as $(basename "$FILE") in Pictures."
+(
+  A=$(notify-send -a Screenshot -A open="Open folder" -A view="Show" "Screenshot" \
+      "Saved as $(basename "$FILE") in Pictures. Also copied: paste it with Ctrl+V." 2>/dev/null)
+  case "$A" in
+    open) glyph-files "$FILE" ;;
+    view) xdg-open "$FILE" ;;
+  esac
+) >/dev/null 2>&1 &

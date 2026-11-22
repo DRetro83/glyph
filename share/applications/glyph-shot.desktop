@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Screenshot
+GenericName=Screenshot
+Comment=whole screen or an area, with a wait
+Exec=glyph-shot menu
+Terminal=false
+Categories=Utility;Graphics;
+Keywords=screenshot;screen;capture;picture;print;
+StartupWMClass=glyph-shot
+Icon=applets-screenshooter

@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""glyph-shot-menu - the Screenshot window: whole screen or an area, with a delay."""
+import os
+import subprocess
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+
+
+def main():
+    css = Gtk.CssProvider()
+    try:
+        css.load_from_path(str(CONF / "panel" / "panel.css"))
+    except Exception:
+        pass
+    Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+    fix = Gtk.CssProvider()
+    fix.load_from_data(b".shotwin.panel { margin: 0; box-shadow: none; border: none; }")
+    Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), fix, Gtk.STYLE_PROVIDER_PRIORITY_USER + 5)
+    GLib.set_prgname("glyph-shot")
+    w = Gtk.Window(title="Screenshot")
+    w.set_resizable(False)
+    st = {"what": "screen", "delay": "0"}
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    box.get_style_context().add_class("panel")
+    box.get_style_context().add_class("shotwin")
+    box.set_border_width(0)
+    inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+    inner.set_border_width(14)
+    box.pack_start(inner, True, True, 0)
+    w.add(box)
+
+    def row(title, key, items):
+        l = Gtk.Label(label=title, xalign=0)
+        l.get_style_context().add_class("lab")
+        inner.pack_start(l, False, False, 0)
+        r = Gtk.Box(spacing=6, homogeneous=True)
+        btns = []
+
+        def pick(b, v):
+            st[key] = v
+            for x in btns:
+                (x.get_style_context().add_class if x is b else x.get_style_context().remove_class)("on")
+        for v, t in items:
+            b = Gtk.Button(label=t)
+            if st[key] == v:
+                b.get_style_context().add_class("on")
+            b.connect("clicked", pick, v)
+            btns.append(b)
+            r.pack_start(b, True, True, 0)
+        inner.pack_start(r, False, False, 0)
+    row("WHAT", "what", [("screen", "Whole screen"), ("area", "An area")])
+    row("WAIT", "delay", [("0", "No wait"), ("3", "3 s"), ("5", "5 s"), ("10", "10 s")])
+    keys = Gtk.Label(label="Print: whole screen · Shift+Print or Ctrl+Alt+P: an area", xalign=0)
+    keys.get_style_context().add_class("dim")
+    inner.pack_start(keys, False, False, 4)
+    foot = Gtk.Box(spacing=6, homogeneous=True)
+    c = Gtk.Button(label="Cancel")
+    c.connect("clicked", lambda *_: Gtk.main_quit())
+    go = Gtk.Button(label="Take screenshot")
+    go.get_style_context().add_class("amber")
+
+    def take(*_):
+        w.hide()
+        # let the window disappear before the picture is taken
+        GLib.timeout_add(300, lambda: (subprocess.Popen(["glyph-shot", st["what"], st["delay"]], start_new_session=True),
+                                       Gtk.main_quit(), False)[2])
+    go.connect("clicked", take)
+    foot.pack_start(c, True, True, 0)
+    foot.pack_start(go, True, True, 0)
+    inner.pack_start(foot, False, False, 0)
+    w.connect("destroy", Gtk.main_quit)
+    w.connect("key-press-event", lambda w_, e: (Gtk.main_quit(), True)[1] if e.keyval == Gdk.KEY_Escape else
+              (take(), True)[1] if e.keyval == Gdk.KEY_Return else False)
+    w.show_all()
+    go.grab_focus()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()
