@@ -602,6 +602,13 @@ def run_panel(kind):
     x.get_style_context().add_class("px")
     x.connect("clicked", quit_)
     title.pack_end(x, False, False, 0)
+    if kind == "quick":
+        _bat = battery()
+        if _bat:
+            bl = Gtk.Label(label=f"{'⚡ ' if _bat[1].lower() == 'charging' else ''}{_bat[0]}%")
+            bl.get_style_context().add_class("pbat")
+            bl.set_valign(Gtk.Align.CENTER)
+            title.pack_end(bl, False, False, 6)
     outer.pack_start(title, False, False, 0)
     scroll = Gtk.ScrolledWindow()
     scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -695,73 +702,121 @@ def run_panel(kind):
         win.set_size_request(400, -1)
         state = {"open": load_open(), "join": None, "msg": "", "busy": set()}
 
-        def toggle_tile(name, on, sub, cb, enabled=True):
+        state["open"] = set(list(state["open"])[:1])     # one open at a time
+
+        def toggle_tile(name, on, sub, cb, enabled=True, icon=None, more=None):
+            """A tile: icon, name, state; on = filled in the system colour; › opens its details."""
             b = Gtk.Button()
             b.get_style_context().add_class("tog")
             if on:
                 b.get_style_context().add_class("on")
+            h = Gtk.Box(spacing=10)
+            if icon:
+                ib = Gtk.Box()
+                ib.get_style_context().add_class("tico")
+                img = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.LARGE_TOOLBAR)
+                ib.set_center_widget(img)
+                ib.set_size_request(30, 30)
+                ib.set_valign(Gtk.Align.CENTER)
+                h.pack_start(ib, False, False, 0)
             v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            v.set_valign(Gtk.Align.CENTER)
             v.pack_start(label(name, "tn"), False, False, 0)
-            v.pack_start(label(sub, "ts"), False, False, 0)
-            b.add(v)
+            sl = label(sub, "ts")
+            sl.set_ellipsize(3)
+            sl.set_max_width_chars(14)
+            v.pack_start(sl, False, False, 0)
+            h.pack_start(v, True, True, 0)
+            if more:
+                mb = Gtk.Button(label="›")
+                mb.get_style_context().add_class("tmore")
+                mb.set_tooltip_text("Details")
+                mb.connect("clicked", lambda *_: (state.update(open={more}), save_open({more}), draw()))
+                h.pack_end(mb, False, False, 0)
+            b.add(h)
             b.set_sensitive(enabled)
             b.connect("clicked", lambda *_: cb())
             return b
 
         def section(title, key, summary="", extra=None):
             """A header with Show/Hide; returns True when the section is open."""
+            flush()
+            if state.get("accbox") is None:
+                # all details in one framed list, one open at a time
+                state["accbox"] = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                state["accbox"].get_style_context().add_class("accbox")
+                body.pack_start(state["accbox"], False, False, 0)
+            accbox = state["accbox"]
             is_open = key in state["open"]
-            hdr = Gtk.Box(spacing=6)
-            hdr.get_style_context().add_class("sechdr")
-            hdr.pack_start(label(title, "lab"), False, False, 0)
-            if summary and not is_open:
-                sm = label(summary, "dim")
-                sm.set_ellipsize(3)
-                hdr.pack_start(sm, True, True, 0)
-            else:
-                hdr.pack_start(Gtk.Box(), True, True, 0)
+            hb = Gtk.Button()
+            hb.get_style_context().add_class("acc")
+            if is_open:
+                hb.get_style_context().add_class("open")
+            hdr = Gtk.Box(spacing=8)
+            tl = label(title, "lab")
+            tl.set_width_chars(14)
+            hdr.pack_start(tl, False, False, 0)
+            sm = label(summary or "", "accsum")
+            sm.set_ellipsize(3)
+            sm.set_xalign(1)
+            hdr.pack_start(sm, True, True, 0)
+            hdr.pack_start(label("▾" if is_open else "▸", "dim"), False, False, 0)
+            hb.add(hdr)
 
             def flip():
-                (state["open"].discard if is_open else state["open"].add)(key)
+                state["open"] = set() if is_open else {key}
                 save_open(state["open"])
                 draw()
-            if extra:
-                eb = button(extra[0], lambda: (bg(extra[1]), quit_()), "small endbtn")
-                eb.set_valign(Gtk.Align.CENTER)
-                hdr.pack_start(eb, False, False, 0)
-            sb = button("Hide ▴" if is_open else "Show ▾", flip, "small endbtn")
-            sb.set_size_request(ENDW, -1)
-            sb.set_valign(Gtk.Align.CENTER)
-            hdr.pack_start(sb, False, False, 0)
-            body.pack_start(hdr, False, False, 0)
+            hb.connect("clicked", lambda *_: flip())
+            accbox.pack_start(hb, False, False, 0)
+            if is_open:
+                # the section's content goes in its own box under the header
+                state["accopen"] = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+                state["accopen"].get_style_context().add_class("accbody")
+                accbox.pack_start(state["accopen"], False, False, 0)
+                state["mark"] = len(body.get_children())
             return is_open
+
+        def flush():
+            """Move what an open section put in the panel into its place in the list."""
+            if state.get("accopen") is not None and state.get("mark") is not None:
+                for k in body.get_children()[state["mark"]:]:
+                    body.remove(k)
+                    state["accopen"].pack_start(k, False, False, 0)
+            state["accopen"], state["mark"] = None, None
 
         def draw():
             clear(body)
+            state["accbox"], state["accopen"], state["mark"] = None, None, None
             # toggles
             grid = Gtk.Grid(column_spacing=6, row_spacing=6, column_homogeneous=True)
             tiles = []
             w_on = wifi_on()
             cur = wifi_current()
             tiles.append(toggle_tile("Wi-Fi", w_on, (cur or ("wired" if wired_up() else "not connected")) if w_on else "off",
-                                     lambda: (sh(["nmcli", "radio", "wifi", "off" if w_on else "on"]), later(draw))))
+                                     lambda: (sh(["nmcli", "radio", "wifi", "off" if w_on else "on"]), later(draw)),
+                                     icon="network-wireless-symbolic", more="net"))
             if bt_present():
                 b_on = bt_on()
                 tiles.append(toggle_tile("Bluetooth", b_on, "on" if b_on else "off",
-                                         lambda: (sh(["bluetoothctl", "power", "off" if b_on else "on"]), later(draw))))
+                                         lambda: (sh(["bluetoothctl", "power", "off" if b_on else "on"]), later(draw)),
+                                         icon="bluetooth-active-symbolic", more="bt"))
             else:
-                tiles.append(toggle_tile("Bluetooth", False, "not found", lambda: None, False))
+                tiles.append(toggle_tile("Bluetooth", False, "not found", lambda: None, False, icon="bluetooth-disabled-symbolic"))
             if modem_present():
                 m_on = wwan_on()
                 tiles.append(toggle_tile("Mobile data", m_on, "on" if m_on else "off",
-                                         lambda: (sh(["nmcli", "radio", "wwan", "off" if m_on else "on"]), later(draw))))
+                                         lambda: (sh(["nmcli", "radio", "wwan", "off" if m_on else "on"]), later(draw)),
+                                         icon="network-cellular-symbolic"))
             d_on = dnd_on()
             tiles.append(toggle_tile("Do not disturb", d_on, "on" if d_on else "off",
-                                     lambda: (sh(["makoctl", "mode", "-t", "do-not-disturb"]), later(draw, 150))))
+                                     lambda: (sh(["makoctl", "mode", "-t", "do-not-disturb"]), later(draw, 150)),
+                                     icon="notifications-disabled-symbolic"))
             if has("wlsunset"):
                 n_on = night_on()
                 tiles.append(toggle_tile("Night light", n_on, "warm at night" if n_on else "off",
-                                         lambda: (sh(["glyph-night", "off" if n_on else "on"]), later(draw))))
+                                         lambda: (sh(["glyph-night", "off" if n_on else "on"]), later(draw)),
+                                         icon="night-light-symbolic"))
             a_on = airplane_on()
 
             def airplane():
@@ -774,11 +829,49 @@ def run_panel(kind):
                     if bt_present():
                         sh(["bluetoothctl", "power", "off"])
                 later(draw)
-            tiles.append(toggle_tile("Airplane", a_on, "on" if a_on else "off", airplane))
+            tiles.append(toggle_tile("Airplane", a_on, "on" if a_on else "off", airplane, icon="airplane-mode-symbolic"))
+            prof = power_profile()
+            if prof:
+                order = ["power-saver", "balanced", "performance"]
+                nxt = order[(order.index(prof) + 1) % 3] if prof in order else "balanced"
+                pnames = {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}
+                tiles.append(toggle_tile("Power", prof != "power-saver", pnames.get(prof, prof),
+                                         lambda: (sh(["powerprofilesctl", "set", nxt]), later(draw, 200)),
+                                         icon={"power-saver": "power-profile-power-saver-symbolic",
+                                               "performance": "power-profile-performance-symbolic"}.get(prof, "power-profile-balanced-symbolic")))
             for i, t in enumerate(tiles):
-                grid.attach(t, i % 3, i // 3, 1, 1)
+                grid.attach(t, i % 2, i // 2, 1, 1)
             grid.get_style_context().add_class("tiles")
             body.pack_start(grid, False, False, 0)
+
+            # now playing: a card, only when something plays
+            ps = media_players()
+            if ps:
+                pl, st, ti, ar = ps[0]
+                card = Gtk.Box(spacing=12)
+                card.get_style_context().add_class("npcard")
+                note = Gtk.Label(label="♪")
+                note.get_style_context().add_class("npnote")
+                note.set_size_request(40, 40)
+                note.set_valign(Gtk.Align.CENTER)
+                card.pack_start(note, False, False, 0)
+                v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+                v.set_valign(Gtk.Align.CENTER)
+                tl = label(ti or pl, "tn")
+                tl.set_ellipsize(3)
+                tl.set_max_width_chars(20)
+                v.pack_start(tl, False, False, 0)
+                al = label((ar + " · " if ar else "") + pl.split(".")[0], "dim")
+                al.set_ellipsize(3)
+                al.set_max_width_chars(22)
+                v.pack_start(al, False, False, 0)
+                card.pack_start(v, True, True, 0)
+                for sym, cmd, cls in (("⏮", "previous", "npbtn"), ("⏸" if st == "Playing" else "▶", "play-pause", "npbtn npmain"),
+                                      ("⏭", "next", "npbtn")):
+                    nb = button(sym, lambda c=cmd, p=pl: (sh(["playerctl", "-p", p, c]), later(draw, 300)), cls)
+                    nb.set_valign(Gtk.Align.CENTER)
+                    card.pack_start(nb, False, False, 0)
+                body.pack_start(card, False, False, 0)
 
             # Wi-Fi networks
             if section("WI-FI NETWORKS", "net", cur if w_on and cur else ("off" if not w_on else "")):
@@ -905,21 +998,6 @@ def run_panel(kind):
                     box.pack_start(r, False, False, 0)
                 body.pack_start(box, False, False, 0)
 
-            # now playing (any app that plays music or video)
-            ps = media_players()
-            if ps and section("NOW PLAYING", "media", ps[0][2][:24] or ps[0][0]):
-                pl, st, ti, ar = ps[0]
-                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-                box.get_style_context().add_class("plist")
-                box.pack_start(label(ti or pl, "tn"), False, False, 0)
-                if ar:
-                    box.pack_start(label(ar, "dim"), False, False, 0)
-                row = Gtk.Box(spacing=6, homogeneous=True)
-                for sym, cmd in (("⏮", "previous"), ("⏸" if st == "Playing" else "▶", "play-pause"), ("⏭", "next")):
-                    row.pack_start(button(sym, lambda c=cmd, p=pl: (sh(["playerctl", "-p", p, c]), later(draw, 300)), "small"), True, True, 0)
-                box.pack_start(row, False, False, 0)
-                body.pack_start(box, False, False, 0)
-
             # where the sound goes, and which microphone (like KDE)
             for kind, title, key in (("sinks", "SOUND OUTPUT", "aout"), ("sources", "MICROPHONE", "ain")):
                 devs = audio_devices(kind)
@@ -958,8 +1036,6 @@ def run_panel(kind):
                         box.pack_start(button("Volume per app…", lambda: (bg(["pavucontrol"]), quit_()), "small"), False, False, 4)
                     body.pack_start(box, False, False, 0)
 
-            # power profile + battery
-            prof = power_profile()
             # batteries: this computer and devices (mouse, controller, headset ...)
             bats = device_batteries()
             if bats:
@@ -980,22 +1056,28 @@ def run_panel(kind):
                         box.pack_start(r, False, False, 0)
                     body.pack_start(box, False, False, 0)
 
-            names = {"power-saver": "Saver", "balanced": "Balanced", "performance": "Performance"}
-            if prof and section("POWER PROFILE", "pow", names.get(prof, prof)):
-                row = Gtk.Box(spacing=4, homogeneous=True)
-                for key, name in (("power-saver", "Saver"), ("balanced", "Balanced"), ("performance", "Performance")):
-                    b = button(name, (lambda k=key: (sh(["powerprofilesctl", "set", k]), later(draw, 200))), "seg on" if prof == key else "seg")
-                    row.pack_start(b, True, True, 0)
-                body.pack_start(row, False, False, 0)
-            bat = battery()
-            if bat:
-                body.pack_start(label(f"BATTERY  {bat[0]}% · {bat[1].lower()}", "dim"), False, False, 0)
+            flush()
 
-            # volume and brightness, at the bottom
+            # volume and brightness, at the bottom, in one framed box
+            sliders = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            sliders.get_style_context().add_class("sliders")
+
+            def icon_btn(icon, cb, cls="sico"):
+                ib = Gtk.Button()
+                ib.get_style_context().add_class(cls)
+                ib.add(Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.LARGE_TOOLBAR))
+                ib.set_valign(Gtk.Align.CENTER)
+                if cb:
+                    ib.connect("clicked", lambda *_: cb())
+                return ib
             v, muted = volume()
             if v is not None:
                 row = Gtk.Box(spacing=8)
-                row.pack_start(label("VOL", "lab"), False, False, 0)
+                mute_b = icon_btn("audio-volume-muted-symbolic" if muted else "audio-volume-high-symbolic",
+                                  lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)),
+                                  "sico muted" if muted else "sico")
+                mute_b.set_tooltip_text("Mute / unmute")
+                row.pack_start(mute_b, False, False, 0)
                 sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
                 sc.set_increments(1, 5)
                 sc.set_draw_value(False)
@@ -1006,15 +1088,11 @@ def run_panel(kind):
                                                        val.set_text(f"{int(s.get_value())}%"), osd("volume", s.get_value())))
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
-                mb = button("ON" if muted else "MUTE", lambda: (sh(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]), later(draw, 100)), "small endbtn")
-                mb.set_size_request(ENDW, -1)
-                mb.set_valign(Gtk.Align.CENTER)
-                row.pack_start(mb, False, False, 0)
-                body.pack_start(row, False, False, 0)
+                sliders.pack_start(row, False, False, 0)
             br = brightness()
             if br is not None:
                 row = Gtk.Box(spacing=8)
-                row.pack_start(label("BRI", "lab"), False, False, 0)
+                row.pack_start(icon_btn("display-brightness-symbolic", None), False, False, 0)
                 sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 1)
                 sc.set_increments(1, 5)
                 sc.set_draw_value(False)
@@ -1024,13 +1102,12 @@ def run_panel(kind):
                 sc.connect("value-changed", lambda s: (sh(["brightnessctl", "-q", "set", f"{int(s.get_value())}%"]), val.set_text(f"{int(s.get_value())}%"), osd("brightness", s.get_value())))
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
-                row.pack_start(endspace(), False, False, 0)
-                body.pack_start(row, False, False, 0)
+                sliders.pack_start(row, False, False, 0)
             elif has("ddcutil"):
                 # a desktop monitor: brightness over the cable (DDC/CI); slow, so in the background
                 cur_b = ddc_brightness_cached()
                 row = Gtk.Box(spacing=8)
-                row.pack_start(label("BRI", "lab"), False, False, 0)
+                row.pack_start(icon_btn("display-brightness-symbolic", None), False, False, 0)
                 sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
                 sc.set_increments(1, 5)
                 sc.set_draw_value(False)
@@ -1058,8 +1135,7 @@ def run_panel(kind):
                 sc.connect("value-changed", set_ddc)
                 row.pack_start(sc, True, True, 0)
                 row.pack_start(val, False, False, 0)
-                row.pack_start(endspace(), False, False, 0)
-                body.pack_start(row, False, False, 0)
+                sliders.pack_start(row, False, False, 0)
 
                 def read_real(sc=sc, val=val):
                     v = ddc_read()
@@ -1070,13 +1146,30 @@ def run_panel(kind):
                 if not state.get("ddc_read"):
                     state["ddc_read"] = True
                     threading.Thread(target=read_real, daemon=True).start()
+            if sliders.get_children():
+                out_now = next((d[1] for d in audio_devices("sinks") if d[2]), "")
+                if out_now:
+                    ol = label("Sound from " + out_now, "dim")
+                    ol.set_ellipsize(3)
+                    sliders.pack_start(ol, False, False, 0)
+                body.pack_start(sliders, False, False, 0)
             body.show_all()
             GLib.idle_add(fit_height)
 
         clear(foot)
-        foot.pack_start(button("Settings", lambda: (bg(["glyph-settings"]), quit_())), True, True, 0)
-        foot.pack_start(button("Lock", lambda: (bg(["glyph-lock"]), quit_())), True, True, 0)
-        foot.pack_start(button("Power", lambda: (bg(["glyph-power"]), quit_()), "amber"), True, True, 0)
+        for txt, icon, cmd, cls in (("Settings", "emblem-system-symbolic", ["glyph-settings"], None),
+                                    ("Lock", "system-lock-screen-symbolic", ["glyph-lock"], None),
+                                    ("Power", "system-shutdown-symbolic", ["glyph-power"], "amber")):
+            fb = Gtk.Button()
+            if cls:
+                fb.get_style_context().add_class(cls)
+            hb = Gtk.Box(spacing=8)
+            hb.set_halign(Gtk.Align.CENTER)
+            hb.pack_start(Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU), False, False, 0)
+            hb.pack_start(Gtk.Label(label=txt), False, False, 0)
+            fb.add(hb)
+            fb.connect("clicked", lambda *_, c=cmd: (bg(c), quit_()))
+            foot.pack_start(fb, True, True, 0)
         use_cache()
         if load_saved_cache():
             draw()                       # last known state at once ...

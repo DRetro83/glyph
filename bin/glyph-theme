@@ -535,7 +535,30 @@ button:hover {{ background: {p['hov']}; }}
 button.amber {{ color: {p['amber']}; border-color: {p['amber']}; }}
 button.small {{ padding: 2px 10px; }}
 button.on, button.seg.on {{ border-color: {p['amber']}; color: {p['amber']}; background: {p['hov']}; }}
-.tog {{ padding: 5px 8px; min-height: 36px; }}
+.tog {{ padding: 8px 10px; min-height: 44px; }}
+.tog .tico {{ border: 1px solid {p['hi']}; min-width: 30px; min-height: 30px; }}
+.tog.on .tico {{ border-color: {p['tink']}; }}
+.tog image {{ color: {p['text']}; }}
+.tog.on image, .tog.on .tmore {{ color: {p['tink']}; }}
+.tog button.tmore {{ background: transparent; border: none; border-left: 1px solid {p['hi']}; padding: 0 2px 0 8px; min-width: 0; min-height: 0; font-size: 18px; color: {p['dim']}; box-shadow: none; }}
+.tog.on button.tmore {{ border-left-color: {p['tink']}; }}
+.npcard {{ background: {p['view']}; border: 1px solid {p['hi']}; padding: 8px 10px; margin-top: 4px; }}
+.npnote {{ background: {p['amber']}; color: {p['tink']}; font-weight: bold; font-size: 18px; }}
+.panel button.npbtn {{ min-width: 30px; min-height: 30px; padding: 0; }}
+.panel button.npmain {{ border-color: {p['amber']}; color: {p['amber']}; }}
+.accbox {{ border: 1px solid {p['hi']}; margin-top: 4px; }}
+.panel button.acc {{ background: transparent; border: none; border-bottom: 1px solid {p['hov']}; box-shadow: none; padding: 7px 12px; min-height: 0; }}
+.panel button.acc:hover {{ background: {p['hov']}; }}
+.panel button.acc.open {{ background: {p['win']}; }}
+.panel button.acc.open .lab {{ color: {p['amber']}; }}
+.panel button.acc .lab {{ margin: 0; padding: 0; }}
+.acc .accsum {{ font-size: 12px; color: {p['text']}; }}
+.accbody {{ background: {p['view']}; padding: 6px 10px 10px 10px; border-bottom: 1px solid {p['hov']}; }}
+.sliders {{ background: {p['view']}; border: 1px solid {p['hi']}; padding: 10px 12px; margin-top: 4px; }}
+.panel button.sico {{ min-width: 40px; min-height: 32px; padding: 0; background: transparent; }}
+.panel button.sico.muted {{ background: {p['rose']}; border-color: {p['rose']}; }}
+.sliders image {{ color: {p['text']}; }}
+.pbat {{ background: {p['panel']}; color: {p['text']}; border: 1px solid {p['tink']}; padding: 1px 8px; font-size: 12px; }}
 .tiles .tog .tn {{ font-size: 12px; }}
 .tiles .tog .ts {{ font-size: 10px; }}
 /* power menu */
