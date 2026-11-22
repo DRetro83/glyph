@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.7 · round Start, a bar without a gap · 2026-11-22
+
+- Rounded corners: the start menu and the panels are round at the bottom too, with room for their shadow
+- The taskbar takes a height that fits a fractional screen scale (125 %, 150 %), so no 1 px gap under it
+
 ## 0.9.6 · the taskbar follows the corners · 2026-11-22
 
 - Rounded corners everywhere: the taskbar floats a little above the edge with round corners, every taskbar button follows the shape, and so do pop-up notifications and the lock screen

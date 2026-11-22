@@ -536,7 +536,7 @@ class Settings(Gtk.Window):
             p.pack_start(self.opts([("0.75", "75%"), ("0.8", "80%"), ("0.9", "90%"), ("1", "100%"), ("1.1", "110%"), ("1.25", "125%"),
                                     ("1.5", "150%"), ("1.75", "175%"), ("2", "200%")],
                                    gconf.get("scale_" + name, (scale.group(1).rstrip("0").rstrip(".") if scale else "1")),
-                                   lambda v, n=name: (sh(["wlr-randr", "--output", n, "--scale", v]), write_kv(GCONF, "scale_" + n, v), self.refresh())), False, False, 0)
+                                   lambda v, n=name: (sh(["wlr-randr", "--output", n, "--scale", v]), write_kv(GCONF, "scale_" + n, v), bg(["glyph-bar"]), self.refresh())), False, False, 0)
         if has("wdisplays"):
             p.pack_start(self.btn("Arrange screens and resolution…", lambda: bg(["wdisplays"])), False, False, 0)
         else:

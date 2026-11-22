@@ -68,6 +68,19 @@ def apply():
     text = re.sub(r'\n  "margin": "[^"]*",', "", text)
     if r:
         text = text.replace('"position": "bottom",', '"position": "bottom",\n  "margin": "0 6 6 6",', 1)
+    # with a fractional display scale (125 %, 150 %…) a height of 46 lands between two screen
+    # pixels and leaves a 1 px gap under the bar: take the nearest height that lands on a whole pixel
+    h = 46
+    try:
+        scales = [float(x) for x in re.findall(r"Scale:\s*([\d.]+)", subprocess.run(
+            ["wlr-randr"], capture_output=True, text=True, timeout=3).stdout)]
+        for cand in (46, 44, 48, 45, 47, 40, 50):
+            if all(abs(cand * sc - round(cand * sc)) < 0.01 for sc in scales):
+                h = cand
+                break
+    except Exception:
+        pass
+    text = re.sub(r'"height":\s*\d+', f'"height": {h}', text, count=1)
     CFG.write_text(text)
     subprocess.run(["pkill", "-SIGUSR2", "-x", "waybar"], check=False)   # waybar reloads
 

@@ -6,9 +6,10 @@ glyph-bg &
 
 # screen scale saved in Settings -> Display
 command -v wlr-randr >/dev/null && sed -n 's/^scale_\(.*\)=\(.*\)$/\1 \2/p' "$G/glyph.conf" 2>/dev/null |
-  while read -r out sc; do wlr-randr --output "$out" --scale "$sc"; done &
+  while read -r out sc; do wlr-randr --output "$out" --scale "$sc"; done
 
-# taskbar at the bottom
+# taskbar at the bottom (glyph-bar picks a height that fits the screen scale exactly)
+glyph-bar >/dev/null 2>&1
 waybar -c "$G/waybar/config.jsonc" -s "$G/waybar/style.css" >/dev/null 2>&1 &
 
 # notifications (where: Settings -> Notifications)

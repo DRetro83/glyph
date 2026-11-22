@@ -947,7 +947,10 @@ def round_css(p):
             f"scale trough, scale highlight {{ border-radius: {max(1, r // 3)}px; }}\n"
             f".ptitle {{ border-radius: {r}px {r}px 0 0; }}\n.pfoot {{ border-radius: 0 0 {r}px {r}px; }}\n"
             ".panel button.acc, .tog button.tmore, .ptitle .px, .accbody, .panel .prow button.acc { border-radius: 0; }\n"
-            f".ptitle .px {{ border-radius: 0 {r}px 0 0; }}\n")
+            f".ptitle .px {{ border-radius: 0 {r}px 0 0; }}\n"
+            f".start .sfoot {{ border-radius: 0 0 {r}px {r}px; }}\n"
+            # room under the panel for its shadow, so the bottom corners stay round
+            + (".panel { margin-bottom: 8px; }\n" if shadows_on() else ".panel { margin-bottom: 4px; }\n"))
 
 
 def waybar_round_css(p):
