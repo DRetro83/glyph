@@ -509,6 +509,23 @@ class Settings(Gtk.Window):
         else:
             p.pack_start(self.note("For more screens and resolutions: sudo apt install wdisplays"), False, False, 0)
         p.pack_start(self.note("Glyph puts your scale back every time you sign in."), False, False, 0)
+        # night light
+        g = read_kv(GCONF)
+        if has("wlsunset"):
+            p.pack_start(self.toggle("Night light", "A warmer screen in the evening, easier on your eyes.", g.get("night") == "on",
+                                     lambda on: (sh(["glyph-night", "on" if on else "off"]), self.refresh())), False, False, 0)
+            if g.get("night") == "on":
+                def night(k, v):
+                    write_kv(GCONF, k, v)
+                    sh(["glyph-night", "on"])
+                p.pack_start(self.lab("WARMTH", "lab"), False, False, 0)
+                p.pack_start(self.opts([("4000", "Warm"), ("3400", "Warmer"), ("2800", "Warmest")], g.get("night_temp", "3400"),
+                                       lambda v: night("night_temp", v)), False, False, 0)
+                p.pack_start(self.lab("WHEN", "lab"), False, False, 0)
+                p.pack_start(self.opts([("evening", "Evening · 19:30 – 07:00"), ("always", "All day")], g.get("night_when", "evening"),
+                                       lambda v: night("night_when", v)), False, False, 0)
+        else:
+            p.pack_start(self.note("Night light: sudo apt install wlsunset"), False, False, 0)
 
     def page_sound(self, p):
         st = sh(["wpctl", "status"])

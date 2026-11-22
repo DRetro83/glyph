@@ -681,7 +681,7 @@ def run_panel(kind):
             if has("wlsunset"):
                 n_on = night_on()
                 tiles.append(toggle_tile("Night light", n_on, "warm at night" if n_on else "off",
-                                         lambda: ((sh(["pkill", "-x", "wlsunset"]) if n_on else bg(["wlsunset", "-t", "3400", "-T", "6500", "-S", "07:00", "-s", "19:30"])), later(draw))))
+                                         lambda: (sh(["glyph-night", "off" if n_on else "on"]), later(draw))))
             a_on = airplane_on()
 
             def airplane():

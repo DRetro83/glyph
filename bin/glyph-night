@@ -1,0 +1,25 @@
+#!/bin/sh
+# glyph-night [on|off|toggle|start] - night light (warmer screen), Settings -> Display.
+# Choices in ~/.config/glyph/glyph.conf: night=on|off, night_temp=4000|3400|2800,
+# night_when=evening|always. "start" (at login) turns it on only when night=on.
+C="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/glyph.conf"
+get() { sed -n "s/^$1=//p" "$C" 2>/dev/null | tail -1; }
+set_() { mkdir -p "$(dirname "$C")"; touch "$C"; grep -v "^$1=" "$C" > "$C.tmp"; echo "$1=$2" >> "$C.tmp"; mv "$C.tmp" "$C"; }
+command -v wlsunset >/dev/null 2>&1 || { echo "glyph-night: wlsunset is not installed" >&2; exit 1; }
+run() {
+  pkill -u "$(id -u)" -x wlsunset 2>/dev/null
+  T=$(get night_temp); T=${T:-3400}
+  if [ "$(get night_when)" = always ]; then
+    # warm all day: day and night temperature the same
+    wlsunset -t "$T" -T "$((T + 1))" >/dev/null 2>&1 &
+  else
+    wlsunset -t "$T" -T 6500 -S 07:00 -s 19:30 >/dev/null 2>&1 &
+  fi
+}
+case "${1:-toggle}" in
+  on) set_ night on; run ;;
+  off) set_ night off; pkill -u "$(id -u)" -x wlsunset ;;
+  start) [ "$(get night)" = on ] && run ;;
+  toggle) if pgrep -u "$(id -u)" -x wlsunset >/dev/null; then "$0" off; else "$0" on; fi ;;
+esac
+exit 0
