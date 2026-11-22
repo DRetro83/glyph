@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Disks
+GenericName=Drives
+Comment=drives, USB sticks, hard disks
+Exec=glyph-disks
+Terminal=false
+Categories=System;Utility;
+Keywords=disk;drive;usb;mount;eject;storage;partition;
+StartupWMClass=glyph-disks
+Icon=drive-harddisk

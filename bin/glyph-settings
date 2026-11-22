@@ -34,7 +34,7 @@ COLOURS = [("Tan", "tan", "#a8957c"), ("Light tan", "light-tan", "#cdbb9f"), ("C
 LAYOUTS = [("us", "English (US)"), ("gb", "English (UK)"), ("be", "Belgian (AZERTY)"), ("fr", "French (AZERTY)"),
            ("de", "German (QWERTZ)"), ("nl", "Dutch"), ("es", "Spanish"), ("it", "Italian"), ("pt", "Portuguese")]
 SECTIONS = [("PERSONAL", ["Appearance", "Background", "Taskbar", "Notifications"]),
-            ("DEVICES", ["Display", "Sound", "Keyboard", "Mouse & touchpad", "Power & lock"]),
+            ("DEVICES", ["Display", "Sound", "Keyboard", "Mouse & touchpad", "Power & lock", "Disks"]),
             ("CONNECTIONS", ["Network", "Bluetooth"]),
             ("SYSTEM", ["Default apps", "Date & time", "Updates", "About"])]
 
@@ -649,6 +649,9 @@ class Settings(Gtk.Window):
         view.get_style_context().add_class("embedded")
         p.pack_start(view, True, True, 0)
         return view
+
+    def page_disks(self, p):
+        self.embed(p, "glyph-disks", "DisksView")
 
     def page_network(self, p):
         rows = []

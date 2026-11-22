@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+"""glyph-disks - Disks: drives, USB sticks and hard disks, in the Glyph look.
+
+Shows every disk and its parts with size, use, file system and where it is
+open. Open in Files, Mount, Unmount, Eject (udisksctl, no password for USB).
+Also shown as a page in Settings -> Disks. For partitioning: GParted.
+"""
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+
+
+def run(cmd, timeout=15):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout + r.stderr).strip()
+    except Exception as e:
+        return 1, str(e)
+
+
+def human(b):
+    b = float(b or 0)
+    for u in ("B", "KB", "MB", "GB", "TB"):
+        if b < 1000 or u == "TB":
+            return f"{b:.0f} {u}" if u in ("B", "KB") or b >= 100 else f"{b:.1f} {u}"
+        b /= 1000
+
+
+def disks():
+    code, out = run(["lsblk", "-J", "-b", "-o", "NAME,PATH,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT,MODEL,TRAN,RM,HOTPLUG,FSUSED,FSSIZE"])
+    try:
+        data = json.loads(out)["blockdevices"]
+    except Exception:
+        return []
+    return [d for d in data if d.get("type") == "disk" and not d.get("name", "").startswith(("zram", "loop"))]
+
+
+class Meter(Gtk.DrawingArea):
+    def __init__(self, pal, pct):
+        super().__init__()
+        self.pal, self.pct = pal, pct
+        self.set_size_request(160, 10)
+        self.connect("draw", self.draw)
+
+    def draw(self, w, cr):
+        W, H = w.get_allocated_width(), w.get_allocated_height()
+        n = round(self.pct / 5)
+        for j in range(20):
+            col = self.pal.get("GLYPH_HOV", "#333333")
+            if j < n:
+                col = self.pal.get("GLYPH_ROSE" if self.pct > 90 else "GLYPH_AMBER", "#ffb340")
+            h = col.lstrip("#")
+            cr.set_source_rgb(int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255)
+            cr.rectangle(j * W / 20 + 1, 0, W / 20 - 2, H)
+            cr.fill()
+        return False
+
+
+class DisksView(Gtk.Box):
+    """The disk list; used in its own window and as a page in Settings."""
+
+    def __init__(self):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.pal = {}
+        try:
+            for l in (CONF / "palette.env").read_text().splitlines():
+                if "=" in l:
+                    k, v = l.split("=", 1)
+                    self.pal[k] = v.strip()
+        except Exception:
+            pass
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        extra = Gtk.CssProvider()
+        extra.load_from_data((".disks .dhead { padding: 10px 12px 4px 12px; font-weight: bold; }"
+                              ".disks .drow { padding: 6px 12px; border-bottom: 1px solid %s; }"
+                              ".disks .msg { padding: 6px 12px; }" % self.pal.get("GLYPH_HOV", "#333")).encode())
+        for c in (css, extra):
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), c, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        for c in ("files", "disks"):
+            root.get_style_context().add_class(c)
+        self.pack_start(root, True, True, 0)
+        top = Gtk.Box(spacing=4)
+        top.get_style_context().add_class("ftool")
+        b = Gtk.Button(label="Refresh")
+        b.connect("clicked", lambda *_: self.fill())
+        top.pack_start(b, False, False, 0)
+        if shutil.which("gparted"):
+            g = Gtk.Button(label="Partitions (GParted)…")
+            g.connect("clicked", lambda *_: subprocess.Popen(["gparted"], start_new_session=True))
+            top.pack_end(g, False, False, 0)
+        root.pack_start(top, False, False, 0)
+        self.list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        sw = Gtk.ScrolledWindow()
+        sw.add(self.list)
+        root.pack_start(sw, True, True, 0)
+        self.msg = Gtk.Label(xalign=0)
+        self.msg.get_style_context().add_class("msg")
+        self.msg.get_style_context().add_class("dim")
+        self.msg.set_line_wrap(True)
+        root.pack_start(self.msg, False, False, 0)
+        self.fill()
+        self.timer = GLib.timeout_add_seconds(4, self.tick)
+        self.connect("destroy", lambda *_: GLib.source_remove(self.timer))
+        self.last = None
+
+    def tick(self):
+        now = json.dumps(disks())
+        if now != self.last:
+            self.fill()
+        return True
+
+    def button(self, text, cb):
+        b = Gtk.Button(label=text)
+        b.set_valign(Gtk.Align.CENTER)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def act(self, cmd, ok_text):
+        code, out = run(cmd, 60)
+        self.msg.set_text(ok_text if code == 0 else out.splitlines()[-1] if out else "That did not work.")
+        self.fill()
+
+    def fill(self):
+        ds = disks()
+        self.last = json.dumps(ds)
+        for ch in self.list.get_children():
+            ch.destroy()
+        for d in ds:
+            usb = d.get("tran") == "usb" or d.get("rm") or d.get("hotplug")
+            name = (d.get("model") or d.get("name") or "disk").strip()
+            h = Gtk.Box(spacing=8)
+            h.get_style_context().add_class("dhead")
+            t = Gtk.Label(label=("USB · " if usb else "") + name, xalign=0)
+            h.pack_start(t, False, False, 0)
+            s = Gtk.Label(label=f"{human(d.get('size'))} · {d.get('path')}")
+            s.get_style_context().add_class("dim")
+            h.pack_start(s, False, False, 0)
+            if usb:
+                h.pack_end(self.button("Eject", lambda p=d["path"]: self.act(["udisksctl", "power-off", "-b", p],
+                                                                               "You can take the drive out now.")), False, False, 0)
+            self.list.pack_start(h, False, False, 0)
+            parts = d.get("children") or ([d] if d.get("fstype") or d.get("mountpoint") else [])
+            for p in parts:
+                self.part_row(p, usb)
+        if not ds:
+            self.list.pack_start(Gtk.Label(label="No disks found."), False, False, 0)
+        self.list.show_all()
+
+    def part_row(self, p, usb):
+        r = Gtk.Box(spacing=12)
+        r.get_style_context().add_class("drow")
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        label = p.get("label") or p.get("name")
+        mp = p.get("mountpoint")
+        n = Gtk.Label(label=f"{label}", xalign=0)
+        n.set_ellipsize(Pango.EllipsizeMode.END)
+        v.pack_start(n, False, False, 0)
+        info = f"{human(p.get('size'))}" + (f" · {p['fstype']}" if p.get('fstype') else '') + (f" · open at {mp}" if mp else "")
+        i = Gtk.Label(label=info, xalign=0)
+        i.get_style_context().add_class("dim")
+        i.set_ellipsize(Pango.EllipsizeMode.END)
+        v.pack_start(i, False, False, 0)
+        r.pack_start(v, True, True, 0)
+        if p.get("fssize") and p.get("fsused"):
+            pct = 100 * int(p["fsused"]) / max(1, int(p["fssize"]))
+            mv = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            mv.set_valign(Gtk.Align.CENTER)
+            mv.pack_start(Meter(self.pal, pct), False, False, 0)
+            ul = Gtk.Label(label=f"{human(p['fsused'])} of {human(p['fssize'])} used", xalign=1)
+            ul.get_style_context().add_class("dim")
+            mv.pack_start(ul, False, False, 0)
+            r.pack_start(mv, False, False, 0)
+        if mp:
+            r.pack_start(self.button("Open", lambda mp=mp: subprocess.Popen(["glyph-files", mp], start_new_session=True)), False, False, 0)
+            if mp not in ("/", "/boot", "/boot/efi", "/home") and not mp.startswith("[SWAP"):
+                r.pack_start(self.button("Unmount", lambda p=p: self.act(["udisksctl", "unmount", "-b", p["path"]],
+                                                                         f"{p.get('label') or p['name']} is closed.")), False, False, 0)
+        elif p.get("fstype") and p.get("fstype") not in ("swap", "crypto_LUKS"):
+            r.pack_start(self.button("Mount", lambda p=p: self.act(["udisksctl", "mount", "-b", p["path"]],
+                                                                   f"{p.get('label') or p['name']} is open.")), False, False, 0)
+        self.list.pack_start(r, False, False, 0)
+
+
+class Disks(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="Disks")
+        self.set_default_size(680, 560)
+        self.add(DisksView())
+
+
+if __name__ == "__main__":
+    try:
+        os.setsid()
+    except Exception:
+        pass
+    GLib.set_prgname("glyph-disks")
+    w = Disks()
+    w.connect("destroy", Gtk.main_quit)
+    w.show_all()
+    Gtk.main()
