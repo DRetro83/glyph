@@ -465,6 +465,26 @@ SHORTCUTS = [("Super  or  Ctrl+Space", "Start menu"), ("Super+V", "Clipboard his
              ("Ctrl+Alt+L", "Lock the screen"), ("Volume / brightness keys", "Louder, softer, brighter")]
 
 
+def audio_devices(kind):
+    """kind sinks (speakers, headphones, HDMI) or sources (microphones):
+    [(name, description, is_default, muted)] via pactl (works with PipeWire)."""
+    if not has("pactl"):
+        return []
+    default = sh(["pactl", "get-default-sink" if kind == "sinks" else "get-default-source"]).strip()
+    try:
+        data = json.loads(sh(["pactl", "-f", "json", "list", kind]) or "[]")
+    except Exception:
+        return []
+    out = []
+    for d in data:
+        name = d.get("name", "")
+        if kind == "sources" and (name.endswith(".monitor") or d.get("monitor_source") == "" and ".monitor" in name):
+            continue           # the "what you hear" copies of the speakers
+        desc = d.get("description") or name
+        out.append((name, desc, name == default, bool(d.get("mute"))))
+    return out
+
+
 def media_players():
     """[(player, status, title, artist)] from playerctl; the playing one first."""
     if not has("playerctl"):
@@ -899,6 +919,44 @@ def run_panel(kind):
                     row.pack_start(button(sym, lambda c=cmd, p=pl: (sh(["playerctl", "-p", p, c]), later(draw, 300)), "small"), True, True, 0)
                 box.pack_start(row, False, False, 0)
                 body.pack_start(box, False, False, 0)
+
+            # where the sound goes, and which microphone (like KDE)
+            for kind, title, key in (("sinks", "SOUND OUTPUT", "aout"), ("sources", "MICROPHONE", "ain")):
+                devs = audio_devices(kind)
+                if not devs:
+                    continue
+                cur = next((d for d in devs if d[2]), None)
+                summary = (cur[1][:26] + ("…" if len(cur[1]) > 26 else "")) if cur else ""
+                if kind == "sources" and cur and cur[3]:
+                    summary = "muted · " + summary
+                if section(title, key, summary):
+                    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    box.get_style_context().add_class("plist")
+                    for name, desc, is_def, muted in devs:
+                        r = Gtk.Box(spacing=10)
+                        r.get_style_context().add_class("prow")
+                        nm = label(desc, "amber" if is_def else "")
+                        nm.set_ellipsize(3)
+                        nm.set_max_width_chars(34)
+                        r.pack_start(nm, True, True, 0)
+                        if is_def:
+                            r.pack_end(label("● in use", "dim"), False, False, 0)
+                            if kind == "sources":
+                                r.pack_end(button("Unmute" if muted else "Mute",
+                                                  lambda n=name: (sh(["pactl", "set-source-mute", n, "toggle"]), later(draw, 150)),
+                                                  "small"), False, False, 0)
+                        else:
+                            def use(n=name, k=kind):
+                                sh(["pactl", "set-default-sink" if k == "sinks" else "set-default-source", n])
+                                if k == "sinks":       # move what is playing now too
+                                    for line in sh(["pactl", "list", "short", "sink-inputs"]).splitlines():
+                                        sh(["pactl", "move-sink-input", line.split()[0], n])
+                                later(draw, 150)
+                            r.pack_end(button("Use", use, "small"), False, False, 0)
+                        box.pack_start(r, False, False, 0)
+                    if kind == "sinks" and has("pavucontrol"):
+                        box.pack_start(button("Volume per app…", lambda: (bg(["pavucontrol"]), quit_()), "small"), False, False, 4)
+                    body.pack_start(box, False, False, 0)
 
             # power profile + battery
             prof = power_profile()

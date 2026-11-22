@@ -52,6 +52,7 @@ PACKAGES=(
   firefox-esr flatpak                     # a browser always; Flatpak for Steam, Heroic and more
   fonts-noto-core fonts-noto-color-emoji  # letters for every language, and emoji
   playerctl                               # music buttons on the taskbar
+  pulseaudio-utils                        # pactl: choose speakers / headphones / HDMI and microphone
   gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-good gstreamer1.0-plugins-base gstreamer1.0-libav   # Glyph music player
 )
 
