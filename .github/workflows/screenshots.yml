@@ -22,7 +22,7 @@ jobs:
       - name: A user with sudo, like a normal PC
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends sudo git ca-certificates python3 dbus-x11 wlr-randr python3-pil
+          apt-get install -y --no-install-recommends sudo git ca-certificates python3 dbus-x11 wlr-randr python3-pil procps
           useradd -m -s /bin/bash glyph
           echo "glyph ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/glyph
       - uses: actions/checkout@v4
@@ -30,8 +30,9 @@ jobs:
         run: |
           cp -r "$GITHUB_WORKSPACE" /home/glyph/glyph
           chown -R glyph:glyph /home/glyph/glyph
-          su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh" 2>&1 | tail -60
-          dpkg -l labwc | tail -1
+          su - glyph -c "cd ~/glyph && DEBIAN_FRONTEND=noninteractive ./install.sh" > /tmp/install.log 2>&1 || echo "install.sh failed: $?" >> /tmp/install.log
+          tail -60 /tmp/install.log
+          dpkg -l labwc | tail -1 || true
       - name: Take the screenshots
         shell: bash
         run: |
@@ -40,7 +41,7 @@ jobs:
           tail -80 take.log
           mkdir -p shots
           cp /tmp/shots/*.png shots/
-          cp take.log /tmp/shots/session.log shots/
+          cp take.log /tmp/install.log /tmp/shots/session.log shots/
           ls -la shots
           true
       - uses: actions/upload-artifact@v4
