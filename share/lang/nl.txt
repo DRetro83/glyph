@@ -417,3 +417,4 @@ WINDOWS = VENSTERS
 UPTIME = AAN SINDS
 WORKSPACE = WERKRUIMTE
 BATTERY = BATTERIJ
+Windows, panels, buttons and cards. 0 is square, like the prototype. = Vensters, panelen, knoppen en kaders. 0 is vierkant, zoals het prototype.

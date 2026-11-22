@@ -921,13 +921,28 @@ def scale_fonts(css, k=None):
     return re.sub(r"font-size:\s*(\d+(?:\.\d+)?)px", lambda m: f"font-size: {float(m.group(1)) * k:.1f}px", css)
 
 
+def corner_radius(conf=None):
+    """Settings -> Appearance -> Window corners: 0 (square) to 16 pixels."""
+    conf = conf or read_conf()
+    try:
+        return max(0, min(16, int(conf.get("radius", ""))))
+    except ValueError:
+        return 8 if conf.get("corners", "square") == "round" else 0
+
+
 def round_css(p):
-    """Settings -> Appearance -> Window corners: Rounded."""
-    if read_conf().get("corners", "square") != "round":
+    """Rounded corners for panels, buttons, fields and cards, as round as the slider says."""
+    r = corner_radius()
+    if not r:
         return ""
-    return ("\n/* rounded corners */\n.panel, .panel button, .panel entry, .ptile, .tile, button, entry, menu, .menu, "
-            "popover, tooltip, .gmenu, .files .ftool button { border-radius: 6px; }\n"
-            ".panel { border-radius: 8px; }\n")
+    small = max(2, r * 3 // 4)
+    return ("\n/* rounded corners */\n.panel button, .panel entry, .ptile, .tile, button, entry, menu, .menu, "
+            f"popover, tooltip, .gmenu, .files .ftool button, .tog, .accbox, .sliders, .npcard, .ltile, .ftile {{ border-radius: {small}px; }}\n"
+            f".panel, .start, .settings .card, .list, .ovlist {{ border-radius: {r}px; }}\n"
+            f"scale trough, scale highlight {{ border-radius: {max(1, r // 3)}px; }}\n"
+            f".ptitle {{ border-radius: {r}px {r}px 0 0; }}\n.pfoot {{ border-radius: 0 0 {r}px {r}px; }}\n"
+            ".panel button.acc, .tog button.tmore, .ptitle .px, .accbody, .panel .prow button.acc { border-radius: 0; }\n"
+            f".ptitle .px {{ border-radius: 0 {r}px 0 0; }}\n")
 
 
 def write_outputs(p):
@@ -1336,7 +1351,7 @@ def set_drop_shadows():
         return
     orig = text
     want = "yes" if shadows_on() else "no"
-    radius = "8" if read_conf().get("corners", "square") == "round" else "0"
+    radius = str(corner_radius())
     text = re.sub(r"<cornerRadius>\d*</cornerRadius>", f"<cornerRadius>{radius}</cornerRadius>", text)
     if "<dropShadows>" in text:
         new = re.sub(r"<dropShadows>\w*</dropShadows>", f"<dropShadows>{want}</dropShadows>", text)
@@ -1393,7 +1408,7 @@ def main():
     for kvp in a.set:
         if "=" in kvp:
             k, v = kvp.split("=", 1)
-            if k in ("corners", "textsize", "startsize", "scanlines", "scanstrength"):
+            if k in ("corners", "radius", "textsize", "startsize", "scanlines", "scanstrength"):
                 conf[k] = v
     if a.mode or a.colour:
         # a new system colour: the background follows it again (Settings -> Background)

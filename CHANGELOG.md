@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.4 · corners on a slider · 2026-11-22
+
+- Settings → Appearance → Window corners is a slider now: 0 (square) to 16 px, for windows, panels, buttons, tiles and cards
+
 ## 0.9.3 · layered panels, no icons · 2026-11-22
 
 - Panels in layers like Start and Files: a lighter back, darker framed tiles and lists on it; the 0.9.2 colours are gone again
