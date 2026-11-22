@@ -20,9 +20,9 @@ CONF = G / "glyph.conf"
 CFG = G / "waybar" / "config.jsonc"
 LEFT = [("custom/start", None), ("custom/ws1", "workspaces"), ("custom/ws2", "workspaces"),
         ("custom/ws3", "workspaces"), ("custom/ws4", "workspaces"), ("wlr/taskbar", "apps")]
-RIGHT = [("tray", "tray"), ("custom/windows", "windows"), ("custom/settings", None),
+RIGHT = [("custom/media", "media"), ("tray", "tray"), ("custom/windows", "windows"), ("custom/settings", None),
          ("clock", None), ("custom/power", None)]
-KEYS = ("workspaces", "apps", "windows", "tray")
+KEYS = ("workspaces", "apps", "windows", "tray", "media")
 
 
 def read():

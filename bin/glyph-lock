@@ -7,7 +7,12 @@ pgrep -x gtklock >/dev/null && exit 0
 pgrep -x swaylock >/dev/null && exit 0
 if command -v gtklock >/dev/null; then
   [ -f "$G/gtklock/layout.ui" ] || glyph-theme >/dev/null 2>&1
+  # music controls on the lock screen, when the playerctl module is installed
+  M=""
+  for f in /usr/lib/*/gtklock/playerctl-module.so /usr/lib/gtklock/playerctl-module.so /usr/local/lib/*/gtklock/playerctl-module.so; do
+    [ -f "$f" ] && M="$f" && break
+  done
   exec gtklock -d -s "$G/gtklock/style.css" -x "$G/gtklock/layout.ui" \
-    -t "%H:%M" -D "%A %d %B %Y" "$@"
+    -t "%H:%M" -D "%A %d %B %Y" ${M:+-m "$M"} "$@"
 fi
 exec swaylock -f -C "$G/swaylock/config"

@@ -5,6 +5,9 @@
   glyph-panel cal       Calendar and notifications (click the clock)
   glyph-panel power     Lock, log out, sleep, restart, off (click the power button)
   glyph-panel windows   Open windows: go to one, close one, close all (click ▦ N)
+  glyph-panel clip      Clipboard history (Super+V): click to paste
+  glyph-panel keys      All shortcuts (Super+/)
+  glyph-panel media     Now playing: previous, play/pause, next (click ♪ on the taskbar)
   glyph-panel status    one line of JSON for the taskbar button
 
 Running the same panel again closes it. Esc closes it too.
@@ -452,6 +455,30 @@ def add_catcher(on_click):
     return c
 
 
+PANEL_KINDS = ("quick", "cal", "power", "windows", "clip", "keys", "media")
+
+SHORTCUTS = [("Super  or  Ctrl+Space", "Start menu"), ("Super+V", "Clipboard history"), ("Super+/", "These shortcuts"),
+             ("Ctrl+Alt+T", "Terminal"), ("Super+E", "Files"), ("Ctrl+Shift+Esc", "System monitor"),
+             ("Ctrl+Alt+1 … 4", "Go to workspace 1 … 4"), ("Ctrl+Alt+Shift+1 … 4", "Move the window to workspace 1 … 4"),
+             ("Alt+Tab", "Switch windows"), ("Super+Arrows", "Snap a window to a side"), ("Alt+F4", "Close the window"),
+             ("Print", "Screenshot of the screen"), ("Shift+Print  or  Ctrl+Alt+P", "Screenshot of an area"),
+             ("Ctrl+Alt+L", "Lock the screen"), ("Volume / brightness keys", "Louder, softer, brighter")]
+
+
+def media_players():
+    """[(player, status, title, artist)] from playerctl; the playing one first."""
+    if not has("playerctl"):
+        return []
+    out = []
+    for pl in sh(["playerctl", "-l"]).split():
+        st = sh(["playerctl", "-p", pl, "status"]).strip()
+        meta = sh(["playerctl", "-p", pl, "metadata", "--format", "{{title}}\t{{artist}}"]).strip().split("\t")
+        if st in ("Playing", "Paused"):
+            out.append((pl, st, meta[0] if meta else "", meta[1] if len(meta) > 1 else ""))
+    out.sort(key=lambda x: x[1] != "Playing")
+    return out
+
+
 def run_panel(kind):
     import gi
     gi.require_version("Gtk", "3.0")
@@ -461,7 +488,7 @@ def run_panel(kind):
     GLib.set_prgname("glyph-panel")
 
     pidfile = RUN / f"glyph-panel-{kind}.pid"
-    others = [RUN / f"glyph-panel-{k}.pid" for k in ("quick", "cal", "power", "windows") if k != kind]
+    others = [RUN / f"glyph-panel-{k}.pid" for k in PANEL_KINDS if k != kind]
     def panel_pid(f):
         """The pid in f, but only if that process really is a glyph-panel."""
         try:
@@ -507,15 +534,18 @@ def run_panel(kind):
     GtkLayerShell.init_for_window(win)
     GtkLayerShell.set_namespace(win, "glyph-panel")
     GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
-    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
-    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
+    centred = kind in ("clip", "keys")
+    if not centred:
+        GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
     # with shadows the window is 8px bigger down and right (room for the shadow);
     # move it so the panel itself still touches the taskbar
     sh_on = "shadows=no" not in (CONF / "theme.conf").read_text() if (CONF / "theme.conf").exists() else True
     GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 0)
     GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 0 if sh_on else 8)
     try:
-        GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.ON_DEMAND)
+        GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.EXCLUSIVE if centred else
+                                        GtkLayerShell.KeyboardMode.ON_DEMAND)
     except Exception:
         GtkLayerShell.set_keyboard_interactivity(win, True)
 
@@ -543,7 +573,8 @@ def run_panel(kind):
     win.add(outer)
     title = Gtk.Box()
     title.get_style_context().add_class("ptitle")
-    lab = Gtk.Label(label={"quick": "■ QUICK SETTINGS", "power": "■ POWER", "windows": "■ OPEN WINDOWS"}.get(kind, "■ CALENDAR"))
+    lab = Gtk.Label(label={"quick": "■ QUICK SETTINGS", "power": "■ POWER", "windows": "■ OPEN WINDOWS",
+                           "clip": "■ CLIPBOARD", "keys": "■ SHORTCUTS", "media": "■ NOW PLAYING"}.get(kind, "■ CALENDAR"))
     lab.get_style_context().add_class("pt")
     lab.set_valign(Gtk.Align.CENTER)
     title.pack_start(lab, False, False, 0)
@@ -854,6 +885,21 @@ def run_panel(kind):
                     box.pack_start(r, False, False, 0)
                 body.pack_start(box, False, False, 0)
 
+            # now playing (any app that plays music or video)
+            ps = media_players()
+            if ps and section("NOW PLAYING", "media", ps[0][2][:24] or ps[0][0]):
+                pl, st, ti, ar = ps[0]
+                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+                box.get_style_context().add_class("plist")
+                box.pack_start(label(ti or pl, "tn"), False, False, 0)
+                if ar:
+                    box.pack_start(label(ar, "dim"), False, False, 0)
+                row = Gtk.Box(spacing=6, homogeneous=True)
+                for sym, cmd in (("⏮", "previous"), ("⏸" if st == "Playing" else "▶", "play-pause"), ("⏭", "next")):
+                    row.pack_start(button(sym, lambda c=cmd, p=pl: (sh(["playerctl", "-p", p, c]), later(draw, 300)), "small"), True, True, 0)
+                box.pack_start(row, False, False, 0)
+                body.pack_start(box, False, False, 0)
+
             # power profile + battery
             prof = power_profile()
             # batteries: this computer and devices (mouse, controller, headset ...)
@@ -1046,6 +1092,99 @@ def run_panel(kind):
             GLib.idle_add(fit_height)
         draw()
 
+    # ------------------------------------------------------------ clipboard history
+    elif kind == "clip":
+        win.set_size_request(520, -1)
+        q = Gtk.SearchEntry()
+        q.set_placeholder_text("Search the clipboard…")
+        body.pack_start(q, False, False, 0)
+        lst = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        body.pack_start(lst, False, False, 0)
+        items = []
+        if has("cliphist"):
+            for line in sh(["cliphist", "list"]).splitlines()[:60]:
+                if "\t" in line:
+                    cid, text = line.split("\t", 1)
+                    items.append((cid, text))
+
+        def paste(cid):
+            # put it back on the clipboard, close, then paste into the window you were in
+            subprocess.run(["sh", "-c", f"cliphist decode {cid} | wl-copy"], check=False)
+            quit_()
+            bg(["sh", "-c", "sleep 0.25; wtype -M ctrl -k v -m ctrl"])
+
+        def fill(*_):
+            clear(lst)
+            want = q.get_text().lower()
+            shown = 0
+            for cid, text in items:
+                if want and want not in text.lower():
+                    continue
+                b = Gtk.Button()
+                b.get_style_context().add_class("wrow")
+                l = Gtk.Label(label=("🖼 " + text) if text.startswith("[[ binary") else text.replace("\n", " ⏎ "), xalign=0)
+                l.set_ellipsize(3)
+                l.set_max_width_chars(60)
+                b.add(l)
+                b.connect("clicked", lambda *_, c=cid: paste(c))
+                lst.pack_start(b, False, False, 0)
+                shown += 1
+                if shown >= 25:
+                    break
+            if not items:
+                lst.pack_start(label("Nothing copied yet." if has("cliphist") else
+                                     "Clipboard history needs cliphist: sudo apt install cliphist", "dim", wrap=True), False, False, 0)
+            lst.show_all()
+            GLib.idle_add(fit_height)
+        q.connect("search-changed", fill)
+        q.connect("activate", lambda *_: (lst.get_children() and lst.get_children()[0].clicked()) if items else None)
+        fill()
+        foot.pack_start(button("Clear history", lambda: (sh(["cliphist", "wipe"]), quit_())), True, True, 0)
+        foot.pack_start(button("Close", quit_), True, True, 0)
+        GLib.idle_add(q.grab_focus)
+
+    # ------------------------------------------------------------ shortcuts
+    elif kind == "keys":
+        win.set_size_request(560, -1)
+        g = Gtk.Grid(column_spacing=18, row_spacing=6)
+        for i, (k, what) in enumerate(SHORTCUTS):
+            kl = label(k, "amber")
+            kl.set_xalign(1)
+            g.attach(kl, 0, i, 1, 1)
+            g.attach(label(what), 1, i, 1, 1)
+        body.pack_start(g, False, False, 0)
+        body.pack_start(label("All keys: Settings → Keyboard", "dim"), False, False, 0)
+        foot.pack_start(button("Keyboard settings", lambda: (bg(["glyph-settings", "Keyboard"]), quit_())), True, True, 0)
+        foot.pack_start(button("Close", quit_), True, True, 0)
+        body.show_all()
+        GLib.idle_add(fit_height)
+
+    # ------------------------------------------------------------ now playing
+    elif kind == "media":
+        win.set_size_request(380, -1)
+
+        def draw():
+            clear(body)
+            ps = media_players()
+            if not ps:
+                body.pack_start(label("Nothing is playing.", "dim"), False, False, 0)
+            for pl, st, ti, ar in ps[:3]:
+                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+                box.pack_start(label(ti or pl, "tn"), False, False, 0)
+                box.pack_start(label((ar + " · " if ar else "") + pl.split(".")[0], "dim"), False, False, 0)
+                row = Gtk.Box(spacing=6, homogeneous=True)
+                for sym, cmd in (("⏮", "previous"), ("⏸" if st == "Playing" else "▶", "play-pause"), ("⏭", "next")):
+                    b = button(sym, lambda c=cmd, p=pl: (sh(["playerctl", "-p", p, c]), later(draw, 300)))
+                    row.pack_start(b, True, True, 0)
+                box.pack_start(row, False, False, 4)
+                body.pack_start(box, False, False, 0)
+            body.show_all()
+            GLib.idle_add(fit_height)
+        draw()
+        GLib.timeout_add_seconds(2, lambda: (draw(), True)[1])
+        foot.pack_start(button("Music", lambda: (bg(["glyph-music"]), quit_())), True, True, 0)
+        foot.pack_start(button("Sound settings", lambda: (bg(["glyph-settings", "Sound"]), quit_())), True, True, 0)
+
     # ------------------------------------------------------------ windows
     elif kind == "windows":
         win.set_size_request(400, -1)
@@ -1186,7 +1325,18 @@ if __name__ == "__main__":
     what = sys.argv[1] if len(sys.argv) > 1 else "quick"
     if what == "status":
         status()
-    elif what in ("quick", "cal", "power", "windows"):
+    elif what == "media-status":
+        # the music button on the taskbar: hidden when nothing plays
+        ps = media_players()
+        if not ps:
+            print(json.dumps({"text": "", "class": "none"}))
+        else:
+            pl, st, ti, ar = ps[0]
+            t = (ti or pl)[:28] + ("…" if len(ti or pl) > 28 else "")
+            print(json.dumps({"text": ("♪ " if st == "Playing" else "⏸ ") + t,
+                              "tooltip": f"{ti}\n{ar}\n{pl} · {st.lower()}\nclick: controls · scroll: next / previous",
+                              "class": st.lower()}))
+    elif what in PANEL_KINDS:
         run_panel(what)
     else:
         print(__doc__)

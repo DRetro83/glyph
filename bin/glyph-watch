@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""glyph-watch - small helpers that run in the background of the Glyph session.
+
+USB   a drive plugged in: a sound and a message with "Open"; taken out: a sound.
+BATT  battery low (15 %): a message; very low (10 %): an urgent message and a beep;
+      5 % and not charging: the computer goes to sleep after a minute, so nothing is lost.
+Started from the session's autostart.
+"""
+import os
+import subprocess
+import threading
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+
+def bg(cmd):
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    except Exception:
+        pass
+
+
+def notify(title, body, urgency="normal", actions=(), on_action=None):
+    """notify-send with buttons; waits for the answer in a thread."""
+    cmd = ["notify-send", "-a", "Glyph", "-u", urgency]
+    for key, text in actions:
+        cmd += ["-A", f"{key}={text}"]
+    cmd += [title, body]
+
+    def work():
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=600).stdout.strip()
+        except Exception:
+            out = ""
+        if out and on_action:
+            GLib.idle_add(on_action, out)
+    threading.Thread(target=work, daemon=True).start()
+
+
+# ---------------------------------------------------------------- USB drives
+class Usb:
+    def __init__(self):
+        self.mon = Gio.VolumeMonitor.get()
+        self.mon.connect("volume-added", self.added)
+        self.mon.connect("volume-removed", self.removed)
+
+    def added(self, mon, vol):
+        name = vol.get_name() or "USB drive"
+        bg(["glyph-sound", "plug"])
+
+        def act(key):
+            if key == "open":
+                self.open(vol)
+            return False
+        notify("USB · " + name, "Plugged in.", actions=(("open", "Open"),), on_action=act)
+
+    def open(self, vol):
+        m = vol.get_mount()
+        if m:
+            bg(["glyph-files", m.get_root().get_path()])
+            return
+
+        def done(v, res):
+            try:
+                v.mount_finish(res)
+                mm = v.get_mount()
+                if mm:
+                    bg(["glyph-files", mm.get_root().get_path()])
+            except Exception as e:
+                notify("USB", f"Could not open it: {e}")
+        vol.mount(Gio.MountMountFlags.NONE, None, None, done)
+
+    def removed(self, mon, vol):
+        bg(["glyph-sound", "unplug"])
+        notify("USB · " + (vol.get_name() or "drive"), "Taken out.")
+
+
+# ---------------------------------------------------------------- battery
+class Battery:
+    def __init__(self):
+        self.warned = 100
+        self.sleep_timer = None
+        self.bats = [p for p in Path("/sys/class/power_supply").glob("BAT*")]
+        if self.bats:
+            GLib.timeout_add_seconds(60, self.check)
+            GLib.timeout_add_seconds(5, lambda: (self.check(), False)[1])
+
+    def read(self):
+        pct, charging = [], False
+        for b in self.bats:
+            try:
+                pct.append(int((b / "capacity").read_text()))
+                if (b / "status").read_text().strip() in ("Charging", "Full", "Not charging"):
+                    charging = True
+            except Exception:
+                pass
+        return (min(pct) if pct else None), charging
+
+    def check(self):
+        pct, charging = self.read()
+        if pct is None:
+            return True
+        if charging:
+            self.warned = 100
+            if self.sleep_timer:
+                GLib.source_remove(self.sleep_timer)
+                self.sleep_timer = None
+                notify("Battery", "Charging. The computer stays on.")
+            return True
+        if pct <= 5 and not self.sleep_timer:
+            bg(["glyph-sound", "error"])
+            notify("Battery almost empty", f"{pct} %. The computer goes to sleep in 1 minute. Plug in the charger to stop it.",
+                   "critical")
+            self.sleep_timer = GLib.timeout_add_seconds(60, self.sleep)
+        elif pct <= 10 and self.warned > 10:
+            self.warned = 10
+            bg(["glyph-sound", "error"])
+            notify("Battery very low", f"{pct} % left. Plug in the charger soon.", "critical")
+        elif pct <= 15 and self.warned > 15:
+            self.warned = 15
+            notify("Battery low", f"{pct} % left.")
+        return True
+
+    def sleep(self):
+        self.sleep_timer = None
+        pct, charging = self.read()
+        if not charging:
+            bg(["sh", "-c", "glyph-lock; sleep 1; systemctl suspend"])
+        return False
+
+
+def main():
+    try:
+        os.setsid()
+    except Exception:
+        pass
+    Usb()
+    Battery()
+    GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    main()

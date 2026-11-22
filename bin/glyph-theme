@@ -213,6 +213,7 @@ osd.window-switcher.item.padding.x: 10
 osd.window-switcher.item.padding.y: 6
 osd.window-switcher.item.active.border.width: 2
 osd.window-switcher.preview.border.width: 2
+osd.window-switcher.preview.border.color: {p['amber']},{p['title']}
 osd.workspace-switcher.boxes.width: 24
 osd.workspace-switcher.boxes.height: 16
 
@@ -220,6 +221,8 @@ snapping.overlay.region.bg.enabled: yes
 snapping.overlay.edge.bg.enabled: yes
 snapping.overlay.region.bg.color: {p['amber']}33
 snapping.overlay.edge.bg.color: {p['amber']}33
+snapping.overlay.region.border.enabled: yes
+snapping.overlay.edge.border.enabled: yes
 snapping.overlay.region.border.width: 2
 snapping.overlay.edge.border.width: 2
 snapping.overlay.region.border.color: {p['amber']}
@@ -339,6 +342,8 @@ button {{ border: none; }}
 #taskbar button.active {{ background: {p['hov']}; border-bottom-color: {p['title']}; }}
 #taskbar button.minimized {{ color: {p['dim']}; }}
 
+#custom-media {{ color: {p['amber']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 12px; margin: 4px 0 4px -1px; }}
+#custom-media.none {{ padding: 0; border: none; margin: 0; }}
 #tray, #custom-windows, #custom-settings, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 14px; margin: 4px 0 4px -1px; }}
 #tray {{ margin-right: 8px; }}
 #custom-settings {{ font-weight: bold; letter-spacing: 1px; }}

@@ -6,7 +6,7 @@
   "height": 46,
   "spacing": 0,
   "modules-left": ["custom/start", "custom/ws1", "custom/ws2", "custom/ws3", "custom/ws4", "wlr/taskbar"],
-  "modules-right": ["tray", "custom/windows", "custom/settings", "clock", "custom/power"],
+  "modules-right": ["custom/media", "tray", "custom/windows", "custom/settings", "clock", "custom/power"],
 
   "custom/start": {
     "format": "▸ START",
@@ -42,6 +42,12 @@
   "tray": { "icon-size": 16, "spacing": 8 },
 
   // quick settings: Wi-Fi, Bluetooth, volume, brightness, power, drives
+  "custom/media": {
+    "exec": "glyph-panel media-status", "return-type": "json", "interval": 2,
+    "on-click": "glyph-panel media",
+    "on-click-middle": "playerctl play-pause",
+    "on-scroll-up": "playerctl next", "on-scroll-down": "playerctl previous"
+  },
   "custom/windows": {
     "exec": "glyph-windows", "return-type": "json", "interval": 3,
     "on-click": "glyph-panel windows"

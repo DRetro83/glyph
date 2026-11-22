@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome
+Comment=first steps: look, Wi-Fi, apps
+Exec=glyph-welcome
+Terminal=false
+Categories=System;
+Keywords=welcome;setup;first;start;apps;
+StartupWMClass=glyph-welcome
+Icon=system-run

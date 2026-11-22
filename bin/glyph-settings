@@ -404,7 +404,8 @@ class Settings(Gtk.Window):
         for k, t, desc in (("workspaces", "Workspaces", "The buttons 1 2 3 4. Ctrl+Alt+1-4 still works when they are hidden."),
                            ("apps", "App buttons", "A button for each open window, with its letter and name."),
                            ("windows", "Open windows ▦", "The window count; click it for the list of open windows."),
-                           ("tray", "Tray icons", "Small icons of apps that run in the background.")):
+                           ("tray", "Tray icons", "Small icons of apps that run in the background."),
+                           ("media", "Music button", "Shows what plays (any app) with previous, pause and next.")):
             p.pack_start(self.toggle(t, desc, on(k), lambda v, k=k: setb(k, v)), False, False, 0)
         # workspace colours
         t = read_kv(THEME)

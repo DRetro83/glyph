@@ -36,7 +36,8 @@
   <!-- Alt+Tab list: text only -->
   <windowSwitcher show="yes" preview="yes" outlines="yes" allWorkspaces="no">
     <fields>
-      <field content="title" width="100%" />
+      <field content="identifier" width="25%" />
+      <field content="title" width="75%" />
     </fields>
   </windowSwitcher>
 
@@ -45,7 +46,7 @@
     <range>10</range>
     <overlay>
       <enabled>yes</enabled>
-      <delay inner="400" outer="400" />
+      <delay inner="250" outer="250" />
     </overlay>
     <topMaximize>yes</topMaximize>
     <notifyClient>always</notifyClient>
@@ -84,6 +85,8 @@
     <!-- apps -->
     <keybind key="C-A-t"><action name="Execute" command="glyph-term" /></keybind>
     <keybind key="W-e"><action name="Execute" command="glyph-files" /></keybind>
+    <keybind key="W-v"><action name="Execute" command="glyph-panel clip" /></keybind>
+    <keybind key="W-slash"><action name="Execute" command="glyph-panel keys" /></keybind>
     <keybind key="C-S-Escape"><action name="Execute" command="glyph-monitor" /></keybind>
 
     <!-- lock, power menu, screenshots -->

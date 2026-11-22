@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+"""glyph-welcome - the first start of Glyph: a few steps, like the prototype.
+
+WELCOME · WI-FI · LOOK · APPS · DONE
+Opens by itself the first time you sign in to Glyph (and from Start -> Welcome).
+The apps you tick are installed at the end: Debian packages with apt (your
+password once), Flatpak apps from Flathub, Vivaldi and your GitHub apps with glyph-get.
+"""
+import os
+import shutil
+import subprocess
+import threading
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
+DONE = CONF / "welcome-done"
+STEPS = ["WELCOME", "WI-FI", "LOOK", "APPS", "DONE"]
+COLOURS = [("tan", "#a8957c", "Tan"), ("cream", "#e6dac4", "Cream"), ("amber", "#ffb340", "Amber"), ("olive", "#b5b03c", "Olive"),
+           ("green", "#8c9e3a", "Green"), ("rose", "#b8405c", "Rose"), ("blue", "#8fb0c8", "Blue")]
+# ticked at the start: the usual picks
+DEFAULT_PICKS = {"vlc", "libreoffice", "timeshift"}
+
+
+def catalog():
+    """Software's list, without what is always there (CORE)."""
+    path = shutil.which("glyph-software")
+    try:
+        mod = SourceFileLoader("glyph_software", path).load_module()
+        return [c for c in mod.CATALOG if c[0] not in mod.CORE]
+    except Exception:
+        return []
+
+
+def kv(path):
+    d = {}
+    try:
+        for line in Path(path).read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                d[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return d
+
+
+class Welcome(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="Welcome")
+        self.set_default_size(680, 560)
+        css = Gtk.CssProvider()
+        try:
+            css.load_from_path(str(CONF / "panel" / "panel.css"))
+        except Exception:
+            pass
+        pal = kv(CONF / "palette.env")
+        extra = Gtk.CssProvider()
+        extra.load_from_data((
+            ".wel { padding: 0; } .wel .steps { border-bottom: 1px solid %s; padding: 8px 12px 0 12px; }"
+            ".wel .step { font-size: 10px; letter-spacing: 2px; color: %s; padding: 6px 0; border-top: 2px solid %s; }"
+            ".wel .step.on { color: %s; border-top-color: %s; font-weight: bold; }"
+            ".wel .page { padding: 18px 22px; } .wel .h1 { font-size: 22px; font-weight: bold; }"
+            ".wel .foot { border-top: 1px solid %s; padding: 10px 14px; } .wel .lab { margin-top: 8px; }"
+            % (pal.get("GLYPH_HI", "#555"), pal.get("GLYPH_DIM", "#999"), pal.get("GLYPH_HOV", "#333"),
+               pal.get("GLYPH_AMBER", "#ffb340"), pal.get("GLYPH_AMBER", "#ffb340"), pal.get("GLYPH_HI", "#555"))).encode())
+        for c in (css, extra):
+            Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), c, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        self.step = 0
+        self.picks = set(DEFAULT_PICKS)
+        self.cat = catalog()
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        for c in ("files", "wel"):
+            root.get_style_context().add_class(c)
+        self.add(root)
+        self.stepbar = Gtk.Box(spacing=6, homogeneous=True)
+        self.stepbar.get_style_context().add_class("steps")
+        root.pack_start(self.stepbar, False, False, 0)
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.page.get_style_context().add_class("page")
+        sw.add(self.page)
+        root.pack_start(sw, True, True, 0)
+        foot = Gtk.Box(spacing=8)
+        foot.get_style_context().add_class("foot")
+        self.b_skip = self.button("Skip setup", self.finish)
+        foot.pack_start(self.b_skip, False, False, 0)
+        self.b_next = self.button("NEXT ▸", self.next, "amber")
+        self.b_back = self.button("‹ Back", self.back)
+        foot.pack_end(self.b_next, False, False, 0)
+        foot.pack_end(self.b_back, False, False, 0)
+        root.pack_start(foot, False, False, 0)
+        self.draw()
+
+    # ---------- helpers
+    def button(self, text, cb, cls=None):
+        b = Gtk.Button(label=text)
+        if cls:
+            b.get_style_context().add_class(cls)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    def lab(self, text, cls=None, wrap=False):
+        l = Gtk.Label(label=text, xalign=0)
+        if cls:
+            for c in cls.split():
+                l.get_style_context().add_class(c)
+        if wrap:
+            l.set_line_wrap(True)
+            l.set_max_width_chars(70)
+        return l
+
+    def opts(self, items, current, cb):
+        box = Gtk.FlowBox()
+        box.set_selection_mode(Gtk.SelectionMode.NONE)
+        box.set_max_children_per_line(7)
+        box.set_column_spacing(6)
+        box.set_row_spacing(6)
+        for v, t in items:
+            b = Gtk.Button(label=t)
+            if "<span" in t:
+                b.get_child().set_use_markup(True)
+            if v == current:
+                b.get_style_context().add_class("on")
+
+            def pick(btn, v=v):
+                for ch in box.get_children():
+                    ch.get_child().get_style_context().remove_class("on")
+                btn.get_style_context().add_class("on")
+                cb(v)
+            b.connect("clicked", pick)
+            box.add(b)
+        return box
+
+    def theme(self, *args):
+        subprocess.Popen(["glyph-theme", *args], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+    # ---------- pages
+    def draw(self):
+        for ch in self.stepbar.get_children():
+            ch.destroy()
+        for i, s in enumerate(STEPS):
+            l = Gtk.Label(label=s)
+            l.get_style_context().add_class("step")
+            if i == self.step:
+                l.get_style_context().add_class("on")
+            self.stepbar.pack_start(l, True, True, 0)
+        for ch in self.page.get_children():
+            ch.destroy()
+        getattr(self, "page_" + STEPS[self.step].lower().replace("-", ""))()
+        self.b_back.set_sensitive(0 < self.step < len(STEPS) - 1)
+        self.b_next.set_label("FINISH ▸" if self.step == len(STEPS) - 2 else "CLOSE" if self.step == len(STEPS) - 1 else "NEXT ▸")
+        self.b_skip.set_visible(self.step < len(STEPS) - 1)
+        self.show_all()
+
+    def page_welcome(self):
+        self.page.pack_start(self.lab("Welcome to Glyph", "h1"), False, False, 0)
+        self.page.pack_start(self.lab("Let's set up this computer. It takes about a minute.", "dim", True), False, False, 0)
+        import getpass
+        name = getpass.getuser()
+        self.page.pack_start(self.lab(f"You are signed in as {name}. Your files stay where they are; "
+                                      "KDE is still there at the sign-in screen.", wrap=True), False, False, 0)
+        self.page.pack_start(self.lab("You can change everything later in Settings, and add apps in Software.", "dim", True),
+                             False, False, 0)
+
+    def page_wifi(self):
+        self.page.pack_start(self.lab("Internet", "h1"), False, False, 0)
+        con = subprocess.run(["nmcli", "-t", "-f", "TYPE,STATE,CONNECTION", "dev"], capture_output=True, text=True).stdout \
+            if shutil.which("nmcli") else ""
+        online = [l.split(":")[2] for l in con.splitlines() if ":connected:" in l]
+        self.page.pack_start(self.lab(("Connected: " + ", ".join(online)) if online else "Not connected yet. "
+                                      "Pick a Wi-Fi network below, or plug in a cable.", wrap=True), False, False, 0)
+        path = shutil.which("glyph-wifi")
+        if path and not any("ethernet" in l and ":connected:" in l for l in con.splitlines()):
+            try:
+                v = SourceFileLoader("glyph_wifi", path).load_module().WifiView()
+                v.set_size_request(-1, 330)
+                self.page.pack_start(v, True, True, 0)
+            except Exception as e:
+                self.page.pack_start(self.lab(f"(Wi-Fi list: {e})", "dim"), False, False, 0)
+
+    def page_look(self):
+        t = kv(CONF / "theme.conf")
+        self.page.pack_start(self.lab("How it looks", "h1"), False, False, 0)
+        self.page.pack_start(self.lab("MODE", "lab"), False, False, 0)
+        self.page.pack_start(self.opts([("dark", "Dark"), ("oled", "OLED black"), ("light", "Light")], t.get("mode", "dark"),
+                                       lambda v: self.theme("--mode", v)), False, False, 0)
+        self.page.pack_start(self.lab("SYSTEM COLOUR", "lab"), False, False, 0)
+        cur = t.get("colour", "#a8957c").lower()
+        self.page.pack_start(self.opts([(hx, f'<span foreground="{hx}">■</span> {n}') for _, hx, n in COLOURS],
+                                       next((hx for _, hx, _n in COLOURS if hx == cur), ""),
+                                       lambda v: self.theme("--colour", next(k for k, hx, _ in COLOURS if hx == v))),
+                             False, False, 0)
+        self.page.pack_start(self.lab("The whole desktop changes at once. More choices in Settings → Appearance.", "dim", True),
+                             False, False, 0)
+
+    def page_apps(self):
+        self.page.pack_start(self.lab("Apps", "h1"), False, False, 0)
+        self.page.pack_start(self.lab("Tick what you want. The basics (browser, files, music, pictures, PDF, text, zip) "
+                                      "are already there.", "dim", True), False, False, 0)
+        if not self.cat:
+            self.page.pack_start(self.lab("The app list is missing: run glyph-update.", "dim"), False, False, 0)
+            return
+        for cat in dict.fromkeys(c[3] for c in self.cat):
+            self.page.pack_start(self.lab(cat.upper(), "lab"), False, False, 0)
+            fb = Gtk.FlowBox()
+            fb.set_selection_mode(Gtk.SelectionMode.NONE)
+            fb.set_max_children_per_line(3)
+            fb.set_column_spacing(12)
+            for c in self.cat:
+                if c[3] != cat:
+                    continue
+                cb = Gtk.CheckButton(label=c[1])
+                cb.set_tooltip_text(c[2])
+                cb.set_active(c[0] in self.picks)
+                cb.connect("toggled", lambda w, i=c[0]: (self.picks.add if w.get_active() else self.picks.discard)(i))
+                fb.add(cb)
+            self.page.pack_start(fb, False, False, 0)
+
+    def page_done(self):
+        self.page.pack_start(self.lab("All set", "h1"), False, False, 0)
+        self.status = self.lab("", wrap=True)
+        self.page.pack_start(self.status, False, False, 0)
+        tips = [("Super  or  Ctrl+Space", "Start menu"), ("Super+V", "Clipboard history"), ("Super+/", "All shortcuts"),
+                ("Ctrl+Alt+T", "Terminal"), ("Ctrl+Alt+1 … 4", "Workspaces")]
+        g = Gtk.Grid(column_spacing=16, row_spacing=4)
+        for i, (k, v) in enumerate(tips):
+            kl = self.lab(k, "amber")
+            g.attach(kl, 0, i, 1, 1)
+            g.attach(self.lab(v), 1, i, 1, 1)
+        self.page.pack_start(self.lab("GOOD TO KNOW", "lab"), False, False, 0)
+        self.page.pack_start(g, False, False, 0)
+        chosen = [c for c in self.cat if c[0] in self.picks]
+        if chosen:
+            self.status.set_text("Installing: " + ", ".join(c[1] for c in chosen) + " …\n"
+                                 "You can use the computer meanwhile.")
+            self.install(chosen)
+        else:
+            self.status.set_text("Nothing extra to install. Enjoy Glyph!")
+
+    # ---------- installing
+    def install(self, chosen):
+        sw = SourceFileLoader("glyph_software", shutil.which("glyph-software")).load_module()
+        debs = [c[0] for c in chosen if c[4] in ("deb", "auto")]
+        status = sw.deb_status(debs) if debs else {}
+        apt, flats, gets = [], [], []
+        for c in chosen:
+            if c[4] == "get":
+                gets.append(c[0])
+            elif c[4] == "flat" or (c[4] == "auto" and not status.get(c[0], ("", ""))[1]):
+                flats.append(c[5])
+            elif status.get(c[0], ("", ""))[1]:
+                apt.append(c[0])
+
+        def work():
+            done, failed = [], []
+            if apt:
+                GLib.idle_add(self.say, f"Installing from Debian: {', '.join(apt)} (your password)…")
+                r = subprocess.run(["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", *apt],
+                                   capture_output=True, text=True)
+                (done if r.returncode == 0 else failed).extend(apt)
+            if flats:
+                GLib.idle_add(self.say, f"Installing from Flathub: {len(flats)} apps (this can take a while)…")
+                subprocess.run(["flatpak", "remote-add", "--user", "--if-not-exists", "flathub",
+                                "https://dl.flathub.org/repo/flathub.flatpakrepo"], capture_output=True)
+                for f in flats:
+                    r = subprocess.run(["flatpak", "install", "--user", "-y", "--noninteractive", "flathub", f], capture_output=True)
+                    (done if r.returncode == 0 else failed).append(f.split(".")[-1])
+            for g in gets:
+                GLib.idle_add(self.say, f"Installing {g}…")
+                r = subprocess.run(["glyph-get", "install", g], capture_output=True)
+                (done if r.returncode == 0 else failed).append(g)
+            msg = "✓ Installed: " + ", ".join(done) if done else ""
+            if failed:
+                msg += ("\n" if msg else "") + "Not installed: " + ", ".join(failed) + " (try again in Software)."
+            GLib.idle_add(self.say, msg or "Done.")
+        threading.Thread(target=work, daemon=True).start()
+
+    def say(self, text):
+        self.status.set_text(text)
+        return False
+
+    # ---------- navigation
+    def next(self):
+        if self.step == len(STEPS) - 1:
+            self.finish()
+            return
+        self.step += 1
+        if self.step == len(STEPS) - 1:
+            DONE.parent.mkdir(parents=True, exist_ok=True)
+            DONE.write_text("1\n")
+        self.draw()
+
+    def back(self):
+        self.step = max(0, self.step - 1)
+        self.draw()
+
+    def finish(self):
+        DONE.parent.mkdir(parents=True, exist_ok=True)
+        DONE.write_text("1\n")
+        self.destroy()
+
+
+if __name__ == "__main__":
+    try:
+        os.setsid()
+    except Exception:
+        pass
+    GLib.set_prgname("glyph-welcome")
+    w = Welcome()
+    w.connect("destroy", Gtk.main_quit)
+    w.show_all()
+    Gtk.main()

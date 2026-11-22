@@ -14,6 +14,20 @@ waybar -c "$G/waybar/config.jsonc" -s "$G/waybar/style.css" >/dev/null 2>&1 &
 # notifications (where: Settings -> Notifications)
 glyph-notifyd >/dev/null 2>&1 &
 
+# the first time: the welcome steps (look, Wi-Fi, apps)
+[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/glyph/welcome-done" ] || (sleep 2; glyph-welcome) >/dev/null 2>&1 &
+
+# USB drives (sound + Open) and low battery warnings
+pkill -u "$(id -u)" -f "bin/glyph-watch" 2>/dev/null
+glyph-watch >/dev/null 2>&1 &
+
+# clipboard history (Super+V)
+if command -v cliphist >/dev/null; then
+  pkill -u "$(id -u)" -f "wl-paste --type" 2>/dev/null
+  wl-paste --type text --watch cliphist store >/dev/null 2>&1 &
+  wl-paste --type image --watch cliphist store >/dev/null 2>&1 &
+fi
+
 # night light, if you turned it on (Settings -> Display)
 glyph-night start &
 
