@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 · 2026-11-23
+
+- Taskbar: the ▦ open windows block has its left edge again right after signing in (it was cut off while the tray was still empty)
+
 ## 1.0.2 · a small password box, details in a terminal · 2026-11-22
 
 - **The password box is small again**: Software, Welcome and the Glyph apps from GitHub install through Glyph's own little helper (`/usr/local/lib/glyph/glyph-apt`), so the box says *"Glyph wants to install, remove or update programs."* instead of the whole apt command. The password is remembered for a few minutes, so several steps ask once

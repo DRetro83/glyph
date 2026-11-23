@@ -357,10 +357,12 @@ button {{ border: none; }}
 #taskbar button.active {{ background: {p['hov']}; border-bottom-color: {p['title']}; }}
 #taskbar button.minimized {{ color: {p['dim']}; }}
 
-#custom-media {{ color: {p['amber']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 12px; margin: 4px 0 4px -1px; }}
+#custom-media {{ color: {p['amber']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 12px; margin: 4px -1px 4px 0; }}
 #custom-media.none {{ padding: 0; border: none; margin: 0; }}
 #tray, #custom-windows, #custom-settings, #clock {{ color: {p['text']}; background: {p['view']}; border: 1px solid {p['hi']}; padding: 0 14px; margin: 4px 0 4px -1px; }}
 #tray {{ margin-right: 8px; }}
+/* the first block of a group keeps its left edge (a -1px margin there is cut off, e.g. ▦ when the tray is still empty) */
+#tray, #custom-windows {{ margin-left: 0; }}
 #custom-settings {{ font-weight: bold; letter-spacing: 1px; }}
 #custom-settings.low {{ color: {p['amber']}; }}
 #custom-settings.updates {{ color: {p['amber']}; }}
