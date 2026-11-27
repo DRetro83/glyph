@@ -50,13 +50,18 @@ echo ":: lb config"
 lb config
 
 # Boot menus wait 5 seconds, then start the live system (live-build waits for ever).
-cp -a /usr/share/live/build/bootloaders config/
-grep -rl '^timeout ' config/bootloaders | xargs -r sed -i 's/^timeout .*/timeout 50/'
-grep -rl 'set timeout=' config/bootloaders | xargs -r sed -i 's/set timeout=.*/set timeout=5/'
-if [ -d config/bootloaders/grub-pc ] && ! grep -rq 'set timeout=' config/bootloaders/grub-pc; then
-  echo 'set timeout=5' >> config/bootloaders/grub-pc/config.cfg
+LB_BOOT=/usr/share/live/build/bootloaders
+echo "  live-build's boot menus: $(ls "$LB_BOOT" 2>/dev/null | tr '\n' ' ')"
+if [ -d "$LB_BOOT" ]; then
+  cp -a "$LB_BOOT" config/
+  { grep -rl '^timeout ' config/bootloaders || true; } | xargs -r sed -i 's/^timeout .*/timeout 50/'
+  { grep -rl 'set timeout=' config/bootloaders || true; } | xargs -r sed -i 's/set timeout=.*/set timeout=5/'
+  if [ -d config/bootloaders/grub-pc ] && ! grep -rq 'set timeout=' config/bootloaders/grub-pc; then
+    echo 'set timeout=5' >> config/bootloaders/grub-pc/config.cfg
+  fi
+  echo "  boot menu waiting times:"
+  { grep -rn 'timeout' config/bootloaders || true; } | grep -v -i 'timeoutrow' | sed 's/^/    /' || true
 fi
-echo "  boot menu waiting times:"; grep -rn 'timeout' config/bootloaders | grep -v -i 'timeoutrow\|menu timeout' | sed 's/^/    /' || true
 
 echo ":: lb build"
 lb build 2>&1 | tee "$OUT/build.log"
