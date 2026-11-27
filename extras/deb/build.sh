@@ -38,8 +38,26 @@ install -m 644 share/xdg-desktop-portal/glyph-portals.conf "$PKG/usr/share/glyph
 
 # documentation (Debian wants the licence and changelog here)
 install -m 644 README.md "$PKG/usr/share/doc/glyph-desktop/"
-[[ -f LICENSE ]] && install -m 644 LICENSE "$PKG/usr/share/doc/glyph-desktop/copyright"
-gzip -9n < CHANGELOG.md > "$PKG/usr/share/doc/glyph-desktop/changelog.gz"
+cat > "$PKG/usr/share/doc/glyph-desktop/copyright" <<'EOT'
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Glyph
+Source: https://github.com/DRetro83/glyph
+
+Files: *
+Copyright: DRetro83 and Glyph contributors
+License: GPL-3
+ On Debian systems, the full text of the GNU General Public License
+ version 3 can be found in /usr/share/common-licenses/GPL-3.
+EOT
+# Debian's own changelog format (short), and Glyph's full changelog as NEWS
+{
+  echo "glyph-desktop ($VER) unstable; urgency=medium"
+  echo
+  echo "  * Glyph $VER. See NEWS.md.gz for everything that changed."
+  echo
+  echo " -- DRetro83 <DRetro83@users.noreply.github.com>  $(date -R -d "@$(git log -1 --format=%ct 2>/dev/null || date +%s)")"
+} | gzip -9n > "$PKG/usr/share/doc/glyph-desktop/changelog.gz"
+gzip -9n < CHANGELOG.md > "$PKG/usr/share/doc/glyph-desktop/NEWS.md.gz"
 
 # no compiled Python in the package
 find "$PKG" -name __pycache__ -prune -exec rm -rf {} +
