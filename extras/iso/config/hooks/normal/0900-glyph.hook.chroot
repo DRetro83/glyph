@@ -30,20 +30,30 @@ Pin: version *glyph*
 Pin-Priority: 1001
 EOF
 
-# 3. greetd: a sign-in prompt that starts Glyph. The live session adds an
-#    automatic sign-in at start (usr/lib/live/config/2100-glyph-autologin).
+# 3. greetd: a sign-in prompt that starts Glyph. The live system adds an
+#    automatic sign-in at start (usr/lib/glyph-live/greetd-autologin).
 CONF=/etc/greetd/config.toml
-GREETER=$(sed -n 's/^[[:space:]]*user[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "$CONF" 2>/dev/null | head -1)
+echo "glyph: greetd's own config was:"; sed 's/^/    /' "$CONF" 2>/dev/null || true
+GREETER=
+for u in _greetd greetd greeter; do
+  getent passwd "$u" >/dev/null && { GREETER=$u; break; }
+done
+if [ -z "$GREETER" ]; then
+  GREETER=_greetd
+  adduser --system --group --no-create-home --home /nonexistent "$GREETER"
+fi
+usermod -a -G video "$GREETER" || true
 VT=$(sed -n 's/^[[:space:]]*vt[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' "$CONF" 2>/dev/null | head -1)
-cat > "$CONF" <<EOF
+cat > "$CONF" <<EOF2
 # Glyph: sign in on the text prompt, then the Glyph session starts.
 [terminal]
 vt = ${VT:-7}
 
 [default_session]
 command = "agreety --cmd glyph-session"
-user = "${GREETER:-_greetd}"
-EOF
+user = "$GREETER"
+EOF2
+echo "glyph: greetd config now:"; sed 's/^/    /' "$CONF"
 systemctl enable greetd.service
 systemctl set-default graphical.target
 

@@ -11,7 +11,7 @@ desktop shows, and puts it on the release **glyph-iso**.
 | `auto/config` | live-build settings: trixie, amd64, `main contrib non-free-firmware`, Debian's installer |
 | `config/package-lists/glyph.list.chroot` | What is in the image (recommends are off, so everything is named) |
 | `config/hooks/normal/0900-glyph.hook.chroot` | Optional extras, checks labwc is labwc-glyph (and pins it), sets up greetd |
-| `config/includes.chroot/usr/lib/live/config/2100-glyph-autologin` | Live only: the user `glyph` is signed in to Glyph at start |
+| `config/includes.chroot/usr/lib/glyph-live/greetd-autologin` | Live only (run by greetd, see `etc/systemd/system/greetd.service.d/`): the user `glyph` is signed in to Glyph at start |
 | `boot-test.py` | Boots the ISO in QEMU and waits for the Glyph desktop (screenshots) |
 
 How it fits together:

@@ -1,0 +1,12 @@
+#!/bin/sh
+# Live system only: sign the live user straight in to Glyph (greetd's
+# initial_session). greetd runs this before it starts (glyph-live.conf).
+# An installed system has no "boot=live" on the kernel line, so nothing changes there.
+grep -qw "boot=live" /proc/cmdline || exit 0
+U=$(sed -n 's/.*live-config\.username=\([^ ]*\).*/\1/p' /proc/cmdline)
+U=${U:-glyph}
+getent passwd "$U" >/dev/null || { echo "glyph-live: no user $U, no automatic sign-in"; exit 0; }
+CONF=/etc/greetd/config.toml
+grep -q '^\[initial_session\]' "$CONF" && exit 0
+printf '\n# live system only: sign in by itself\n[initial_session]\ncommand = "glyph-session"\nuser = "%s"\n' "$U" >> "$CONF"
+echo "glyph-live: $U signs in by itself"
