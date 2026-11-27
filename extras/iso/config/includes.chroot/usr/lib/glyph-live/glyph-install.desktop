@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Install Glyph
+Name[nl]=Glyph installeren
+Comment=Put Glyph on this computer's disk
+Comment[nl]=Zet Glyph op de schijf van deze computer
+Exec=/usr/lib/glyph-live/install-glyph
+Icon=/etc/calamares/branding/glyph/logo.png
+Terminal=false
+Categories=System;
+Keywords=install;installer;calamares;disk;

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Boot the Glyph ISO in QEMU without a screen and wait for the Glyph desktop.
 
-  boot-test.py ISO OUTDIR NAME [--uefi | --direct]
+  boot-test.py ISO OUTDIR NAME [--uefi | --direct] [--installer]
+
+--installer: once the desktop is there, open a terminal (Ctrl+Alt+T), type
+install-glyph and take OUTDIR/NAME-installer.png of Calamares.
 
 --direct starts the live kernel without the boot menu, with the system log on
 the serial port (OUTDIR/NAME-serial.log): to see why a boot went wrong.
@@ -54,6 +57,22 @@ def warm_dark(path):
     px = list(im.convert("RGB").getdata()) if not hasattr(im, "get_flattened_data") else list(im.get_flattened_data())
     warm = sum(1 for r, g, b in px if max(r, g, b) < 120 and r - b >= 4)
     return warm / len(px), im.size
+
+
+KEYS = {"-": "minus", " ": "spc", ".": "dot", "/": "slash"}
+
+
+def open_installer(sock, ppm, png):
+    """Ctrl+Alt+T, type install-glyph, Enter; wait for Calamares and take a shot."""
+    monitor(sock, "sendkey ctrl-alt-t")
+    time.sleep(6)
+    for ch in "install-glyph":
+        monitor(sock, "sendkey " + KEYS.get(ch, ch))
+    monitor(sock, "sendkey ret")
+    time.sleep(45)
+    monitor(sock, f"screendump {ppm}")
+    Image.open(ppm).save(png)
+    print("installer: screenshot in " + png, flush=True)
 
 
 def main():
@@ -129,6 +148,8 @@ def main():
             Image.open(ppm).save(f"{out}/{name}.png")
             print(f"{name}: Glyph desktop after {int(time.time() - start)} s")
             ok = True
+            if "--installer" in sys.argv:
+                open_installer(sock, ppm, f"{out}/{name}-installer.png")
             break
     if not ok and last:
         shutil.copy(last, f"{out}/{name}.png")

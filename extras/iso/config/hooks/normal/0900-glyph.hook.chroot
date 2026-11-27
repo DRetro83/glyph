@@ -4,7 +4,7 @@ set -e
 
 # 1. Helpers that not every Debian release has: install them when they are there
 #    (the same "optional" list as install.sh, plus newer firmware package names).
-for p in cliphist gtklock-playerctl-module pkexec \
+for p in cliphist gtklock-playerctl-module pkexec qt6-wayland qtwayland5 shim-signed grub-efi-amd64-signed \
          firmware-intel-graphics firmware-intel-misc firmware-mediatek; do
   if apt-cache show "$p" >/dev/null 2>&1; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$p" || echo "glyph: $p could not be installed, skipped"
@@ -56,5 +56,37 @@ EOF2
 echo "glyph: greetd config now:"; sed 's/^/    /' "$CONF"
 systemctl enable greetd.service
 systemctl set-default graphical.target
+
+# 4. Calamares (the installer): Debian's settings, Glyph's look (branding/glyph)
+CS=
+for f in /etc/calamares/settings.conf /usr/share/calamares/settings.conf; do [ -f "$f" ] && { CS=$f; break; }; done
+if [ -n "$CS" ]; then
+  sed -i 's/^branding:.*/branding: glyph/' "$CS"
+  grep -q '^branding: glyph' "$CS" || { echo "glyph: could not set Calamares' branding in $CS" >&2; exit 1; }
+  mkdir -p /etc/calamares/modules
+  # the live user to remove from the installed system
+  printf -- '---\nusername: glyph\n' > /etc/calamares/modules/removeuser.conf
+  # sign-in on the installed system: greetd starts Glyph (with Debian's greeter user)
+  cat > /etc/calamares/modules/displaymanager.conf <<EOF2
+---
+displaymanagers:
+  - greetd
+defaultDesktopEnvironment:
+    executable: "glyph-session"
+    desktopFile: "glyph"
+basicSetup: false
+greetd:
+    greeter_user: "$GREETER"
+    greeter_group: "$GREETER"
+EOF2
+  echo "glyph: Calamares settings ($CS):"; grep -v '^\s*#' "$CS" | grep -v '^\s*$' | sed 's/^/    /'
+  echo "glyph: Calamares modules:"; ls /etc/calamares/modules | sed 's/^/    /'
+  # Debian's own "Install Debian" launcher: hidden; "Install Glyph" takes its place in the live system
+  for f in $(grep -l -i -e 'calamares' -e 'install-debian' /usr/share/applications/*.desktop 2>/dev/null); do
+    sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$f"; echo "glyph: hid $f"
+  done
+else
+  echo "glyph: no Calamares settings found" >&2; exit 1
+fi
 
 echo "glyph: hook done"

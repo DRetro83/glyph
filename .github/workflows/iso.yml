@@ -64,7 +64,7 @@ jobs:
           ISO=$(ls out/glyph-*-amd64.iso)
           mkdir -p shots
           ok=0
-          python3 extras/iso/boot-test.py "$ISO" shots bios || ok=1
+          python3 extras/iso/boot-test.py "$ISO" shots bios --installer || ok=1
           python3 extras/iso/boot-test.py "$ISO" shots uefi --uefi || ok=1
           if [ $ok = 1 ]; then
             # once more without the boot menu, with the system log on the serial port
@@ -81,13 +81,13 @@ jobs:
           VER=$(cat VERSION)
           gh release view glyph-iso >/dev/null 2>&1 || \
             gh release create glyph-iso --prerelease --title "Glyph live ISO" \
-              --notes "Glyph on a USB stick: a live Debian 13 that starts straight into Glyph. Install it with Debian's installer (\"Install\" in the boot menu). Put it on a USB stick with Ventoy, balenaEtcher or dd (see the README). Built and boot-tested in QEMU automatically; bios.png and uefi.png show what it looked like."
+              --notes "Glyph on a USB stick: a live Debian 13 that starts straight into Glyph. Install it with Debian's installer (\"Install\" in the boot menu). Put it on a USB stick with Ventoy, balenaEtcher or dd (see the README). Built and boot-tested in QEMU automatically; bios.png and uefi.png show what it looked like, bios-installer.png the installer (Calamares)."
           # only the newest ISO stays on the release
           for old in $(gh release view glyph-iso --json assets -q '.assets[].name' | grep '^glyph-.*-amd64\.iso'); do
             gh release delete-asset glyph-iso "$old" -y
           done
           gh release upload glyph-iso out/glyph-$VER-amd64.iso out/glyph-$VER-amd64.iso.sha256 \
-            out/glyph-$VER-amd64.packages shots/bios.png shots/uefi.png --clobber
+            out/glyph-$VER-amd64.packages shots/bios.png shots/uefi.png shots/bios-installer.png --clobber
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,0 +1,57 @@
+/* Glyph's look for Calamares: IBM Plex Mono, dark tan, square buttons with a hard edge. */
+
+QWidget {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace;
+    font-size: 10pt;
+    color: #e6dac4;
+    background-color: #221f1b;
+    selection-background-color: #a8957c;
+    selection-color: #0c0b0a;
+}
+
+#mainApp { background-color: #221f1b; }
+#sidebarApp { background-color: #1a1714; }
+#logoApp { background-color: #1a1714; }
+
+QLabel { background: transparent; }
+
+QPushButton {
+    background-color: #2c2925;
+    color: #e6dac4;
+    border: 1px solid #57514a;
+    border-radius: 0px;
+    padding: 5px 14px;
+    min-height: 20px;
+}
+QPushButton:hover { background-color: #3a3631; border-color: #a8957c; }
+QPushButton:pressed { background-color: #a8957c; color: #0c0b0a; }
+QPushButton:default, QPushButton:focus { border-color: #ffb340; color: #ffb340; }
+QPushButton:disabled { color: #57514a; border-color: #3a3631; }
+
+QLineEdit, QComboBox, QSpinBox, QTextEdit, QPlainTextEdit, QListView, QTreeView, QTableView {
+    background-color: #1a1714;
+    color: #e6dac4;
+    border: 1px solid #57514a;
+    border-radius: 0px;
+    padding: 3px;
+}
+QLineEdit:focus, QComboBox:focus { border-color: #ffb340; }
+QComboBox QAbstractItemView { background-color: #1a1714; border: 1px solid #a8957c; }
+
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 12px; height: 12px;
+    border: 1px solid #a89c88; background-color: #1a1714; border-radius: 0px;
+}
+QCheckBox::indicator:checked, QRadioButton::indicator:checked { background-color: #ffb340; border-color: #ffb340; }
+
+QProgressBar {
+    border: 1px solid #57514a; border-radius: 0px;
+    background-color: #1a1714; color: #e6dac4; text-align: center;
+}
+QProgressBar::chunk { background-color: #ffb340; }
+
+QScrollBar:vertical { background: #1a1714; width: 10px; }
+QScrollBar::handle:vertical { background: #57514a; min-height: 24px; }
+QScrollBar::add-line, QScrollBar::sub-line { height: 0px; width: 0px; }
+
+QToolTip { background-color: #2c2925; color: #e6dac4; border: 1px solid #a8957c; }

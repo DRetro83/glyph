@@ -1,11 +1,31 @@
 #!/bin/sh
-# Live system only: sign the live user straight in to Glyph (greetd's
-# initial_session). greetd runs this before it starts (glyph-live.conf).
-# An installed system has no "boot=live" on the kernel line, so nothing changes there.
+# Live system only, run by greetd just before it starts (glyph-live.conf):
+#  - the live user signs straight in to Glyph (greetd's initial_session)
+#  - "Install Glyph" in Start, and the live user may start the installer
+#    without a password
+# All of this is written into the running live system, not into the image,
+# so an installed Glyph has none of it. An installed system has no
+# "boot=live" on the kernel line, so nothing changes there either.
 grep -qw "boot=live" /proc/cmdline || exit 0
 U=$(sed -n 's/.*live-config\.username=\([^ ]*\).*/\1/p' /proc/cmdline)
 U=${U:-glyph}
 getent passwd "$U" >/dev/null || { echo "glyph-live: no user $U, no automatic sign-in"; exit 0; }
+
+# the installer: in Start, a short command, and no password for the live user
+if command -v calamares >/dev/null 2>&1; then
+  install -m 644 /usr/lib/glyph-live/glyph-install.desktop /usr/share/applications/glyph-install.desktop
+  ln -sf /usr/lib/glyph-live/install-glyph /usr/local/bin/install-glyph
+  mkdir -p /etc/polkit-1/rules.d
+  cat > /etc/polkit-1/rules.d/49-glyph-live.rules <<EOF
+// Glyph live system only: the live user starts the installer without a password.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "$U" && action.id == "org.freedesktop.policykit.exec") {
+        return polkit.Result.YES;
+    }
+});
+EOF
+fi
+
 CONF=/etc/greetd/config.toml
 grep -q '^\[initial_session\]' "$CONF" && exit 0
 printf '\n# live system only: sign in by itself\n[initial_session]\ncommand = "glyph-session"\nuser = "%s"\n' "$U" >> "$CONF"

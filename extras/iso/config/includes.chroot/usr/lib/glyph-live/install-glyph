@@ -1,0 +1,9 @@
+#!/bin/sh
+# Install Glyph: Calamares (Debian's settings, Glyph's look) as root, on the
+# Glyph session's screen. In the live system the user glyph needs no password
+# for this (a polkit rule made at start by greetd-autologin).
+exec pkexec env \
+  WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+  DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" \
+  QT_QPA_PLATFORM="wayland;xcb" XDG_SESSION_TYPE=wayland \
+  calamares "$@"

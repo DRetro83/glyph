@@ -44,6 +44,19 @@ ntfs-3g
 exfatprogs
 dosfstools
 
+# the installer: Calamares with Debian's settings (Glyph's look comes from
+# includes.chroot/etc/calamares/branding/glyph), and what it needs to set up
+# GRUB for BIOS and UEFI
+calamares
+calamares-settings-debian
+python3-toml
+grub-pc-bin
+grub-efi-amd64-bin
+grub2-common
+efibootmgr
+cryptsetup
+rsync
+
 # small tools
 curl
 ca-certificates

@@ -46,6 +46,13 @@ urllib.request.urlretrieve(a["browser_download_url"], os.path.join(dest, a["name
 EOF
 ls -la config/packages.chroot
 
+echo ":: Calamares look: version and slides (the README screenshots)"
+B=config/includes.chroot/etc/calamares/branding/glyph
+sed -i "s/@VERSION@/$VER/g" "$B/branding.desc"
+for s in windows start quick workspaces light; do
+  cp "$REPO/docs/img/real/real-$s.png" "$B/slide-$s.png"
+done
+
 echo ":: lb config"
 lb config
 
