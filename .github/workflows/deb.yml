@@ -33,8 +33,10 @@ jobs:
       - name: Lintian (Debian's package checker; for information)
         run: lintian --no-tag-display-limit out/*.deb | tee out/lintian.txt || true
       - name: Install it with apt, with labwc-glyph, on a clean Debian 13
+        env:
+          TOKEN: ${{ github.token }}
         run: |
-          curl -fsSL "$(curl -fsSL https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/labwc-glyph |
+          curl -fsSL "$(curl -fsSL -H "Authorization: Bearer $TOKEN" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/labwc-glyph |
             grep -o '"browser_download_url": *"[^"]*labwc_[^"]*amd64\.deb"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -1)" -o /tmp/labwc-glyph.deb
           DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/labwc-glyph.deb ./out/glyph-desktop_*_all.deb > out/apt-install.log 2>&1 || { tail -40 out/apt-install.log; exit 1; }
           tail -3 out/apt-install.log
