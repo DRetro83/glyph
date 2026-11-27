@@ -17,7 +17,7 @@ latest() {   # latest() OWNER/REPO PATTERN -> download URL of the newest release
 }
 
 # apt as root through Glyph's small helper (a short sentence in the password box)
-H=/usr/local/lib/glyph/glyph-apt
+H=/usr/lib/glyph/glyph-apt; [ -x "$H" ] || H=/usr/local/lib/glyph/glyph-apt
 apt_do() {
   if [ -x "$H" ]; then pkexec "$H" "$@"
   else pkexec env DEBIAN_FRONTEND=noninteractive apt-get -y -o APT::Status-Fd=1 "$@"; fi

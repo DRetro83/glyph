@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5 · Glyph as a Debian package · 2026-11-27
+
+- **glyph-desktop .deb**: all of Glyph in one Debian package, built and tested on GitHub (release "glyph-desktop"). It installs to /usr like every Debian package; each person gets their own settings at their first Glyph sign-in. This is the base for the Glyph ISO
+- **glyph-update** also updates a package install: it takes the newest glyph-desktop from GitHub
+- Glyph's programs find their parts both in /usr (package) and /usr/local (./install.sh)
+
 ## 1.0.4 · sounds, pop-up size, window buttons · 2026-11-27
 
 - **System sounds** (Settings → Sound): three styles made by Glyph (*Glyph · beeps*, *Soft*, *Chime*) or *Off*; picking one plays it. And **your own message sound**: choose a sound file (wav, ogg, flac, mp3)

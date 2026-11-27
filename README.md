@@ -183,6 +183,16 @@ A language is a plain text file with one line per text: `Shut down = Afsluiten`.
 `/usr/local/share/glyph/lang/nl.txt` to `~/.config/glyph/lang/de.txt` (or any code), translate the right-hand
 side, and it shows up in Settings. Missing lines simply stay English.
 
+## ▣ As a Debian package (optional)
+
+Glyph is also one Debian package, `glyph-desktop`, made on GitHub for every version (release **glyph-desktop**). With Debian's *contrib* section switched on (for the IBM Plex font), download `glyph-desktop_*_all.deb` and `labwc_*+glyph*.deb` (release **labwc-glyph**) and run:
+
+```bash
+sudo apt install ./labwc_*.deb ./glyph-desktop_*_all.deb
+```
+
+Then pick **Glyph** on the login screen. `glyph-update` keeps it up to date. Use either the package or `./install.sh`, not both.
+
 ## ⟳ Update and remove
 
 ```sh

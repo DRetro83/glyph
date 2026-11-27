@@ -10,7 +10,7 @@ Each line: the English text, " = ", the translation. Lines starting with #
 are notes. Anything not in the file simply stays English.
 
 Where Glyph looks (the later one wins, so you can fix or add lines yourself):
-    /usr/local/share/glyph/lang/<code>.txt     (comes with Glyph)
+    /usr/share/glyph/lang/<code>.txt           (comes with Glyph; /usr/local/… after ./install.sh)
     ~/.config/glyph/lang/<code>.txt            (your own)
 The language is chosen in Settings -> Language & region (lang=<code> in
 ~/.config/glyph/glyph.conf). To make a new language, copy nl.txt, give it
@@ -25,7 +25,7 @@ from pathlib import Path
 
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "glyph"
 HERE = Path(__file__).resolve().parent
-DIRS = [Path("/usr/local/share/glyph/lang"), HERE.parent / "share" / "lang", CONF / "lang"]
+DIRS = [Path("/usr/share/glyph/lang"), Path("/usr/local/share/glyph/lang"), HERE.parent / "share" / "lang", CONF / "lang"]
 
 _T, _TL = {}, {}
 
@@ -144,7 +144,7 @@ def hook_gtk():
 
 
 if __name__ == "__main__":
-    # for shell scripts:  python3 /usr/local/lib/glyph/glyph_lang.py "Text"  ->  the text in your language
+    # for shell scripts:  python3 /usr/lib/glyph/glyph_lang.py "Text"  ->  the text in your language
     import sys
     load()
     print(tr(" ".join(sys.argv[1:])))

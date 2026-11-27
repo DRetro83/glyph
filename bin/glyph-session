@@ -5,7 +5,7 @@ CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/labwc"
 if [ ! -f "$CONF/rc.xml" ]; then
   glyph-setup-user >/dev/null 2>&1 || { echo "Glyph could not be set up for $USER (glyph-setup-user)." >&2; exit 1; }
 else
-  [ -x /usr/local/bin/glyph-theme ] && /usr/local/bin/glyph-theme >/dev/null 2>&1
+  glyph-theme >/dev/null 2>&1
 fi
 export XDG_CURRENT_DESKTOP=Glyph:wlroots
 export XDG_SESSION_DESKTOP=glyph

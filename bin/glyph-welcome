@@ -21,7 +21,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 # Glyph in your language (Settings -> Language & region): see glyph_lang.py
 try:
     import sys as _sys
-    _sys.path[:0] = ["/usr/local/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
+    _sys.path[:0] = ["/usr/local/lib/glyph", "/usr/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
     import glyph_lang
     glyph_lang.hook_gtk()
     _ = glyph_lang.tr
@@ -282,8 +282,9 @@ class Welcome(Gtk.Window):
             done, failed = [], []
             if apt:
                 GLib.idle_add(self.say, f"Installing from Debian: {', '.join(apt)} (your password)…")
-                helper = "/usr/local/lib/glyph/glyph-apt"     # a short sentence in the password box
-                cmd = (["pkexec", helper, "install", *apt] if os.access(helper, os.X_OK) else
+                helper = next((h for h in ("/usr/lib/glyph/glyph-apt", "/usr/local/lib/glyph/glyph-apt")
+                               if os.access(h, os.X_OK)), "")      # a short sentence in the password box
+                cmd = (["pkexec", helper, "install", *apt] if helper else
                        ["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", *apt])
                 r = subprocess.run(cmd, capture_output=True, text=True)
                 (done if r.returncode == 0 else failed).extend(apt)

@@ -1,0 +1,93 @@
+# Builds Glyph as one Debian package (glyph-desktop_<version>_all.deb), installs
+# it with apt on a clean Debian 13 to see that everything it needs is there,
+# and puts it on the release "glyph-desktop" (glyph-update takes it from there).
+name: deb
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "VERSION"
+      - "extras/deb/**"
+      - ".github/workflows/deb.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Tools, and Debian's contrib section (for the IBM Plex font)
+        run: |
+          sed -i -E '/^Components:/{/contrib/!s/$/ contrib/}' /etc/apt/sources.list.d/debian.sources
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git dpkg-dev lintian sudo python3
+      - uses: actions/checkout@v4
+      - name: Build the package
+        run: |
+          bash extras/deb/build.sh out
+          dpkg-deb -I out/*.deb
+      - name: Lintian (Debian's package checker; for information)
+        run: lintian --no-tag-display-limit out/*.deb | tee out/lintian.txt || true
+      - name: Install it with apt, with labwc-glyph, on a clean Debian 13
+        run: |
+          curl -fsSL "$(curl -fsSL https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/labwc-glyph |
+            grep -o '"browser_download_url": *"[^"]*labwc_[^"]*amd64\.deb"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -1)" -o /tmp/labwc-glyph.deb
+          DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/labwc-glyph.deb ./out/glyph-desktop_*_all.deb > out/apt-install.log 2>&1 || { tail -40 out/apt-install.log; exit 1; }
+          tail -3 out/apt-install.log
+          dpkg -l labwc glyph-desktop | tail -2
+      - name: Installed as it should be
+        run: |
+          set -x
+          test -x /usr/bin/glyph-session
+          test -x /usr/lib/glyph/glyph-apt
+          test -f /usr/lib/glyph/glyph_lang.py
+          test -f /usr/share/glyph/lang/nl.txt
+          test -f /usr/share/glyph/config/labwc/rc.xml
+          grep -q "/usr/bin/glyph-session" /usr/share/wayland-sessions/glyph.desktop
+          grep -q "/usr/lib/glyph/glyph-apt" /usr/share/polkit-1/actions/org.glyph.apt.policy
+          dpkg -l labwc | tail -1 | grep -q glyph
+      - name: A person signs in for the first time (glyph-setup-user)
+        run: |
+          useradd -m -s /bin/bash anna
+          su - anna -c "glyph-setup-user"
+          test -f /home/anna/.config/glyph/labwc/rc.xml
+          test -f /home/anna/.config/glyph/theme.conf
+          test -f /home/anna/.local/share/applications/glyph-files.desktop
+          su - anna -c "glyph-theme --print" | head -3
+          su - anna -c "python3 /usr/lib/glyph/glyph_lang.py Settings"
+      - name: Remove it again
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get remove -y glyph-desktop > /dev/null
+          test ! -e /usr/bin/glyph-session
+          test ! -e /usr/share/wayland-sessions/glyph.desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glyph-desktop
+          path: out/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: glyph-desktop
+          path: out
+      - name: Publish to the release "glyph-desktop"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la out
+          gh release view glyph-desktop >/dev/null 2>&1 || \
+            gh release create glyph-desktop --prerelease --title "glyph-desktop (Glyph as a Debian package)" \
+              --notes "Glyph as one Debian package for Debian 13. Install with labwc-glyph: sudo apt install ./labwc_*.deb ./glyph-desktop_*_all.deb (needs Debian's contrib section for the IBM Plex font). glyph-update keeps it up to date. Built automatically."
+          # only the newest package stays on the release
+          for old in $(gh release view glyph-desktop --json assets -q '.assets[].name' | grep '^glyph-desktop_.*_all\.deb$'); do
+            gh release delete-asset glyph-desktop "$old" -y
+          done
+          gh release upload glyph-desktop out/glyph-desktop_*_all.deb out/lintian.txt --clobber

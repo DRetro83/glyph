@@ -32,7 +32,7 @@ RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 
 # Glyph in your language (Settings -> Language & region): see glyph_lang.py
 try:
-    sys.path[:0] = ["/usr/local/lib/glyph", os.path.dirname(os.path.realpath(__file__))]
+    sys.path[:0] = ["/usr/local/lib/glyph", "/usr/lib/glyph", os.path.dirname(os.path.realpath(__file__))]
     import glyph_lang as _lang
 except Exception:
     _lang = None

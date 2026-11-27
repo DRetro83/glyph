@@ -5,18 +5,20 @@
 # someone else on this computer signs in to Glyph (a second user, or a new one
 # made in Settings -> Users), so they need no install.sh and no password.
 #
-#   glyph-setup-user            from the copy Glyph keeps in /usr/local/share/glyph
+#   glyph-setup-user            from the copy Glyph keeps in /usr/share/glyph (/usr/local/share/glyph after ./install.sh)
 #   glyph-setup-user SRC        from a source folder (install.sh uses the glyph folder)
 #
 # Your own choices are kept: theme.conf, glyph.conf, your mouse and touchpad
 # settings, Default apps. The old labwc settings get a backup (the three newest).
 set -euo pipefail
-SRC="${1:-/usr/local/share/glyph}"
+HERE=$(dirname "$(readlink -f "$0")")
+DEF=/usr/share/glyph; [[ "$HERE" == /usr/local/bin ]] && DEF=/usr/local/share/glyph
+SRC="${1:-$DEF}"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 G="$CONF/glyph"
 [[ -f "$SRC/config/labwc/rc.xml" ]] || { echo "glyph-setup-user: no Glyph files in $SRC" >&2; exit 1; }
-BIN="$SRC/bin"; [[ -x "$BIN/glyph-theme" ]] || BIN=/usr/local/bin
+BIN="$SRC/bin"; [[ -x "$BIN/glyph-theme" ]] || BIN="$HERE"
 
 # 1. labwc and taskbar settings (a backup of the old ones)
 BK=""

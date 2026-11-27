@@ -20,7 +20,7 @@ GLib.set_prgname("glyph-osd-bar")
 # Glyph in your language (Settings -> Language & region): see glyph_lang.py
 try:
     import sys
-    sys.path[:0] = ["/usr/local/lib/glyph", os.path.dirname(os.path.realpath(__file__))]
+    sys.path[:0] = ["/usr/local/lib/glyph", "/usr/lib/glyph", os.path.dirname(os.path.realpath(__file__))]
     import glyph_lang
     glyph_lang.load()
     _ = glyph_lang.tr

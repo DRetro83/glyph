@@ -4,6 +4,29 @@
 set -euo pipefail
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
 SRC="$(cat "$CONF/source" 2>/dev/null || true)"
+
+# Glyph installed as a Debian package (glyph-desktop, e.g. from the Glyph ISO):
+# take the newest package from GitHub and install it (it asks your password)
+if [[ ! -d "$SRC/.git" ]] && dpkg-query -W -f='${Status}' glyph-desktop 2>/dev/null | grep -q "ok installed"; then
+  HAVE=$(dpkg-query -W -f='${Version}' glyph-desktop)
+  echo ":: Checking GitHub for a newer Glyph (you have $HAVE)"
+  URL=$(curl -fsSL https://api.github.com/repos/DRetro83/glyph/releases/tags/glyph-desktop |
+        grep -o '"browser_download_url": *"[^"]*glyph-desktop_[^"]*_all\.deb"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -1)
+  [[ -n "$URL" ]] || { echo " ! No Glyph package found on GitHub right now. Try again later." >&2; exit 1; }
+  NEWV=$(basename "$URL" | sed 's/^glyph-desktop_\(.*\)_all\.deb$/\1/')
+  if ! dpkg --compare-versions "$NEWV" gt "$HAVE"; then
+    echo " ✓ Glyph is up to date ($HAVE)"
+    exit 0
+  fi
+  TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+  curl -fL "$URL" -o "$TMP/glyph-desktop.deb"
+  chmod 755 "$TMP"; chmod 644 "$TMP/glyph-desktop.deb"
+  H=/usr/lib/glyph/glyph-apt
+  pkexec "$H" install "$TMP/glyph-desktop.deb"
+  glyph-setup-user >/dev/null
+  echo " ✓ Updated $HAVE -> $NEWV. Log out and in again to use everything."
+  exit 0
+fi
 [[ -d "$SRC/.git" ]] || { echo "Glyph source folder not found. Run install.sh from the glyph folder first." >&2; exit 1; }
 
 cd "$SRC"

@@ -18,7 +18,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 # Glyph in your language (Settings -> Language & region): see glyph_lang.py
 try:
     import sys as _sys
-    _sys.path[:0] = ["/usr/local/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
+    _sys.path[:0] = ["/usr/local/lib/glyph", "/usr/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
     import glyph_lang
     glyph_lang.hook_gtk()
     _ = glyph_lang.tr

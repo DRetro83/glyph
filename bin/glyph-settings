@@ -25,7 +25,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 # Glyph in your language (Settings -> Language & region): see glyph_lang.py
 try:
     import sys as _sys
-    _sys.path[:0] = ["/usr/local/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
+    _sys.path[:0] = ["/usr/local/lib/glyph", "/usr/lib/glyph", __import__("os").path.dirname(__import__("os").path.realpath(__file__))]
     import glyph_lang
     glyph_lang.hook_gtk()
     _ = glyph_lang.tr
@@ -945,7 +945,7 @@ class Settings(Gtk.Window):
             langs, cur = [("en", "English")], "en"
         p.pack_start(self.opts(langs, cur, self.set_language), False, False, 0)
         p.pack_start(self.note("Glyph is English by default. Every language is a text file: copy "
-                               "/usr/local/share/glyph/lang/nl.txt to ~/.config/glyph/lang/, rename it (de.txt, fr.txt…) "
+                               "/usr/share/glyph/lang/nl.txt to ~/.config/glyph/lang/, rename it (de.txt, fr.txt…) "
                                "and translate the right-hand side. Anything missing stays English."), False, False, 0)
         p.pack_start(self.btn("Open the language folder", self.open_lang_dir), False, False, 0)
         p.pack_start(self.lab("LANGUAGE OF YOUR APPS", "lab"), False, False, 0)
@@ -964,7 +964,8 @@ class Settings(Gtk.Window):
     def open_lang_dir(self):
         d = Path.home() / ".config/glyph/lang"
         d.mkdir(parents=True, exist_ok=True)
-        for src in (Path("/usr/local/share/glyph/lang"), Path(os.path.realpath(__file__)).parent.parent / "share/lang"):
+        for src in (Path("/usr/share/glyph/lang"), Path("/usr/local/share/glyph/lang"),
+                    Path(os.path.realpath(__file__)).parent.parent / "share/lang"):
             for f in src.glob("*.txt") if src.is_dir() else []:
                 if not (d / f.name).exists():
                     (d / f.name).write_text("# name: " + f.read_text().splitlines()[0].split(":", 1)[-1].strip()
