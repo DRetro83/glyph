@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.4 · sounds, pop-up size, window buttons · 2026-11-27
+
+- **System sounds** (Settings → Sound): three styles made by Glyph (*Glyph · beeps*, *Soft*, *Chime*) or *Off*; picking one plays it. And **your own message sound**: choose a sound file (wav, ogg, flac, mp3)
+- **Pop-up size** (Settings → Notifications): small, normal, large or extra large; a test pop-up shows the new size
+- **Start menu**: no power button anymore (POWER on the taskbar does that)
+- **Apps with their own title bar** (Lutris …): square window buttons in Glyph's colours, like the other windows, instead of round ones
+
 ## 1.0.3 · 2026-11-23
 
 - Taskbar: the ▦ open windows block has its left edge again right after signing in (it was cut off while the tray was still empty)

@@ -511,6 +511,13 @@ class Settings(Gtk.Window):
             return False
         pv.connect("draw", draw_pv)
         p.pack_start(pv, False, False, 0)
+        p.pack_start(self.lab("POP-UP SIZE", "lab"), False, False, 0)
+        p.pack_start(self.opts([("small", "Small"), ("normal", "Normal"), ("large", "Large"), ("xl", "Extra large")],
+                               t.get("notif_size", "normal"),
+                               lambda v: (write_kv(THEME, "notif_size", v), self.theme(),
+                                          GLib.timeout_add(900, lambda: (bg(["notify-send", "-a", "Glyph", "Pop-up size",
+                                                                             "This is how big your notifications are now."]), False)[1]))),
+                     False, False, 0)
         p.pack_start(self.lab("KEEP POP-UPS ON SCREEN FOR", "lab"), False, False, 0)
         p.pack_start(self.opts([("3", "3 s"), ("5", "5 s"), ("10", "10 s")], t.get("notif_time", "5"),
                                lambda v: (write_kv(THEME, "notif_time", v), self.theme())), False, False, 0)
@@ -599,6 +606,54 @@ class Settings(Gtk.Window):
             p.pack_start(self.btn("Volume per app and microphone…", lambda: bg(["pavucontrol"])), False, False, 0)
         else:
             p.pack_start(self.note("For volume per app and the microphone: sudo apt install pavucontrol"), False, False, 0)
+
+        # system sounds: three styles made by Glyph, or off; and your own sound for messages
+        p.pack_start(self.lab("SYSTEM SOUNDS", "lab"), False, False, 0)
+        style = read_kv(GCONF).get("sound_style", "glyph")
+
+        def pick_style(v):
+            write_kv(GCONF, "sound_style", v)
+            if v != "off":
+                bg(["glyph-sound", "login", "--style", v])       # let you hear it
+            self.refresh()
+        p.pack_start(self.opts([("glyph", "Glyph · beeps"), ("soft", "Soft"), ("chime", "Chime"), ("off", "Off")],
+                               style, pick_style), False, False, 0)
+        p.pack_start(self.note("For messages, USB sticks, screenshots and warnings. Picking one plays it."), False, False, 0)
+        own = sorted((CONF / "sounds").glob("notify.*")) if (CONF / "sounds").is_dir() else []
+        p.pack_start(self.lab("YOUR OWN MESSAGE SOUND", "lab"), False, False, 0)
+        p.pack_start(self.note(("Now: " + own[0].name) if own else "None: messages use the style above."), False, False, 0)
+        row = Gtk.Box(spacing=8)
+        row.pack_start(self.btn("Choose a sound file…", self.choose_sound), False, False, 0)
+        if own:
+            row.pack_start(self.btn("Play", lambda: bg(["glyph-sound", "notify"])), False, False, 0)
+            row.pack_start(self.btn("Use the style again", lambda: ([f.unlink() for f in own], self.refresh())), False, False, 0)
+        p.pack_start(row, False, False, 0)
+
+    def choose_sound(self):
+        d = Gtk.FileChooserDialog(title="Your own message sound", transient_for=self, action=Gtk.FileChooserAction.OPEN)
+        d.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Use this sound", Gtk.ResponseType.OK)
+        f = Gtk.FileFilter()
+        f.set_name("Sounds (wav, ogg, flac, mp3, oga)")
+        for ext in ("wav", "ogg", "oga", "flac", "mp3", "opus"):
+            f.add_pattern("*." + ext)
+            f.add_pattern("*." + ext.upper())
+        d.add_filter(f)
+        d.set_current_folder(str(Path.home() / "Music") if (Path.home() / "Music").is_dir() else str(Path.home()))
+        if d.run() == Gtk.ResponseType.OK and d.get_filename():
+            src = Path(d.get_filename())
+            dst = CONF / "sounds"
+            dst.mkdir(parents=True, exist_ok=True)
+            for old in dst.glob("notify.*"):
+                old.unlink()
+            try:
+                if src.stat().st_size > 5 * 1024 * 1024:
+                    raise ValueError("bigger than 5 MB: pick a short sound")
+                shutil.copy(src, dst / ("notify" + src.suffix.lower()))
+                bg(["glyph-sound", "notify"])
+            except Exception as e:
+                self.toast(str(e)) if hasattr(self, "toast") else print(e, file=sys.stderr)
+        d.destroy()
+        self.refresh()
 
     def page_keyboard(self, p):
         env = read_kv(ENVF)

@@ -458,3 +458,21 @@ Removing {name} also removes: = Als je {name} verwijdert, verdwijnt ook:
 Other programs may need these. Remove them all? = Andere programma's hebben die misschien nodig. Alles verwijderen?
 SHOW DETAILS = DETAILS TONEN
 What apt is doing, live in a terminal (closing it does not stop anything) = Wat apt doet, live in een terminal (sluiten stopt niets)
+
+# --- geluiden en meldingen (1.0.4)
+SYSTEM SOUNDS = SYSTEEMGELUIDEN
+Glyph · beeps = Glyph · piepjes
+Soft = Zacht
+Chime = Klokje
+For messages, USB sticks, screenshots and warnings. Picking one plays it. = Voor meldingen, USB-sticks, schermafbeeldingen en waarschuwingen. Kies er een om het te horen.
+YOUR OWN MESSAGE SOUND = JE EIGEN MELDINGSGELUID
+None: messages use the style above. = Geen: meldingen gebruiken de stijl hierboven.
+Choose a sound file… = Kies een geluidsbestand…
+Play = Afspelen
+Use the style again = Weer de stijl gebruiken
+Your own message sound = Je eigen meldingsgeluid
+Use this sound = Dit geluid gebruiken
+POP-UP SIZE = GROOTTE VAN POP-UPS
+Extra large = Extra groot
+Pop-up size = Grootte van pop-ups
+This is how big your notifications are now. = Zo groot zijn je meldingen nu.

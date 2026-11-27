@@ -265,11 +265,7 @@ class Start(Gtk.Window):
         self.search.connect("changed", lambda *_: self.fill())
         self.search.connect("activate", lambda *_: self.launch_first())
         foot.pack_start(self.search, True, True, 0)
-        pw = Gtk.Button(label="⏻")
-        pw.get_style_context().add_class("spower")
-        pw.set_tooltip_text("Lock, log out, restart, shut down")
-        pw.connect("clicked", lambda *_: (self.spawn(["glyph-power"]), self.quit()))
-        foot.pack_start(pw, False, False, 0)
+        # (no power button here: POWER on the taskbar does that)
         outer.pack_start(foot, False, False, 0)
 
         mon = Gdk.Display.get_default().get_monitor(0)

@@ -447,18 +447,21 @@ def mako_conf(p):
     except ValueError:
         secs = 5
     sound = "on-notify=exec glyph-sound notify\n" if c.get("notif_sound", "yes") == "yes" else "on-notify=none\n"
+    # Settings -> Notifications -> Pop-up size: width, text size, room around the text
+    width, fsize, pad = {"small": (320, 10, "8,10"), "large": (460, 13, "14,16"),
+                         "xl": (560, 15, "16,20")}.get(c.get("notif_size", "normal"), (380, 11, "10,12"))
     return f"""# Glyph notifications (mako) - made by glyph-theme, do not edit by hand.
-# Where and how long: Settings -> Notifications.
-font=IBM Plex Mono 11
+# Where, how long and how big: Settings -> Notifications.
+font=IBM Plex Mono {fsize}
 background-color={p['panel']}
 text-color={p['text']}
 border-color={p['title']}
 progress-color=over {p['hov']}
 border-size=1
 border-radius={corner_radius()}
-padding=10,12
+padding={pad}
 margin={margin}
-width=380
+width={width}
 max-visible=4
 anchor={anchor}
 default-timeout={secs * 1000}
@@ -1028,11 +1031,17 @@ headerbar .subtitle {{ color: {p['tink']}; opacity: .8; }}
 headerbar button:not(.titlebutton), headerbar entry, headerbar .linked > button {{ background: {p['view']}; color: {p['text']}; border: 1px solid {p['lo']}; border-radius: 0; }}
 headerbar button:not(.titlebutton):hover {{ background: {p['hov']}; }}
 headerbar button:not(.titlebutton) label, headerbar button:not(.titlebutton) image {{ color: {p['text']}; }}
-headerbar button.titlebutton, .titlebar button.titlebutton {{ min-width: 18px; min-height: 18px; padding: 0; margin: 0 1px; border: 1px solid rgba(12,11,10,0.45); background-image: none; }}
-headerbar button.titlebutton.minimize {{ background: {p['olive']}; color: #0c0b0a; }}
-headerbar button.titlebutton.maximize {{ background: {p['green']}; color: #0c0b0a; }}
-headerbar button.titlebutton.close {{ background: {p['rose']}; color: #ffffff; }}
-headerbar:backdrop button.titlebutton {{ background: {p['hov']}; color: {p['dim']}; }}
+/* the window buttons of apps that draw their own title bar (Lutris …): square, in Glyph's colours, like labwc's */
+button.titlebutton, headerbar button.titlebutton, .titlebar button.titlebutton {{
+  min-width: 20px; min-height: 20px; padding: 0; margin: 0 1px; border-radius: 0; -gtk-outline-radius: 0;
+  border: 1px solid rgba(12,11,10,0.45); background-image: none; box-shadow: none; }}
+button.titlebutton image {{ -gtk-icon-transform: scale(0.85); }}
+button.titlebutton.minimize, headerbar button.titlebutton.minimize, .titlebar button.titlebutton.minimize {{ background: {p['olive']}; color: #0c0b0a; }}
+button.titlebutton.maximize, headerbar button.titlebutton.maximize, .titlebar button.titlebutton.maximize {{ background: {p['green']}; color: #0c0b0a; }}
+button.titlebutton.close, headerbar button.titlebutton.close, .titlebar button.titlebutton.close {{ background: {p['rose']}; color: #ffffff; }}
+button.titlebutton:hover {{ background-image: linear-gradient(rgba(255,255,255,0.18), rgba(255,255,255,0.18)); }}
+button.titlebutton image, button.titlebutton:hover image {{ color: inherit; }}
+headerbar:backdrop button.titlebutton, .titlebar:backdrop button.titlebutton {{ background: {p['hov']}; color: {p['dim']}; }}
 window.csd, window.csd decoration, decoration {{ border-radius: 0; box-shadow: 0 0 0 1px {p['title']}; }}
 menubar, .menubar {{ background: {p['panel']}; border-bottom: 1px solid {p['hi']}; }}
 menubar > menuitem:hover, menubar > item:hover {{ background: {p['title']}; color: {p['tink']}; box-shadow: none; }}
@@ -1045,7 +1054,6 @@ button.flat {{ border-color: transparent; background: transparent; }}
 button.flat:hover {{ background: {p['hov']}; }}
 button.suggested-action {{ background: {p['view']}; border-color: {p['amber']}; color: {p['amber']}; }}
 button.destructive-action {{ background: {p['view']}; border-color: {p['rose']}; color: {p['rosehi']}; }}
-button.titlebutton {{ border: none; }}
 entry, spinbutton, spinbutton entry {{ background: {p['panel']}; color: {p['text']}; border: 1px solid {p['hi']}; box-shadow: none; }}
 entry:focus, entry:focus-within {{ border-color: {p['amber']}; box-shadow: none; outline: none; }}
 .view, treeview.view, iconview, textview, textview text, list, listview, columnview, gridview, scrolledwindow viewport, .content-view {{ background-color: {p['view']}; color: {p['text']}; }}
