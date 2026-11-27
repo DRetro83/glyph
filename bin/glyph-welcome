@@ -184,8 +184,17 @@ class Welcome(Gtk.Window):
         self.page.pack_start(self.lab("Let's set up this computer. It takes about a minute.", "dim", True), False, False, 0)
         import getpass
         name = getpass.getuser()
-        self.page.pack_start(self.lab(f"You are signed in as {name}. Your files stay where they are; "
-                                      "KDE is still there at the sign-in screen.", wrap=True), False, False, 0)
+        if "boot=live" in Path("/proc/cmdline").read_text(errors="replace").split():
+            # the live ISO: nothing is kept, and there is no other desktop
+            where = "This is Glyph from a USB stick: what you change here is gone after a restart."
+        elif any(f.suffix == ".desktop" and f.stem != "glyph"
+                 for d in ("/usr/share/wayland-sessions", "/usr/share/xsessions") if Path(d).is_dir()
+                 for f in Path(d).iterdir()):
+            where = "Your files stay where they are; your other desktop is still there at the sign-in screen."
+        else:
+            where = "Your files stay where they are."
+        self.page.pack_start(self.lab(_("You are signed in as {name}.").format(name=name) + " " + _(where), wrap=True),
+                             False, False, 0)
         self.page.pack_start(self.lab("You can change everything later in Settings, and add apps in Software.", "dim", True),
                              False, False, 0)
 
