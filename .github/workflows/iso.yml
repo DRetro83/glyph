@@ -66,6 +66,12 @@ jobs:
           ok=0
           python3 extras/iso/boot-test.py "$ISO" shots bios || ok=1
           python3 extras/iso/boot-test.py "$ISO" shots uefi --uefi || ok=1
+          if [ $ok = 1 ]; then
+            # once more without the boot menu, with the system log on the serial port
+            GLYPH_BOOT_LIMIT=300 python3 extras/iso/boot-test.py "$ISO" shots direct --direct || true
+            echo "---- system log (serial) ----"
+            tail -250 shots/direct-serial.log || true
+          fi
           ls -la shots
           exit $ok
       - name: Publish to the release "glyph-iso"

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Boot the Glyph ISO in QEMU without a screen and wait for the Glyph desktop.
 
-  boot-test.py ISO OUTDIR NAME [--uefi]
+  boot-test.py ISO OUTDIR NAME [--uefi | --direct]
+
+--direct starts the live kernel without the boot menu, with the system log on
+the serial port (OUTDIR/NAME-serial.log): to see why a boot went wrong.
 
 Takes a screenshot (QEMU monitor "screendump") every 10 seconds. The Glyph
 desktop is dark and warm (brown-black, red above blue), while the boot menu
@@ -48,7 +51,7 @@ def monitor(sock_path, cmd):
 def warm_dark(path):
     im = Image.open(path).convert("RGB")
     im.thumbnail((320, 240))
-    px = list(im.getdata())
+    px = list(im.convert("RGB").getdata()) if not hasattr(im, "get_flattened_data") else list(im.get_flattened_data())
     warm = sum(1 for r, g, b in px if max(r, g, b) < 120 and r - b >= 4)
     return warm / len(px), im.size
 
@@ -56,6 +59,7 @@ def warm_dark(path):
 def main():
     iso, out, name = sys.argv[1], sys.argv[2], sys.argv[3]
     uefi = "--uefi" in sys.argv
+    direct = "--direct" in sys.argv
     os.makedirs(out, exist_ok=True)
     sock = f"/tmp/glyph-qemu-{name}.sock"
     if os.path.exists(sock):
@@ -79,6 +83,17 @@ def main():
                     "-drive", f"if=pflash,format=raw,file=/tmp/glyph-{name}-vars.fd"]
         else:
             cmd += ["-bios", code]
+    if direct:
+        d = f"/tmp/glyph-{name}-live"
+        os.makedirs(d, exist_ok=True)
+        subprocess.run(["xorriso", "-osirrox", "on", "-indev", iso, "-extract", "/live", d],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        kernel = sorted(f for f in os.listdir(d) if f.startswith("vmlinuz"))[0]
+        initrd = sorted(f for f in os.listdir(d) if f.startswith("initrd"))[0]
+        cmd += ["-kernel", f"{d}/{kernel}", "-initrd", f"{d}/{initrd}", "-append",
+                "boot=live components live-config.username=glyph live-config.user-fullname=Glyph "
+                "live-config.hostname=glyph console=tty0 console=ttyS0,115200 "
+                "systemd.journald.forward_to_console=1"]
     print(" ".join(cmd), flush=True)
     qemu = subprocess.Popen(cmd)
     time.sleep(3)
