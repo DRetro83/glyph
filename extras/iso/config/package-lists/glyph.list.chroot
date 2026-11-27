@@ -1,0 +1,64 @@
+# What the Glyph live system has. Recommends are off (see auto/config),
+# so everything a working desktop needs is named here.
+
+# Glyph itself: both come from config/packages.chroot (build.sh puts them there).
+# labwc must be labwc-glyph (+glyph3): its version is higher than Debian's,
+# and the hook 0900-glyph checks it.
+glyph-desktop
+labwc
+
+# the Recommends of glyph-desktop that are always in Debian 13
+ddcutil
+upower
+
+# sign-in: greetd starts the Glyph session (the live user signs in by itself)
+greetd
+
+# live system and Debian's installer
+live-boot
+live-config
+live-config-systemd
+user-setup
+sudo
+locales
+console-setup
+keyboard-configuration
+
+# session basics
+dbus-user-session
+pipewire-audio
+libgl1-mesa-dri
+libegl-mesa0
+mesa-vulkan-drivers
+xdg-utils
+fonts-dejavu-core
+
+# network: Wi-Fi and wired
+network-manager
+wpasupplicant
+iw
+wireless-regdb
+
+# USB sticks and disks
+ntfs-3g
+exfatprogs
+dosfstools
+
+# small tools
+curl
+ca-certificates
+nano
+less
+bash-completion
+
+# firmware (Debian's free part, and the common non-free Wi-Fi, graphics and sound)
+firmware-linux-free
+firmware-misc-nonfree
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+firmware-amd-graphics
+firmware-sof-signed
+intel-microcode
+amd64-microcode

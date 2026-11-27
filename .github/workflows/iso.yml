@@ -1,0 +1,108 @@
+# Builds the Glyph live ISO (glyph-<version>-amd64.iso) with Debian's live-build,
+# boots it headless in QEMU (BIOS and UEFI) until the Glyph desktop shows, and
+# puts the ISO and the screenshots on the release "glyph-iso".
+# Run it by hand (Actions -> iso -> Run workflow) or by changing extras/iso/.
+name: iso
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "extras/iso/**"
+      - ".github/workflows/iso.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iso
+  cancel-in-progress: true
+
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Room on the disk (an ISO build needs about 15 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune -af > /dev/null || true
+          df -h /
+      - name: Build the ISO (live-build in a Debian 13 container)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          sudo docker run --rm --privileged -e GITHUB_TOKEN -v "$PWD:/src" -w /src debian:trixie \
+            bash extras/iso/build.sh /src/out > /tmp/iso-build.log 2>&1 || { tail -150 /tmp/iso-build.log; exit 1; }
+          tail -30 /tmp/iso-build.log
+          sudo chown -R "$(id -u):$(id -g)" out
+          ls -la out
+          SIZE=$(stat -c %s out/glyph-*-amd64.iso)
+          echo "ISO size: $((SIZE / 1024 / 1024)) MB"
+          [ "$SIZE" -lt 2000000000 ] || { echo "The ISO is bigger than GitHub's 2 GB limit for release files"; exit 1; }
+      - name: What is in it
+        run: |
+          grep -E '^(labwc|glyph-desktop|greetd|linux-image-[0-9]|firefox-esr)[[:space:]]' out/glyph-*-amd64.packages
+          grep -E '^labwc[[:space:]].*glyph' out/glyph-*-amd64.packages
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 ovmf python3-pil xorriso > /dev/null
+          ISO=$(ls out/glyph-*-amd64.iso)
+          # Debian's installer: its kernel, and an "Install" entry in both boot menus
+          FOUND=$(xorriso -indev "$ISO" -find /install -name 'vmlinuz' 2>/dev/null || true)
+          echo "installer kernel: $FOUND"; [ -n "$FOUND" ]
+          mkdir -p /tmp/menus
+          xorriso -osirrox on -indev "$ISO" -extract /boot/grub /tmp/menus/grub -extract /isolinux /tmp/menus/isolinux > /dev/null 2>&1 || true
+          grep -rli 'install' /tmp/menus/grub/*.cfg | head -3
+          grep -rli 'install' /tmp/menus/isolinux/*.cfg | head -3
+          grep -rh 'menuentry\|^label\|menu label' /tmp/menus --include=*.cfg | head -30
+      - name: Boot it in QEMU (BIOS, then UEFI) until the Glyph desktop shows
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm || true
+          ISO=$(ls out/glyph-*-amd64.iso)
+          mkdir -p shots
+          ok=0
+          python3 extras/iso/boot-test.py "$ISO" shots bios || ok=1
+          python3 extras/iso/boot-test.py "$ISO" shots uefi --uefi || ok=1
+          ls -la shots
+          exit $ok
+      - name: Publish to the release "glyph-iso"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(cat VERSION)
+          gh release view glyph-iso >/dev/null 2>&1 || \
+            gh release create glyph-iso --prerelease --title "Glyph live ISO" \
+              --notes "Glyph on a USB stick: a live Debian 13 that starts straight into Glyph. Install it with Debian's installer (\"Install\" in the boot menu). Put it on a USB stick with Ventoy, balenaEtcher or dd (see the README). Built and boot-tested in QEMU automatically; bios.png and uefi.png show what it looked like."
+          # only the newest ISO stays on the release
+          for old in $(gh release view glyph-iso --json assets -q '.assets[].name' | grep '^glyph-.*-amd64\.iso'); do
+            gh release delete-asset glyph-iso "$old" -y
+          done
+          gh release upload glyph-iso out/glyph-$VER-amd64.iso out/glyph-$VER-amd64.iso.sha256 \
+            out/glyph-$VER-amd64.packages shots/bios.png shots/uefi.png --clobber
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iso-shots-and-logs
+          path: |
+            shots/
+            out/build.log
+            out/*.packages
+      - name: When something failed, keep the log (branch ci-logs, folder iso)
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p /tmp/keep
+          tail -400 /tmp/iso-build.log > /tmp/keep/iso-build.log 2>/dev/null || true
+          cp shots/*.png shots/*.log /tmp/keep/ 2>/dev/null || true
+          git config user.name glyph-ci; git config user.email glyph@users.noreply.github.com
+          if git fetch -q origin ci-logs 2>/dev/null; then
+            git checkout -q -f -B ci-logs FETCH_HEAD
+          else
+            git checkout -q --orphan ci-logs && git rm -rfq --cached . > /dev/null
+          fi
+          rm -rf iso && mkdir iso && cp /tmp/keep/* iso/
+          git add iso
+          git commit -qm "iso log" && git push -f origin ci-logs

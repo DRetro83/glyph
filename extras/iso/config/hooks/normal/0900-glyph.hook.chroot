@@ -1,0 +1,50 @@
+#!/bin/sh
+# Runs inside the image while it is built.
+set -e
+
+# 1. Helpers that not every Debian release has: install them when they are there
+#    (the same "optional" list as install.sh, plus newer firmware package names).
+for p in cliphist gtklock-playerctl-module pkexec \
+         firmware-intel-graphics firmware-intel-misc firmware-mediatek; do
+  if apt-cache show "$p" >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$p" || echo "glyph: $p could not be installed, skipped"
+  else
+    echo "glyph: $p is not in Debian here, skipped"
+  fi
+done
+
+# 2. labwc must be labwc-glyph, or the title bars, shadow and taskbar per
+#    workspace fall back to plain labwc.
+v=$(dpkg-query -W -f='${Version}' labwc)
+case "$v" in
+  *glyph*) echo "glyph: labwc $v" ;;
+  *) echo "glyph: labwc is $v, not labwc-glyph" >&2; exit 1 ;;
+esac
+# keep it that way when the system is updated later
+mkdir -p /etc/apt/preferences.d
+cat > /etc/apt/preferences.d/glyph-labwc <<'EOF'
+# Glyph: keep labwc-glyph (Debian's labwc with Glyph's patches).
+# glyph-update brings newer labwc-glyph versions.
+Package: labwc
+Pin: version *glyph*
+Pin-Priority: 1001
+EOF
+
+# 3. greetd: a sign-in prompt that starts Glyph. The live session adds an
+#    automatic sign-in at start (usr/lib/live/config/2100-glyph-autologin).
+CONF=/etc/greetd/config.toml
+GREETER=$(sed -n 's/^[[:space:]]*user[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "$CONF" 2>/dev/null | head -1)
+VT=$(sed -n 's/^[[:space:]]*vt[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' "$CONF" 2>/dev/null | head -1)
+cat > "$CONF" <<EOF
+# Glyph: sign in on the text prompt, then the Glyph session starts.
+[terminal]
+vt = ${VT:-7}
+
+[default_session]
+command = "agreety --cmd glyph-session"
+user = "${GREETER:-_greetd}"
+EOF
+systemctl enable greetd.service
+systemctl set-default graphical.target
+
+echo "glyph: hook done"

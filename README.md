@@ -123,6 +123,17 @@ extras/boot/install-boot.sh --remove  # back to how it was
 
 They take your Glyph colours at the moment you run it; run it again after you change the colour.
 
+### From a USB stick (live ISO, test version)
+
+Try Glyph without installing anything: download `glyph-<version>-amd64.iso` from the release [**glyph-iso**](https://github.com/DRetro83/glyph/releases/tag/glyph-iso) and put it on a USB stick (everything on the stick is erased):
+
+- **Ventoy**: copy the ISO onto a Ventoy stick and pick it in Ventoy's menu.
+- **balenaEtcher**: choose the ISO, choose the stick, Flash.
+- **dd** (Linux; check the stick's name with `lsblk` first, a wrong name erases another disk):
+  `sudo dd if=glyph-<version>-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync`
+
+Start the PC from the stick (BIOS or UEFI; turn Secure Boot off if it does not start). After 5 seconds the live system starts and signs in to Glyph by itself (user `glyph`, password `live`). **Install** in the boot menu starts Debian's own installer, which puts this Glyph system on the disk. How the ISO is made: [extras/iso](extras/iso/README.md).
+
 ### Keys
 
 | Do this | Keys |
