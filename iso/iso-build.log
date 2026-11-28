@@ -1,400 +1,400 @@
-P: Begin mounting /sys...
-[2026-11-28 12:52:45] lb chroot_debianchroot install
-P: Configuring file /etc/debian_chroot
-[2026-11-28 12:52:45] lb chroot_dpkg install
-P: Configuring file /sbin/start-stop-daemon
-dpkg-divert: warning: diverting file '/usr/sbin/start-stop-daemon' from an Essential package with rename is dangerous, use --no-rename
-[2026-11-28 12:52:45] lb chroot_tmpfs install
-[2026-11-28 12:52:45] lb chroot_sysv-rc install
-P: Configuring file /usr/sbin/policy-rc.d
-[2026-11-28 12:52:45] lb chroot_hosts install
-P: Configuring file /etc/hosts
-[2026-11-28 12:52:45] lb chroot_resolv install
-P: Configuring file /etc/resolv.conf
-[2026-11-28 12:52:45] lb chroot_hostname install
-P: Configuring file /etc/hostname
-P: Configuring file /bin/hostname
-dpkg-divert: warning: diverting file '/usr/bin/hostname' from an Essential package with rename is dangerous, use --no-rename
-[2026-11-28 12:52:45] lb chroot_apt install
-P: Configuring file /etc/apt/apt.conf
-[2026-11-28 12:52:45] lb chroot_archives binary install
-P: Configuring file /etc/apt/sources.list
-Ign:1 file:/packages ./ InRelease
-Get:2 file:/packages ./ Release [1235 B]
-Get:2 file:/packages ./ Release [1235 B]
-Ign:3 file:/packages ./ Release.gpg
-Get:4 file:/packages ./ Packages [1880 B]
-Hit:5 http://security.debian.org trixie-security InRelease
-Hit:6 http://deb.debian.org/debian trixie InRelease
-Hit:7 http://deb.debian.org/debian trixie-updates InRelease
-Reading package lists...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-debian-archive-keyring is already the newest version (2025.1).
-0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
-Ign:1 file:/packages ./ InRelease
-Get:2 file:/packages ./ Release [1235 B]
-Get:2 file:/packages ./ Release [1235 B]
-Ign:3 file:/packages ./ Release.gpg
-Hit:4 http://deb.debian.org/debian trixie InRelease
-Hit:5 http://deb.debian.org/debian trixie-updates InRelease
-Hit:6 http://security.debian.org trixie-security InRelease
-Reading package lists...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Calculating upgrade...
-0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Calculating upgrade...
-0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-[2026-11-28 12:52:49] lb binary_dm-verity 
-[2026-11-28 12:52:49] lb binary_manifest 
-P: Begin creating manifest...
-[2026-11-28 12:52:49] lb binary_package-lists 
-P: Begin installing local package lists...
-[2026-11-28 12:52:49] lb binary_linux-image 
-P: Begin install linux-image...
-[2026-11-28 12:52:49] lb binary_memtest 
-[2026-11-28 12:52:49] lb binary_grub-legacy 
-[2026-11-28 12:52:49] lb binary_grub-pc 
-[2026-11-28 12:52:49] lb binary_grub_cfg 
-P: Begin installing config for grub-pc and/or grub-efi, and loopback support...
-[2026-11-28 12:52:49] lb binary_syslinux 
-P: Begin installing syslinux...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Suggested packages:
-  xorriso
-The following NEW packages will be installed:
-  isolinux syslinux-common
-0 upgraded, 2 newly installed, 0 to remove and 0 not upgraded.
-Need to get 1299 kB of archives.
-After this operation, 3741 kB of additional disk space will be used.
-Get:1 http://deb.debian.org/debian trixie/main amd64 isolinux all 3:6.04~git20190206.bf6db5b4+dfsg1-3.1 [86.5 kB]
-Get:2 http://deb.debian.org/debian trixie/main amd64 syslinux-common all 3:6.04~git20190206.bf6db5b4+dfsg1-3.1 [1212 kB]
-Fetched 1299 kB in 0s (10.3 MB/s)
-Selecting previously unselected package isolinux.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148655 files and directories currently installed.)
-Preparing to unpack .../isolinux_3%3a6.04~git20190206.bf6db5b4+dfsg1-3.1_all.deb ...
-Unpacking isolinux (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Selecting previously unselected package syslinux-common.
-Preparing to unpack .../syslinux-common_3%3a6.04~git20190206.bf6db5b4+dfsg1-3.1_all.deb ...
-Unpacking syslinux-common (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Setting up isolinux (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Setting up syslinux-common (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-The following packages will be REMOVED:
-  isolinux* syslinux-common*
-0 upgraded, 0 newly installed, 2 to remove and 0 not upgraded.
-After this operation, 3741 kB disk space will be freed.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148887 files and directories currently installed.)
-Removing isolinux (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Removing syslinux-common (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-[2026-11-28 12:52:51] lb binary_disk 
-P: Begin installing disk information...
-[2026-11-28 12:52:51] lb binary_loadlin 
-P: Begin copying loadlin...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-The following NEW packages will be installed:
-  loadlin
-0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
-Need to get 48.5 kB of archives.
-After this operation, 89.1 kB of additional disk space will be used.
-Get:1 http://deb.debian.org/debian trixie/main amd64 loadlin amd64 1.6f-13 [48.5 kB]
-Fetched 48.5 kB in 0s (1064 kB/s)
-Selecting previously unselected package loadlin.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148655 files and directories currently installed.)
-Preparing to unpack .../loadlin_1.6f-13_amd64.deb ...
-Unpacking loadlin (1.6f-13) ...
-Setting up loadlin (1.6f-13) ...
-Processing triggers for man-db (2.13.1-1) ...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-The following packages will be REMOVED:
-  loadlin*
-0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.
-After this operation, 89.1 kB disk space will be freed.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148678 files and directories currently installed.)
-Removing loadlin (1.6f-13) ...
-Processing triggers for man-db (2.13.1-1) ...
-[2026-11-28 12:52:53] lb binary_win32-loader 
-[2026-11-28 12:52:53] lb binary_includes 
-P: Begin copying binary includes...
-0 blocks
-[2026-11-28 12:52:53] lb binary_grub-efi 
-P: Begin preparing Grub based EFI support...
+Selecting previously unselected package libqt5waylandclient5:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 59387 files and directories currently installed.)
+Preparing to unpack .../libqt5waylandclient5_5.15.15-3_amd64.deb ...
+Unpacking libqt5waylandclient5:amd64 (5.15.15-3) ...
+Selecting previously unselected package libqt5waylandcompositor5:amd64.
+Preparing to unpack .../libqt5waylandcompositor5_5.15.15-3_amd64.deb ...
+Unpacking libqt5waylandcompositor5:amd64 (5.15.15-3) ...
+Selecting previously unselected package qtwayland5:amd64.
+Preparing to unpack .../qtwayland5_5.15.15-3_amd64.deb ...
+Unpacking qtwayland5:amd64 (5.15.15-3) ...
+Setting up libqt5waylandclient5:amd64 (5.15.15-3) ...
+Setting up libqt5waylandcompositor5:amd64 (5.15.15-3) ...
+Setting up qtwayland5:amd64 (5.15.15-3) ...
+Processing triggers for libc-bin (2.41-12+deb13u5) ...
 Reading package lists...
 Building dependency tree...
 Reading state information...
 The following additional packages will be installed:
-  grub-efi-ia32-unsigned
-Suggested packages:
-  floppyd
+  mokutil shim-helpers-amd64-signed shim-signed-common shim-unsigned
 The following NEW packages will be installed:
-  grub-efi-ia32-bin grub-efi-ia32-unsigned mtools
-0 upgraded, 3 newly installed, 0 to remove and 0 not upgraded.
-Need to get 2214 kB of archives.
-After this operation, 10.5 MB of additional disk space will be used.
-Get:1 http://deb.debian.org/debian trixie/main amd64 grub-efi-ia32-unsigned amd64 2.12-9+deb13u4 [1324 kB]
-Get:2 http://deb.debian.org/debian trixie/main amd64 grub-efi-ia32-bin amd64 2.12-9+deb13u4 [692 kB]
-Get:3 http://deb.debian.org/debian trixie/main amd64 mtools amd64 4.0.48-1 [198 kB]
-Fetched 2214 kB in 0s (28.2 MB/s)
-Selecting previously unselected package grub-efi-ia32-unsigned.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148655 files and directories currently installed.)
-Preparing to unpack .../grub-efi-ia32-unsigned_2.12-9+deb13u4_amd64.deb ...
-Unpacking grub-efi-ia32-unsigned (2.12-9+deb13u4) ...
-Selecting previously unselected package grub-efi-ia32-bin.
-Preparing to unpack .../grub-efi-ia32-bin_2.12-9+deb13u4_amd64.deb ...
-Unpacking grub-efi-ia32-bin (2.12-9+deb13u4) ...
-Selecting previously unselected package mtools.
-Preparing to unpack .../mtools_4.0.48-1_amd64.deb ...
-Unpacking mtools (4.0.48-1) ...
-Setting up grub-efi-ia32-unsigned (2.12-9+deb13u4) ...
-Setting up grub-efi-ia32-bin (2.12-9+deb13u4) ...
-Setting up mtools (4.0.48-1) ...
-Processing triggers for man-db (2.13.1-1) ...
-!!! The following error/warning messages can be ignored !!!
-Reading package lists...
-Building dependency tree...
-Reading state information...
-shim-signed is already the newest version (1.51~1+deb13u1+16.1-2~deb13u1).
-0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
-Reading package lists...
-Building dependency tree...
-Reading state information...
-grub-efi-amd64-signed is already the newest version (1+2.12+9+deb13u4).
-0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
-!!! The above error/warning messages can be ignored !!!
-P: UEFI Secure Boot support enabled.
-mkfs.fat 4.2 (2021-01-31)
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Reading package lists...
-Building dependency tree...
-Reading state information...
-The following packages will be REMOVED:
-  grub-efi-amd64-signed* grub-efi-ia32-bin* grub-efi-ia32-unsigned* mokutil*
-  mtools* shim-helpers-amd64-signed* shim-signed* shim-signed-common*
-  shim-unsigned*
-WARNING: The following essential packages will be removed.
-This should NOT be done unless you know exactly what you are doing!
-  grub-efi-amd64-signed
-0 upgraded, 0 newly installed, 9 to remove and 0 not upgraded.
-After this operation, 24.5 MB disk space will be freed.
-dpkg: warning: overriding problem because --force enabled:
-dpkg: warning: this is a protected package; it should not be removed
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 149029 files and directories currently installed.)
-Removing grub-efi-amd64-signed (1+2.12+9+deb13u4) ...
-Removing grub-efi-ia32-bin (2.12-9+deb13u4) ...
-Removing grub-efi-ia32-unsigned (2.12-9+deb13u4) ...
-Removing shim-signed:amd64 (1.51~1+deb13u1+16.1-2~deb13u1) ...
+  mokutil shim-helpers-amd64-signed shim-signed shim-signed-common
+  shim-unsigned
+0 upgraded, 5 newly installed, 0 to remove and 0 not upgraded.
+Need to get 1144 kB of archives.
+After this operation, 4258 kB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main amd64 mokutil amd64 0.7.2-1 [26.7 kB]
+Get:2 http://deb.debian.org/debian trixie/main amd64 shim-signed-common all 1.51~1+deb13u1+16.1-2~deb13u1 [15.9 kB]
+Get:3 http://deb.debian.org/debian trixie/main amd64 shim-unsigned amd64 16.1-2~deb13u1 [453 kB]
+Get:4 http://deb.debian.org/debian trixie/main amd64 shim-helpers-amd64-signed amd64 1+16.1+2~deb13u1 [301 kB]
+Get:5 http://deb.debian.org/debian trixie/main amd64 shim-signed amd64 1.51~1+deb13u1+16.1-2~deb13u1 [347 kB]
+Preconfiguring packages ...
+Fetched 1144 kB in 0s (9819 kB/s)
+Selecting previously unselected package mokutil.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 59430 files and directories currently installed.)
+Preparing to unpack .../mokutil_0.7.2-1_amd64.deb ...
+Unpacking mokutil (0.7.2-1) ...
+Selecting previously unselected package shim-signed-common.
+Preparing to unpack .../shim-signed-common_1.51~1+deb13u1+16.1-2~deb13u1_all.deb ...
+Unpacking shim-signed-common (1.51~1+deb13u1+16.1-2~deb13u1) ...
+Selecting previously unselected package shim-unsigned:amd64.
+Preparing to unpack .../shim-unsigned_16.1-2~deb13u1_amd64.deb ...
+Unpacking shim-unsigned:amd64 (16.1-2~deb13u1) ...
+Selecting previously unselected package shim-helpers-amd64-signed.
+Preparing to unpack .../shim-helpers-amd64-signed_1+16.1+2~deb13u1_amd64.deb ...
+Unpacking shim-helpers-amd64-signed (1+16.1+2~deb13u1) ...
+Selecting previously unselected package shim-signed:amd64.
+Preparing to unpack .../shim-signed_1.51~1+deb13u1+16.1-2~deb13u1_amd64.deb ...
+shim-signed: checking if we can safely install /usr/lib/shim/shimx64.efi.signed
+  EFI variables are not supported on this system; assuming shim installation is safe.
+Unpacking shim-signed:amd64 (1.51~1+deb13u1+16.1-2~deb13u1) ...
+Setting up mokutil (0.7.2-1) ...
+Setting up shim-signed-common (1.51~1+deb13u1+16.1-2~deb13u1) ...
 No DKMS packages installed: not changing Secure Boot validation state.
-Removing shim-signed-common (1.51~1+deb13u1+16.1-2~deb13u1) ...
-Removing mokutil (0.7.2-1) ...
-Removing mtools (4.0.48-1) ...
-Removing shim-helpers-amd64-signed (1+16.1+2~deb13u1) ...
-Removing shim-unsigned:amd64 (16.1-2~deb13u1) ...
-Processing triggers for man-db (2.13.1-1) ...
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148616 files and directories currently installed.)
-Purging configuration files for mtools (4.0.48-1) ...
-Purging configuration files for shim-signed:amd64 (1.51~1+deb13u1+16.1-2~deb13u1) ...
-Purging configuration files for shim-signed-common (1.51~1+deb13u1+16.1-2~deb13u1) ...
-Purging configuration files for shim-helpers-amd64-signed (1+16.1+2~deb13u1) ...
-[2026-11-28 12:52:56] lb binary_bootloader_splash 
-P: Begin preparing the bootloader splash image...
+Setting up shim-unsigned:amd64 (16.1-2~deb13u1) ...
+Setting up shim-helpers-amd64-signed (1+16.1+2~deb13u1) ...
+Setting up shim-signed:amd64 (1.51~1+deb13u1+16.1-2~deb13u1) ...
+No DKMS packages installed: not changing Secure Boot validation state.
 Reading package lists...
 Building dependency tree...
 Reading state information...
 The following NEW packages will be installed:
-  librsvg2-bin
+  grub-efi-amd64-signed
 0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
-Need to get 1955 kB of archives.
-After this operation, 7040 kB of additional disk space will be used.
-Get:1 http://deb.debian.org/debian trixie/main amd64 librsvg2-bin amd64 2.60.0+dfsg-1+deb13u1 [1955 kB]
-Fetched 1955 kB in 0s (40.1 MB/s)
-Selecting previously unselected package librsvg2-bin.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148615 files and directories currently installed.)
-Preparing to unpack .../librsvg2-bin_2.60.0+dfsg-1+deb13u1_amd64.deb ...
-Unpacking librsvg2-bin (2.60.0+dfsg-1+deb13u1) ...
-Setting up librsvg2-bin (2.60.0+dfsg-1+deb13u1) ...
-Processing triggers for man-db (2.13.1-1) ...
+Need to get 1364 kB of archives.
+After this operation, 9728 kB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main amd64 grub-efi-amd64-signed amd64 1+2.12+9+deb13u4 [1364 kB]
+Fetched 1364 kB in 0s (15.3 MB/s)
+Selecting previously unselected package grub-efi-amd64-signed.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 59460 files and directories currently installed.)
+Preparing to unpack .../grub-efi-amd64-signed_1+2.12+9+deb13u4_amd64.deb ...
+Unpacking grub-efi-amd64-signed (1+2.12+9+deb13u4) ...
+Setting up grub-efi-amd64-signed (1+2.12+9+deb13u4) ...
 Reading package lists...
 Building dependency tree...
 Reading state information...
+The following NEW packages will be installed:
+  firmware-intel-graphics
+0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 6419 kB of archives.
+After this operation, 29.7 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/non-free-firmware amd64 firmware-intel-graphics all 20250410-2 [6419 kB]
+Fetched 6419 kB in 0s (59.0 MB/s)
+Selecting previously unselected package firmware-intel-graphics.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 59470 files and directories currently installed.)
+Preparing to unpack .../firmware-intel-graphics_20250410-2_all.deb ...
+Unpacking firmware-intel-graphics (20250410-2) ...
+Setting up firmware-intel-graphics (20250410-2) ...
+Processing triggers for initramfs-tools (0.148.4) ...
+update-initramfs: Generating /boot/initrd.img-6.12.118+deb13-amd64
+W: No zstd in /usr/bin:/sbin:/bin, using gzip
+live-boot: core filesystems dm-verity devices utils udev blockdev dns.
 Reading package lists...
 Building dependency tree...
 Reading state information...
-The following packages will be REMOVED:
-  librsvg2-bin*
-0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.
-After this operation, 7040 kB disk space will be freed.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148621 files and directories currently installed.)
-Removing librsvg2-bin (2.60.0+dfsg-1+deb13u1) ...
-Processing triggers for man-db (2.13.1-1) ...
-[2026-11-28 12:52:59] lb binary_hooks 
-P: Begin executing hooks...
-[2026-11-28 12:52:59] lb binary_checksums 
-P: Begin creating binary sha256sum.txt...
-P: Begin creating binary md5sum.txt...
-[2026-11-28 12:53:04] lb binary_iso 
-P: Begin building binary iso image...
+The following NEW packages will be installed:
+  firmware-intel-misc
+0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 1868 kB of archives.
+After this operation, 13.8 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/non-free-firmware amd64 firmware-intel-misc all 20250410-2 [1868 kB]
+Fetched 1868 kB in 0s (14.6 MB/s)
+Selecting previously unselected package firmware-intel-misc.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 59580 files and directories currently installed.)
+Preparing to unpack .../firmware-intel-misc_20250410-2_all.deb ...
+Unpacking firmware-intel-misc (20250410-2) ...
+Setting up firmware-intel-misc (20250410-2) ...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following NEW packages will be installed:
+  firmware-mediatek
+0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 19.6 MB of archives.
+After this operation, 47.4 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/non-free-firmware amd64 firmware-mediatek all 20250410-2 [19.6 MB]
+Fetched 19.6 MB in 0s (114 MB/s)
+Selecting previously unselected package firmware-mediatek.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 59622 files and directories currently installed.)
+Preparing to unpack .../firmware-mediatek_20250410-2_all.deb ...
+Unpacking firmware-mediatek (20250410-2) ...
+Setting up firmware-mediatek (20250410-2) ...
+Processing triggers for initramfs-tools (0.148.4) ...
+update-initramfs: Generating /boot/initrd.img-6.12.118+deb13-amd64
+W: No zstd in /usr/bin:/sbin:/bin, using gzip
+live-boot: core filesystems dm-verity devices utils udev blockdev dns.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+calamares is already the newest version (3.3.14-1).
+calamares-settings-debian is already the newest version (13.0.13-1).
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+glyph: labwc 0.8.3-1+glyph3
 Reading package lists...
 Building dependency tree...
 Reading state information...
 The following additional packages will be installed:
-  libburn4t64 libisoburn1t64 libisofs6t64 libjte2
+  cpp cpp-14 cpp-14-x86-64-linux-gnu cpp-x86-64-linux-gnu libdrm-nouveau2
+  libdrm-radeon1 libisl23 libmpc3 libunwind8 libxatracker2 libxmuu1
+  qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript
+  qml6-module-qtquick xserver-xorg xserver-xorg-video-all
+  xserver-xorg-video-amdgpu xserver-xorg-video-ati xserver-xorg-video-fbdev
+  xserver-xorg-video-nouveau xserver-xorg-video-radeon xserver-xorg-video-vesa
+  xserver-xorg-video-vmware
 Suggested packages:
-  xorriso-tcltk jigit cdck
+  cpp-doc gcc-14-locales cpp-14-doc libpam-kwallet5 nickle cairo-5c
+  xorg-docs-core xfonts-100dpi | xfonts-75dpi xfonts-scalable
+  xserver-xorg-video-r128 xserver-xorg-video-mach64
 Recommended packages:
-  syslinux-common
+  sddm-theme-debian-breeze | sddm-theme xserver-xorg-legacy xcvt
+  xserver-xorg-video-intel xserver-xorg-video-qxl
 The following NEW packages will be installed:
-  isolinux libburn4t64 libisoburn1t64 libisofs6t64 libjte2 xorriso
-0 upgraded, 6 newly installed, 0 to remove and 0 not upgraded.
-Need to get 1146 kB/1233 kB of archives.
-After this operation, 2693 kB of additional disk space will be used.
-Get:1 http://deb.debian.org/debian trixie/main amd64 libburn4t64 amd64 1.5.6-1.1+b1 [164 kB]
-Get:2 http://deb.debian.org/debian trixie/main amd64 libjte2 amd64 1.22-4+b2 [29.6 kB]
-Get:3 http://deb.debian.org/debian trixie/main amd64 libisofs6t64 amd64 1.5.6.pl01-1.1+b1 [219 kB]
-Get:4 http://deb.debian.org/debian trixie/main amd64 libisoburn1t64 amd64 1.5.6-1.2+b1 [410 kB]
-Get:5 http://deb.debian.org/debian trixie/main amd64 xorriso amd64 1.5.6-1.2+b1 [323 kB]
-Fetched 1146 kB in 0s (16.4 MB/s)
-Selecting previously unselected package isolinux.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148615 files and directories currently installed.)
-Preparing to unpack .../0-isolinux_3%3a6.04~git20190206.bf6db5b4+dfsg1-3.1_all.deb ...
-Unpacking isolinux (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Selecting previously unselected package libburn4t64:amd64.
-Preparing to unpack .../1-libburn4t64_1.5.6-1.1+b1_amd64.deb ...
-Unpacking libburn4t64:amd64 (1.5.6-1.1+b1) ...
-Selecting previously unselected package libjte2:amd64.
-Preparing to unpack .../2-libjte2_1.22-4+b2_amd64.deb ...
-Unpacking libjte2:amd64 (1.22-4+b2) ...
-Selecting previously unselected package libisofs6t64:amd64.
-Preparing to unpack .../3-libisofs6t64_1.5.6.pl01-1.1+b1_amd64.deb ...
-Unpacking libisofs6t64:amd64 (1.5.6.pl01-1.1+b1) ...
-Selecting previously unselected package libisoburn1t64:amd64.
-Preparing to unpack .../4-libisoburn1t64_1.5.6-1.2+b1_amd64.deb ...
-Unpacking libisoburn1t64:amd64 (1.5.6-1.2+b1) ...
-Selecting previously unselected package xorriso.
-Preparing to unpack .../5-xorriso_1.5.6-1.2+b1_amd64.deb ...
-Unpacking xorriso (1.5.6-1.2+b1) ...
-Setting up isolinux (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Setting up libjte2:amd64 (1.22-4+b2) ...
-Setting up libisofs6t64:amd64 (1.5.6.pl01-1.1+b1) ...
-Setting up libburn4t64:amd64 (1.5.6-1.1+b1) ...
-Setting up libisoburn1t64:amd64 (1.5.6-1.2+b1) ...
-Setting up xorriso (1.5.6-1.2+b1) ...
-Processing triggers for man-db (2.13.1-1) ...
+  cpp cpp-14 cpp-14-x86-64-linux-gnu cpp-x86-64-linux-gnu libdrm-nouveau2
+  libdrm-radeon1 libisl23 libmpc3 libunwind8 libxatracker2 libxmuu1
+  qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript
+  qml6-module-qtquick sddm x11-xserver-utils xauth xserver-xorg
+  xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-all
+  xserver-xorg-video-amdgpu xserver-xorg-video-ati xserver-xorg-video-fbdev
+  xserver-xorg-video-nouveau xserver-xorg-video-radeon xserver-xorg-video-vesa
+  xserver-xorg-video-vmware
+0 upgraded, 29 newly installed, 0 to remove and 0 not upgraded.
+Need to get 20.6 MB of archives.
+After this operation, 64.4 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main amd64 libisl23 amd64 0.27-1 [659 kB]
+Get:2 http://deb.debian.org/debian trixie/main amd64 libmpc3 amd64 1.3.1-1+b3 [52.2 kB]
+Get:3 http://deb.debian.org/debian trixie/main amd64 cpp-14-x86-64-linux-gnu amd64 14.2.0-19 [11.0 MB]
+Get:4 http://deb.debian.org/debian trixie/main amd64 cpp-14 amd64 14.2.0-19 [1280 B]
+Get:5 http://deb.debian.org/debian trixie/main amd64 cpp-x86-64-linux-gnu amd64 4:14.2.0-1 [4840 B]
+Get:6 http://deb.debian.org/debian trixie/main amd64 cpp amd64 4:14.2.0-1 [1568 B]
+Get:7 http://deb.debian.org/debian trixie/main amd64 libdrm-nouveau2 amd64 2.4.124-2 [19.9 kB]
+Get:8 http://deb.debian.org/debian trixie/main amd64 libdrm-radeon1 amd64 2.4.124-2 [22.6 kB]
+Get:9 http://deb.debian.org/debian trixie/main amd64 libunwind8 amd64 1.8.1-0.1 [56.3 kB]
+Get:10 http://deb.debian.org/debian trixie/main amd64 libxatracker2 amd64 25.0.7-2+deb13u1 [2298 kB]
+Get:11 http://deb.debian.org/debian trixie/main amd64 libxmuu1 amd64 2:1.1.3-3+b4 [21.9 kB]
+Get:12 http://deb.debian.org/debian trixie/main amd64 qml6-module-qtqml-models amd64 6.8.2+dfsg-7 [20.0 kB]
+Get:13 http://deb.debian.org/debian trixie/main amd64 qml6-module-qtqml-workerscript amd64 6.8.2+dfsg-7 [16.6 kB]
+Get:14 http://deb.debian.org/debian trixie/main amd64 qml6-module-qtqml amd64 6.8.2+dfsg-7 [17.2 kB]
+Get:15 http://deb.debian.org/debian trixie/main amd64 qml6-module-qtquick amd64 6.8.2+dfsg-7 [56.4 kB]
+Get:16 http://deb.debian.org/debian trixie/main amd64 xauth amd64 1:1.1.2-1.1 [35.9 kB]
+Get:17 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-core amd64 2:21.1.16-1.3+deb13u4 [3779 kB]
+Get:18 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-amdgpu amd64 23.0.0-1 [136 kB]
+Get:19 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-radeon amd64 1:22.0.0-1 [493 kB]
+Get:20 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-ati amd64 1:22.0.0-1 [352 kB]
+Get:21 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-fbdev amd64 1:0.5.0-2 [25.4 kB]
+Get:22 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-nouveau amd64 1:1.0.18-1 [303 kB]
+Get:23 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-vesa amd64 1:2.6.0-2 [29.5 kB]
+Get:24 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-vmware amd64 1:13.4.0-1 [115 kB]
+Get:25 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-video-all amd64 1:7.7+24+deb13u1 [4296 B]
+Get:26 http://deb.debian.org/debian trixie/main amd64 xserver-xorg-input-libinput amd64 1.5.0-1 [68.3 kB]
+Get:27 http://deb.debian.org/debian trixie/main amd64 xserver-xorg amd64 1:7.7+24+deb13u1 [58.4 kB]
+Get:28 http://deb.debian.org/debian trixie/main amd64 sddm amd64 0.21.0+git20250502.4fe234b-2 [741 kB]
+Get:29 http://deb.debian.org/debian trixie/main amd64 x11-xserver-utils amd64 7.7+11 [163 kB]
+Preconfiguring packages ...
+Fetched 20.6 MB in 0s (87.1 MB/s)
+Selecting previously unselected package libisl23:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 59760 files and directories currently installed.)
+Preparing to unpack .../00-libisl23_0.27-1_amd64.deb ...
+Unpacking libisl23:amd64 (0.27-1) ...
+Selecting previously unselected package libmpc3:amd64.
+Preparing to unpack .../01-libmpc3_1.3.1-1+b3_amd64.deb ...
+Unpacking libmpc3:amd64 (1.3.1-1+b3) ...
+Selecting previously unselected package cpp-14-x86-64-linux-gnu.
+Preparing to unpack .../02-cpp-14-x86-64-linux-gnu_14.2.0-19_amd64.deb ...
+Unpacking cpp-14-x86-64-linux-gnu (14.2.0-19) ...
+Selecting previously unselected package cpp-14.
+Preparing to unpack .../03-cpp-14_14.2.0-19_amd64.deb ...
+Unpacking cpp-14 (14.2.0-19) ...
+Selecting previously unselected package cpp-x86-64-linux-gnu.
+Preparing to unpack .../04-cpp-x86-64-linux-gnu_4%3a14.2.0-1_amd64.deb ...
+Unpacking cpp-x86-64-linux-gnu (4:14.2.0-1) ...
+Selecting previously unselected package cpp.
+Preparing to unpack .../05-cpp_4%3a14.2.0-1_amd64.deb ...
+Unpacking cpp (4:14.2.0-1) ...
+Selecting previously unselected package libdrm-nouveau2:amd64.
+Preparing to unpack .../06-libdrm-nouveau2_2.4.124-2_amd64.deb ...
+Unpacking libdrm-nouveau2:amd64 (2.4.124-2) ...
+Selecting previously unselected package libdrm-radeon1:amd64.
+Preparing to unpack .../07-libdrm-radeon1_2.4.124-2_amd64.deb ...
+Unpacking libdrm-radeon1:amd64 (2.4.124-2) ...
+Selecting previously unselected package libunwind8:amd64.
+Preparing to unpack .../08-libunwind8_1.8.1-0.1_amd64.deb ...
+Unpacking libunwind8:amd64 (1.8.1-0.1) ...
+Selecting previously unselected package libxatracker2:amd64.
+Preparing to unpack .../09-libxatracker2_25.0.7-2+deb13u1_amd64.deb ...
+Unpacking libxatracker2:amd64 (25.0.7-2+deb13u1) ...
+Selecting previously unselected package libxmuu1:amd64.
+Preparing to unpack .../10-libxmuu1_2%3a1.1.3-3+b4_amd64.deb ...
+Unpacking libxmuu1:amd64 (2:1.1.3-3+b4) ...
+Selecting previously unselected package qml6-module-qtqml-models:amd64.
+Preparing to unpack .../11-qml6-module-qtqml-models_6.8.2+dfsg-7_amd64.deb ...
+Unpacking qml6-module-qtqml-models:amd64 (6.8.2+dfsg-7) ...
+Selecting previously unselected package qml6-module-qtqml-workerscript:amd64.
+Preparing to unpack .../12-qml6-module-qtqml-workerscript_6.8.2+dfsg-7_amd64.deb ...
+Unpacking qml6-module-qtqml-workerscript:amd64 (6.8.2+dfsg-7) ...
+Selecting previously unselected package qml6-module-qtqml:amd64.
+Preparing to unpack .../13-qml6-module-qtqml_6.8.2+dfsg-7_amd64.deb ...
+Unpacking qml6-module-qtqml:amd64 (6.8.2+dfsg-7) ...
+Selecting previously unselected package qml6-module-qtquick:amd64.
+Preparing to unpack .../14-qml6-module-qtquick_6.8.2+dfsg-7_amd64.deb ...
+Unpacking qml6-module-qtquick:amd64 (6.8.2+dfsg-7) ...
+Selecting previously unselected package xauth.
+Preparing to unpack .../15-xauth_1%3a1.1.2-1.1_amd64.deb ...
+Unpacking xauth (1:1.1.2-1.1) ...
+Selecting previously unselected package xserver-xorg-core.
+Preparing to unpack .../16-xserver-xorg-core_2%3a21.1.16-1.3+deb13u4_amd64.deb ...
+Unpacking xserver-xorg-core (2:21.1.16-1.3+deb13u4) ...
+Selecting previously unselected package xserver-xorg-video-amdgpu.
+Preparing to unpack .../17-xserver-xorg-video-amdgpu_23.0.0-1_amd64.deb ...
+Unpacking xserver-xorg-video-amdgpu (23.0.0-1) ...
+Selecting previously unselected package xserver-xorg-video-radeon.
+Preparing to unpack .../18-xserver-xorg-video-radeon_1%3a22.0.0-1_amd64.deb ...
+Unpacking xserver-xorg-video-radeon (1:22.0.0-1) ...
+Selecting previously unselected package xserver-xorg-video-ati.
+Preparing to unpack .../19-xserver-xorg-video-ati_1%3a22.0.0-1_amd64.deb ...
+Unpacking xserver-xorg-video-ati (1:22.0.0-1) ...
+Selecting previously unselected package xserver-xorg-video-fbdev.
+Preparing to unpack .../20-xserver-xorg-video-fbdev_1%3a0.5.0-2_amd64.deb ...
+Unpacking xserver-xorg-video-fbdev (1:0.5.0-2) ...
+Selecting previously unselected package xserver-xorg-video-nouveau.
+Preparing to unpack .../21-xserver-xorg-video-nouveau_1%3a1.0.18-1_amd64.deb ...
+Unpacking xserver-xorg-video-nouveau (1:1.0.18-1) ...
+Selecting previously unselected package xserver-xorg-video-vesa.
+Preparing to unpack .../22-xserver-xorg-video-vesa_1%3a2.6.0-2_amd64.deb ...
+Unpacking xserver-xorg-video-vesa (1:2.6.0-2) ...
+Selecting previously unselected package xserver-xorg-video-vmware.
+Preparing to unpack .../23-xserver-xorg-video-vmware_1%3a13.4.0-1_amd64.deb ...
+Unpacking xserver-xorg-video-vmware (1:13.4.0-1) ...
+Selecting previously unselected package xserver-xorg-video-all.
+Preparing to unpack .../24-xserver-xorg-video-all_1%3a7.7+24+deb13u1_amd64.deb ...
+Unpacking xserver-xorg-video-all (1:7.7+24+deb13u1) ...
+Selecting previously unselected package xserver-xorg-input-libinput.
+Preparing to unpack .../25-xserver-xorg-input-libinput_1.5.0-1_amd64.deb ...
+Unpacking xserver-xorg-input-libinput (1.5.0-1) ...
+Selecting previously unselected package xserver-xorg.
+Preparing to unpack .../26-xserver-xorg_1%3a7.7+24+deb13u1_amd64.deb ...
+Unpacking xserver-xorg (1:7.7+24+deb13u1) ...
+Selecting previously unselected package sddm.
+Preparing to unpack .../27-sddm_0.21.0+git20250502.4fe234b-2_amd64.deb ...
+Unpacking sddm (0.21.0+git20250502.4fe234b-2) ...
+Selecting previously unselected package x11-xserver-utils.
+Preparing to unpack .../28-x11-xserver-utils_7.7+11_amd64.deb ...
+Unpacking x11-xserver-utils (7.7+11) ...
+Setting up libdrm-nouveau2:amd64 (2.4.124-2) ...
+Setting up libdrm-radeon1:amd64 (2.4.124-2) ...
+Setting up qml6-module-qtqml-models:amd64 (6.8.2+dfsg-7) ...
+Setting up libunwind8:amd64 (1.8.1-0.1) ...
+Setting up qml6-module-qtqml-workerscript:amd64 (6.8.2+dfsg-7) ...
+Setting up libxatracker2:amd64 (25.0.7-2+deb13u1) ...
+Setting up libmpc3:amd64 (1.3.1-1+b3) ...
+Setting up qml6-module-qtqml:amd64 (6.8.2+dfsg-7) ...
+Setting up libisl23:amd64 (0.27-1) ...
+Setting up libxmuu1:amd64 (2:1.1.3-3+b4) ...
+Setting up qml6-module-qtquick:amd64 (6.8.2+dfsg-7) ...
+Setting up xserver-xorg-core (2:21.1.16-1.3+deb13u4) ...
+Setting up xserver-xorg-video-radeon (1:22.0.0-1) ...
+Setting up xserver-xorg-video-fbdev (1:0.5.0-2) ...
+Setting up xserver-xorg-video-vmware (1:13.4.0-1) ...
+Setting up cpp-14-x86-64-linux-gnu (14.2.0-19) ...
+Setting up cpp-14 (14.2.0-19) ...
+Setting up xauth (1:1.1.2-1.1) ...
+Setting up xserver-xorg-video-vesa (1:2.6.0-2) ...
+Setting up cpp-x86-64-linux-gnu (4:14.2.0-1) ...
+Setting up xserver-xorg-video-amdgpu (23.0.0-1) ...
+Setting up xserver-xorg-video-nouveau (1:1.0.18-1) ...
+Setting up xserver-xorg-input-libinput (1.5.0-1) ...
+Setting up xserver-xorg-video-ati (1:22.0.0-1) ...
+Setting up xserver-xorg-video-all (1:7.7+24+deb13u1) ...
+Setting up cpp (4:14.2.0-1) ...
+Setting up xserver-xorg (1:7.7+24+deb13u1) ...
+Setting up x11-xserver-utils (7.7+11) ...
+Setting up sddm (0.21.0+git20250502.4fe234b-2) ...
+usermod: no changes
+usermod: no changes
+Running in chroot, ignoring request.
+All runlevel operations denied by policy
+invoke-rc.d: policy-rc.d denied execution of reload.
+Processing triggers for dbus (1.16.2-2) ...
 Processing triggers for libc-bin (2.41-12+deb13u5) ...
-xorriso 1.5.6 : RockRidge filesystem manipulator, libburnia project.
-
-xorriso : NOTE : Environment variable SOURCE_DATE_EPOCH encountered with value 1795869801
-Drive current: -outdev 'stdio:glyph-amd64.hybrid.iso'
-Media current: stdio file, overwriteable
-Media status : is blank
-Media summary: 0 sessions, 0 data blocks, 0 data, 98.8g free
-xorriso : NOTE : -as mkisofs: Ignored option '-cache-inodes'
-xorriso : WARNING : -volid text does not comply to ISO 9660 / ECMA 119 rules
-Added to ISO image: directory '/'='/binary'
-xorriso : UPDATE :    1005 files added in 1 seconds
-xorriso : UPDATE :    1005 files added in 1 seconds
-xorriso : NOTE : Copying to System Area: 432 bytes from file '/usr/lib/ISOLINUX/isohdpfx.bin'
-libisofs: WARNING : Cannot add /debian to Joliet tree. Symlinks can only be added to a Rock Ridge tree.
-libisofs: WARNING : More symbolic links were omitted from Joliet tree.
-libisofs: NOTE : Automatically adjusted MBR geometry to 1019/155/32
-libisofs: NOTE : Aligned image size to cylinder size by 1118 blocks
-libisofs: WARNING : Number of symbolic links omitted from Joliet tree: 8
-xorriso : UPDATE :  6.58% done
-xorriso : UPDATE :  57.74% done
-xorriso : UPDATE :  87.57% done
-xorriso : UPDATE :  98.71% done
-ISO image produced: 1263560 sectors
-Written to medium : 1263560 sectors at LBA 0
-Writing to 'stdio:glyph-amd64.hybrid.iso' completed successfully.
-
 Reading package lists...
 Building dependency tree...
 Reading state information...
+qml6-module-qtquick is already the newest version (6.8.2+dfsg-7).
+qml6-module-qtquick set to manually installed.
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
 Reading package lists...
 Building dependency tree...
 Reading state information...
-The following packages will be REMOVED:
-  isolinux* libburn4t64* libisoburn1t64* libisofs6t64* libjte2* xorriso*
-0 upgraded, 0 newly installed, 6 to remove and 0 not upgraded.
-After this operation, 2693 kB disk space will be freed.
-(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 148694 files and directories currently installed.)
-Removing isolinux (3:6.04~git20190206.bf6db5b4+dfsg1-3.1) ...
-Removing xorriso (1.5.6-1.2+b1) ...
-Removing libisoburn1t64:amd64 (1.5.6-1.2+b1) ...
-Removing libburn4t64:amd64 (1.5.6-1.1+b1) ...
-Removing libisofs6t64:amd64 (1.5.6.pl01-1.1+b1) ...
-Removing libjte2:amd64 (1.22-4+b2) ...
-Processing triggers for man-db (2.13.1-1) ...
+The following NEW packages will be installed:
+  qml6-module-qtquick-window
+0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 16.7 kB of archives.
+After this operation, 73.7 kB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main amd64 qml6-module-qtquick-window amd64 6.8.2+dfsg-7 [16.7 kB]
+Fetched 16.7 kB in 0s (491 kB/s)
+Selecting previously unselected package qml6-module-qtquick-window:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 60232 files and directories currently installed.)
+Preparing to unpack .../qml6-module-qtquick-window_6.8.2+dfsg-7_amd64.deb ...
+Unpacking qml6-module-qtquick-window:amd64 (6.8.2+dfsg-7) ...
+Setting up qml6-module-qtquick-window:amd64 (6.8.2+dfsg-7) ...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+qml6-module-qtqml-workerscript is already the newest version (6.8.2+dfsg-7).
+qml6-module-qtqml-workerscript set to manually installed.
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+qml-module-qtquick2 is already the newest version (5.15.15+dfsg-3).
+qml-module-qtquick2 set to manually installed.
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+qml-module-qtquick-window2 is already the newest version (5.15.15+dfsg-3).
+qml-module-qtquick-window2 set to manually installed.
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  libplymouth5
+Suggested packages:
+  desktop-base plymouth-themes
+The following NEW packages will be installed:
+  libplymouth5 plymouth plymouth-label
+0 upgraded, 3 newly installed, 0 to remove and 0 not upgraded.
+Need to get 285 kB of archives.
+After this operation, 1346 kB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main amd64 libplymouth5 amd64 24.004.60-5 [126 kB]
+Get:2 http://deb.debian.org/debian trixie/main amd64 plymouth amd64 24.004.60-5 [142 kB]
+Get:3 http://deb.debian.org/debian trixie/main amd64 plymouth-label amd64 24.004.60-5 [17.2 kB]
+Fetched 285 kB in 0s (2321 kB/s)
+Selecting previously unselected package libplymouth5:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 60239 files and directories currently installed.)
+Preparing to unpack .../libplymouth5_24.004.60-5_amd64.deb ...
+Unpacking libplymouth5:amd64 (24.004.60-5) ...
+Selecting previously unselected package plymouth.
+Preparing to unpack .../plymouth_24.004.60-5_amd64.deb ...
+Unpacking plymouth (24.004.60-5) ...
+Selecting previously unselected package plymouth-label.
+Preparing to unpack .../plymouth-label_24.004.60-5_amd64.deb ...
+Unpacking plymouth-label (24.004.60-5) ...
+Setting up libplymouth5:amd64 (24.004.60-5) ...
+Setting up plymouth (24.004.60-5) ...
+update-initramfs: Generating /boot/initrd.img-6.12.118+deb13-amd64
+W: No zstd in /usr/bin:/sbin:/bin, using gzip
+live-boot: core filesystems dm-verity devices utils udev blockdev dns.
+Setting up plymouth-label (24.004.60-5) ...
 Processing triggers for libc-bin (2.41-12+deb13u5) ...
-[2026-11-28 12:53:14] lb binary_onie 
-[2026-11-28 12:53:14] lb binary_netboot 
-[2026-11-28 12:53:14] lb binary_tar 
-[2026-11-28 12:53:14] lb binary_hdd 
-[2026-11-28 12:53:14] lb binary_zsync 
-[2026-11-28 12:53:14] lb chroot_prep remove dpkg tmpfs sysv-rc hosts resolv hostname apt
-[2026-11-28 12:53:14] lb chroot_apt remove
-P: Deconfiguring file /etc/apt/apt.conf
-[2026-11-28 12:53:14] lb chroot_hostname remove
-P: Deconfiguring file /etc/hostname
-P: Deconfiguring file /bin/hostname
-[2026-11-28 12:53:14] lb chroot_resolv remove
-P: Deconfiguring file /etc/resolv.conf
-[2026-11-28 12:53:14] lb chroot_hosts remove
-P: Deconfiguring file /etc/hosts
-[2026-11-28 12:53:14] lb chroot_sysv-rc remove
-P: Deconfiguring file /usr/sbin/policy-rc.d
-[2026-11-28 12:53:14] lb chroot_tmpfs remove
-[2026-11-28 12:53:14] lb chroot_dpkg remove
-P: Deconfiguring file /sbin/start-stop-daemon
-[2026-11-28 12:53:14] lb chroot_prep remove devpts proc selinuxfs sysfs
-[2026-11-28 12:53:14] lb chroot_sysfs remove
-P: Begin unmounting /sys...
-[2026-11-28 12:53:14] lb chroot_selinuxfs remove
-[2026-11-28 12:53:14] lb chroot_proc remove
-P: Begin unmounting /proc...
-[2026-11-28 12:53:14] lb chroot_devpts remove
-P: Begin unmounting /dev/pts...
-P: Binary stage completed
+Glyph start-up look:sddm grub plymouth (colours from your Glyph look)
+  screen 1920x1080, GRUB letters 20 px
+- SDDM sign-in screen (KDE's sign-in screen changes too)
+cp: cannot create directory '/usr/share/sddm/themes/glyph': No such file or directory
+E: config/hooks/normal/0900-glyph.hook.chroot failed (exit non-zero). You should check for errors.
+E: An unexpected failure occurred, exiting...
 P: Begin unmounting filesystems...
 P: Saving caches...
 Reading package lists...
 Building dependency tree...
 Reading state information...
-[2026-11-28 12:53:14] lb source 
-P: Source stage disabled, skipping
-P: Build completed successfully
-total 2528016
-drwxr-xr-x  2 root root       4096 Nov 28 12:53 .
-drwxr-xr-x 10 1001 1001       4096 Nov 28 12:43 ..
--rw-r--r--  1 root root     841205 Nov 28 12:53 build.log
--rw-r--r--  1 root root 2587770880 Nov 28 12:43 glyph-1.0.5-amd64.iso
--rw-r--r--  1 root root         88 Nov 28 12:53 glyph-1.0.5-amd64.iso.sha256
--rw-r--r--  1 root root      50761 Nov 28 12:53 glyph-1.0.5-amd64.packages
-/src/out/glyph-1.0.5-amd64.iso
