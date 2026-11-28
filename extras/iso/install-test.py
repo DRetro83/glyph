@@ -60,6 +60,38 @@ def warm_dark(sock):
     return sum(1 for r, g, b in px if max(r, g, b) < 120 and r - b >= 4) / len(px)
 
 
+QMP = "/tmp/glyph-install-qmp.sock"
+SCREEN = (1280, 800)
+
+
+def click(x, y, wait=2.0):
+    """A left click at screen pixel x, y (QMP, absolute: the usb-tablet)."""
+    import json
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(10)
+    s.connect(QMP)
+    f = s.makefile("rw")
+    f.readline()
+    def send(obj):
+        f.write(json.dumps(obj) + "\n"); f.flush()
+        while True:
+            r = json.loads(f.readline())
+            if "return" in r or "error" in r:
+                return r
+    send({"execute": "qmp_capabilities"})
+    ax = int(x * 32767 / (SCREEN[0] - 1)); ay = int(y * 32767 / (SCREEN[1] - 1))
+    send({"execute": "input-send-event", "arguments": {"events": [
+        {"type": "abs", "data": {"axis": "x", "value": ax}},
+        {"type": "abs", "data": {"axis": "y", "value": ay}}]}})
+    time.sleep(0.3)
+    for down in (True, False):
+        send({"execute": "input-send-event", "arguments": {"events": [
+            {"type": "btn", "data": {"down": down, "button": "left"}}]}})
+        time.sleep(0.15)
+    s.close()
+    time.sleep(wait)
+
+
 def key(sock, k, wait=1.0):
     monitor(sock, "sendkey " + k)
     time.sleep(wait)
@@ -72,11 +104,13 @@ def type_text(sock, text):
 
 
 def start_qemu(args, sock):
-    if os.path.exists(sock):
-        os.unlink(sock)
+    for p in (sock, QMP):
+        if os.path.exists(p):
+            os.unlink(p)
     cmd = ["qemu-system-x86_64", "-m", "4G", "-smp", "2",
            "-vga", "std", "-display", "none",
            "-monitor", f"unix:{sock},server,nowait",
+           "-qmp", f"unix:{QMP},server,nowait",
            "-nic", "user,model=virtio-net-pci",
            "-usb", "-device", "usb-tablet"] + args
     if os.access("/dev/kvm", os.R_OK | os.W_OK):
@@ -140,8 +174,8 @@ def main():
     for page in ("location", "keyboard", "partitions"):
         key(sock, "alt-n", 6)
         shot(sock, page)
-    # 3. Partitions: erase the (only) disk, Next
-    key(sock, "alt-e", 3)
+    # 3. Partitions: tick "Erase disk" (the installer window is centred: 960x620), Next
+    click(333, 148, 3)
     shot(sock, "erase")
     key(sock, "alt-n", 5)
     shot(sock, "users")

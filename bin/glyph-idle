@@ -2,6 +2,8 @@
 # glyph-idle - lock after the time set in Settings -> Power & lock (default 5 minutes).
 G="${XDG_CONFIG_HOME:-$HOME/.config}/glyph"
 MIN=$(sed -n 's/^lock_after=//p' "$G/glyph.conf" 2>/dev/null)
+# on the live USB stick nobody knows the password: no lock by itself there
+[ -z "$MIN" ] && grep -qw "boot=live" /proc/cmdline 2>/dev/null && MIN=0
 MIN=${MIN:-5}
 pkill -u "$(id -u)" -x swayidle 2>/dev/null
 if [ "$MIN" -gt 0 ] 2>/dev/null; then
