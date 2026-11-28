@@ -50,6 +50,8 @@ dosfstools
 calamares
 calamares-settings-debian
 python3-toml
+# the password check on the Users page needs its dictionary
+cracklib-runtime
 grub-pc-bin
 grub-efi-amd64-bin
 grub2-common
