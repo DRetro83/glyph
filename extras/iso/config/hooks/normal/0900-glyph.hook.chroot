@@ -13,6 +13,10 @@ for p in cliphist gtklock-playerctl-module pkexec qt6-wayland qtwayland5 shim-si
   fi
 done
 
+# The installer with everything Debian recommends for it (recommends are off
+# for the rest of the image; without them Calamares misses its tools).
+DEBIAN_FRONTEND=noninteractive apt-get install -y --install-recommends calamares calamares-settings-debian
+
 # 2. labwc must be labwc-glyph, or the title bars, shadow and taskbar per
 #    workspace fall back to plain labwc.
 v=$(dpkg-query -W -f='${Version}' labwc)

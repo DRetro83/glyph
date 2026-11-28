@@ -58,6 +58,13 @@ grub2-common
 efibootmgr
 cryptsetup
 rsync
+# Calamares' tools to unpack the image and make partitions
+squashfs-tools
+fdisk
+parted
+btrfs-progs
+lvm2
+os-prober
 
 # small tools
 curl
