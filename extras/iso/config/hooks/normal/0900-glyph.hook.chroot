@@ -38,8 +38,14 @@ EOF
 #    menu and Plymouth start-up screen (extras/boot, in the default Glyph
 #    colours; build.sh puts them in /usr/lib/glyph-live/boot). The live system
 #    signs in by itself (usr/lib/glyph-live/live-setup).
-#    SDDM with its recommends: its X server for the sign-in screen.
-DEBIAN_FRONTEND=noninteractive apt-get install -y --install-recommends sddm
+#    SDDM without its recommends (with them the ISO passed 2 GB), plus the X
+#    server its sign-in screen runs on and the Qt Quick parts the theme uses.
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  sddm xserver-xorg-core xserver-xorg-input-libinput xauth x11-xserver-utils
+for p in qml6-module-qtquick qml6-module-qtquick-window qml6-module-qtqml-workerscript \
+         qml-module-qtquick2 qml-module-qtquick-window2; do
+  apt-cache show "$p" >/dev/null 2>&1 && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$p" || true
+done
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends plymouth plymouth-label
 B=/usr/lib/glyph-live/boot
 GLYPH_BOOT_SYSTEM=1 GLYPH_PALETTE=$B/palette.env GLYPH_BOOT_RES=1920x1080 sh $B/install-boot.sh
