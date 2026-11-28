@@ -211,8 +211,14 @@ def main():
 
     # 7. the installed system, from the disk only
     q = start_qemu(["-drive", f"file={disk},if=virtio,format=qcow2", "-boot", "c"], sock)
-    time.sleep(90)
-    shot(sock, "installed-boot")
+    time.sleep(3)
+    png = shot(sock, "installed-grub")   # GRUB waits 5 seconds
+    shutil.copy(png, f"{OUT}/installed-grub.png")
+    time.sleep(6)
+    shot(sock, "installed-plymouth")
+    time.sleep(80)
+    png = shot(sock, "installed-signin")
+    shutil.copy(png, f"{OUT}/installed-signin.png")
     # Glyph's sign-in screen (SDDM): the only user is chosen, the password box has the focus
     type_text(sock, PASSWORD)
     key(sock, "ret", 5)
