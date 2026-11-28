@@ -198,10 +198,10 @@ def main():
     key(sock, "alt-i", 10)
     shot(sock, "installing")
 
-    # 6. wait for "All done" (the Done button), 18 minutes (a KVM install takes 5-10)
+    # 6. wait for "All done" (the Done button), 8 minutes (a KVM install takes about 2)
     start = time.time()
     last = None
-    while time.time() - start < 1080:
+    while time.time() - start < 480:
         time.sleep(60)
         last = shot(sock, f"progress-{int(time.time() - start) // 60:02d}m")
     # the finish page has a "Restart now" box and the button Done
@@ -213,7 +213,7 @@ def main():
     q = start_qemu(["-drive", f"file={disk},if=virtio,format=qcow2", "-boot", "c"], sock)
     time.sleep(90)
     shot(sock, "installed-boot")
-    # greetd's text prompt (agreety): name, password
+    # greetd's text prompt (tuigreet, or agreety): name, password
     type_text(sock, USER)
     key(sock, "ret", 3)
     type_text(sock, PASSWORD)

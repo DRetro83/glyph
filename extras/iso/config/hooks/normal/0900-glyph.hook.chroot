@@ -4,7 +4,7 @@ set -e
 
 # 1. Helpers that not every Debian release has: install them when they are there
 #    (the same "optional" list as install.sh, plus newer firmware package names).
-for p in cliphist gtklock-playerctl-module pkexec qt6-wayland qtwayland5 shim-signed grub-efi-amd64-signed \
+for p in tuigreet cliphist gtklock-playerctl-module pkexec qt6-wayland qtwayland5 shim-signed grub-efi-amd64-signed \
          firmware-intel-graphics firmware-intel-misc firmware-mediatek; do
   if apt-cache show "$p" >/dev/null 2>&1; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$p" || echo "glyph: $p could not be installed, skipped"
@@ -37,6 +37,13 @@ EOF
 # 3. greetd: a sign-in prompt that starts Glyph. The live system adds an
 #    automatic sign-in at start (usr/lib/glyph-live/greetd-autologin).
 CONF=/etc/greetd/config.toml
+# greetd and Calamares call the text greeter "agreety" without a path; Debian
+# keeps it outside PATH, so give it a place in /usr/bin. tuigreet (nicer, with a
+# clock) is used when it is there: Calamares picks it too.
+AG=$(dpkg -L greetd 2>/dev/null | grep '/agreety$' | head -1)
+[ -n "$AG" ] && [ ! -e /usr/bin/agreety ] && ln -s "$AG" /usr/bin/agreety && echo "glyph: agreety -> $AG"
+TUI=
+[ -x /usr/bin/tuigreet ] && TUI="tuigreet --remember --time --asterisks"
 echo "glyph: greetd's own config was:"; sed 's/^/    /' "$CONF" 2>/dev/null || true
 GREETER=
 for u in _greetd greetd greeter; do
@@ -54,7 +61,7 @@ cat > "$CONF" <<EOF2
 vt = ${VT:-7}
 
 [default_session]
-command = "agreety --cmd glyph-session"
+command = "${TUI:-agreety} --cmd glyph-session"
 user = "$GREETER"
 EOF2
 echo "glyph: greetd config now:"; sed 's/^/    /' "$CONF"
