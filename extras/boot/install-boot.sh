@@ -110,6 +110,7 @@ if want sddm; then
   has sddm-greeter-qt6 && echo "QtVersion=6" >> "$TMP/sddm/metadata.desktop"
   echo "- SDDM sign-in screen (KDE's sign-in screen changes too)"
   run sudo rm -rf /usr/share/sddm/themes/glyph
+  run sudo mkdir -p /usr/share/sddm/themes
   run sudo cp -r "$TMP/sddm" /usr/share/sddm/themes/glyph
   run sudo mkdir -p /etc/sddm.conf.d
   if [ $DRY = 0 ]; then printf '[Theme]\nCurrent=glyph\n' | sudo tee /etc/sddm.conf.d/zz-glyph.conf >/dev/null; sudo rm -f /etc/sddm.conf.d/glyph.conf
@@ -135,6 +136,7 @@ if want plymouth; then
   echo "- Plymouth start-up screen"
   if [ $DRY = 0 ] && [ ! -f $STATE/plymouth-before ]; then sudo plymouth-set-default-theme 2>/dev/null | sudo tee $STATE/plymouth-before >/dev/null || true; fi
   run sudo rm -rf /usr/share/plymouth/themes/glyph
+  run sudo mkdir -p /usr/share/plymouth/themes
   run sudo cp -r "$TMP/plymouth" /usr/share/plymouth/themes/glyph
   run sudo plymouth-set-default-theme -R glyph
 fi
