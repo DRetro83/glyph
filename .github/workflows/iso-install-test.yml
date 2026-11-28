@@ -1,0 +1,62 @@
+# Installs the ISO from the release "glyph-iso" onto a blank QEMU disk with
+# Calamares (driven by the keyboard), then starts the installed system and
+# signs in until the Glyph desktop shows. Screenshots of every step go to the
+# workflow's files and, when it worked, installed.png to the release.
+name: iso-install-test
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [iso]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iso-install-test
+  cancel-in-progress: true
+
+jobs:
+  install:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the ISO from the release glyph-iso
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download glyph-iso -p 'glyph-*-amd64.iso' -D iso
+          ls -la iso
+      - name: Install it in QEMU, then start the installed system
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 qemu-utils python3-pil > /dev/null
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm || true
+          python3 extras/iso/install-test.py iso/glyph-*-amd64.iso shots
+      - name: Put installed.png on the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload glyph-iso shots/installed.png --clobber
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: install-test-shots
+          path: shots/
+      - name: When something failed, keep the screenshots (branch ci-logs, folder iso-install)
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p /tmp/keep && cp shots/*.png /tmp/keep/ 2>/dev/null || true
+          git config user.name glyph-ci; git config user.email glyph@users.noreply.github.com
+          if git fetch -q origin ci-logs 2>/dev/null; then
+            git checkout -q -f -B ci-logs FETCH_HEAD
+          else
+            git checkout -q --orphan ci-logs && git rm -rfq --cached . > /dev/null
+          fi
+          rm -rf iso-install && mkdir iso-install && cp /tmp/keep/* iso-install/ 2>/dev/null || true
+          git add iso-install
+          git commit -qm "iso install-test screenshots" && git push -f origin ci-logs

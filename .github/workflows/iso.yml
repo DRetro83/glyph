@@ -1,7 +1,7 @@
 # Builds the Glyph live ISO (glyph-<version>-amd64.iso) with Debian's live-build,
 # boots it headless in QEMU (BIOS and UEFI) until the Glyph desktop shows, and
 # puts the ISO and the screenshots on the release "glyph-iso".
-# Run it by hand (Actions -> iso -> Run workflow) or by changing extras/iso/.
+# Runs by hand (Actions -> iso -> Run workflow), on a new VERSION, or when extras/iso/ changes.
 name: iso
 
 on:
@@ -10,6 +10,7 @@ on:
     paths:
       - "extras/iso/**"
       - ".github/workflows/iso.yml"
+      - "VERSION"          # every new Glyph version gets a new ISO
   workflow_dispatch:
 
 permissions:
