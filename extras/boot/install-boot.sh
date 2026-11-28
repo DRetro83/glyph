@@ -7,9 +7,14 @@
 #   ./install-boot.sh sddm grub    only these (sddm, grub, plymouth)
 #   ./install-boot.sh --remove     back to how it was
 #   ./install-boot.sh --check      show what would happen, change nothing
+#
+# The Glyph ISO runs it as root while the image is built, with
+# GLYPH_BOOT_SYSTEM=1 (no sudo, no apt, no update-grub: the installer runs that)
+# and GLYPH_PALETTE=<palette.env> (the default Glyph colours).
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
-PAL="${XDG_CONFIG_HOME:-$HOME/.config}/glyph/palette.env"
+PAL="${GLYPH_PALETTE:-${XDG_CONFIG_HOME:-$HOME/.config}/glyph/palette.env}"
+SYSTEM=${GLYPH_BOOT_SYSTEM:-0}
 STATE=/var/lib/glyph-boot
 DRY=0; REMOVE=0; PARTS=""
 for a in "$@"; do
@@ -20,7 +25,12 @@ for a in "$@"; do
   esac
 done
 [ -n "$PARTS" ] || PARTS="sddm grub plymouth"
-[ "$(id -u)" = 0 ] && { echo "Run this as yourself, not as root. It asks for your password when needed."; exit 1; }
+if [ "$SYSTEM" = 1 ]; then
+  [ "$(id -u)" = 0 ] || { echo "GLYPH_BOOT_SYSTEM=1 is for building the ISO, as root."; exit 1; }
+  sudo() { "$@"; }   # already root
+else
+  [ "$(id -u)" = 0 ] && { echo "Run this as yourself, not as root. It asks for your password when needed."; exit 1; }
+fi
 run() { if [ $DRY = 1 ]; then echo "  would run: $*"; else "$@"; fi; }
 # system tools live in /usr/sbin, which is not in a normal user's PATH on Debian
 PATH="$PATH:/usr/sbin:/sbin"
@@ -61,7 +71,7 @@ pkgs=""
 want sddm && ! has sddm && pkgs="$pkgs sddm"
 want grub && ! has grub-mkfont && pkgs="$pkgs grub-common"
 want plymouth && pkgs="$pkgs plymouth plymouth-label"   # label draws the text; apt skips what you have
-[ -n "$pkgs" ] && run sudo apt-get install -y $pkgs
+[ -n "$pkgs" ] && [ "$SYSTEM" = 0 ] && run sudo apt-get install -y $pkgs
 [ $DRY = 1 ] || sudo mkdir -p $STATE
 
 # GRUB in the screen's own resolution, with a font size that fits it
@@ -172,7 +182,7 @@ if want grub; then
 elif want plymouth; then
   [ $DRY = 0 ] && printf '# Glyph: show the start-up screen\nGRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT splash"\n' | sudo tee /etc/default/grub.d/glyph.cfg >/dev/null
 fi
-if want grub || want plymouth; then has update-grub && run sudo update-grub; fi
+if [ "$SYSTEM" = 0 ] && { want grub || want plymouth; }; then has update-grub && run sudo update-grub; fi
 [ $DRY = 1 ] || { want sddm && sudo chmod -R a+rX /usr/share/sddm/themes/glyph; want plymouth && sudo chmod -R a+rX /usr/share/plymouth/themes/glyph; want grub && sudo chmod -R a+rX /boot/grub/themes/glyph; true; }
 
 # for checking what was made: GLYPH_BOOT_KEEP=/some/dir install-boot.sh --check

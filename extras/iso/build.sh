@@ -53,6 +53,16 @@ for s in windows start quick workspaces light; do
   cp "$REPO/docs/img/real/real-$s.png" "$B/slide-$s.png"
 done
 
+echo ":: start-up look (extras/boot) in the default Glyph colours"
+BOOT=config/includes.chroot/usr/lib/glyph-live/boot
+mkdir -p "$BOOT"
+cp -a "$REPO/extras/boot/." "$BOOT/"
+TH=$(mktemp -d)
+HOME=$TH XDG_CONFIG_HOME=$TH/.config PATH="$REPO/bin:$PATH" python3 "$REPO/bin/glyph-theme" --quick
+cp "$TH/.config/glyph/palette.env" "$BOOT/palette.env"
+rm -rf "$TH"
+grep -c '^GLYPH_' "$BOOT/palette.env"
+
 echo ":: lb config"
 lb config
 

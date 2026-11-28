@@ -4,7 +4,7 @@ set -e
 
 # 1. Helpers that not every Debian release has: install them when they are there
 #    (the same "optional" list as install.sh, plus newer firmware package names).
-for p in tuigreet cliphist gtklock-playerctl-module pkexec qt6-wayland qtwayland5 shim-signed grub-efi-amd64-signed \
+for p in python3-gi-cairo gir1.2-pango-1.0 cliphist gtklock-playerctl-module pkexec qt6-wayland qtwayland5 shim-signed grub-efi-amd64-signed \
          firmware-intel-graphics firmware-intel-misc firmware-mediatek; do
   if apt-cache show "$p" >/dev/null 2>&1; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$p" || echo "glyph: $p could not be installed, skipped"
@@ -34,38 +34,25 @@ Pin: version *glyph*
 Pin-Priority: 1001
 EOF
 
-# 3. greetd: a sign-in prompt that starts Glyph. The live system adds an
-#    automatic sign-in at start (usr/lib/glyph-live/greetd-autologin).
-CONF=/etc/greetd/config.toml
-# greetd and Calamares call the text greeter "agreety" without a path; Debian
-# keeps it outside PATH, so give it a place in /usr/bin. tuigreet (nicer, with a
-# clock) is used when it is there: Calamares picks it too.
-AG=$(dpkg -L greetd 2>/dev/null | grep '/agreety$' | head -1)
-[ -n "$AG" ] && [ ! -e /usr/bin/agreety ] && ln -s "$AG" /usr/bin/agreety && echo "glyph: agreety -> $AG"
-TUI=
-[ -x /usr/bin/tuigreet ] && TUI="tuigreet --remember --time --asterisks"
-echo "glyph: greetd's own config was:"; sed 's/^/    /' "$CONF" 2>/dev/null || true
-GREETER=
-for u in _greetd greetd greeter; do
-  getent passwd "$u" >/dev/null && { GREETER=$u; break; }
+# 3. Sign-in and start-up look: SDDM with Glyph's sign-in screen, Glyph's GRUB
+#    menu and Plymouth start-up screen (extras/boot, in the default Glyph
+#    colours; build.sh puts them in /usr/lib/glyph-live/boot). The live system
+#    signs in by itself (usr/lib/glyph-live/live-setup).
+#    SDDM with its recommends: its X server for the sign-in screen.
+DEBIAN_FRONTEND=noninteractive apt-get install -y --install-recommends sddm
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends plymouth plymouth-label
+B=/usr/lib/glyph-live/boot
+GLYPH_BOOT_SYSTEM=1 GLYPH_PALETTE=$B/palette.env GLYPH_BOOT_RES=1920x1080 sh $B/install-boot.sh
+rm -rf "$B" /var/lib/glyph-boot
+echo "glyph: GRUB settings:"; sed 's/^/    /' /etc/default/grub.d/glyph.cfg
+echo "glyph: Plymouth theme: $(plymouth-set-default-theme)"
+# labwc's own session is Glyph's engine without Glyph: not offered at sign-in
+for f in /usr/share/wayland-sessions/labwc.desktop; do
+  [ -f "$f" ] && grep -q '^NoDisplay=true' "$f" || sed -i '/^\[Desktop Entry\]/a NoDisplay=true\nHidden=true' "$f" 2>/dev/null || true
 done
-if [ -z "$GREETER" ]; then
-  GREETER=_greetd
-  adduser --system --group --no-create-home --home /nonexistent "$GREETER"
-fi
-usermod -a -G video "$GREETER" || true
-VT=$(sed -n 's/^[[:space:]]*vt[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' "$CONF" 2>/dev/null | head -1)
-cat > "$CONF" <<EOF2
-# Glyph: sign in on the text prompt, then the Glyph session starts.
-[terminal]
-vt = ${VT:-7}
-
-[default_session]
-command = "${TUI:-agreety} --cmd glyph-session"
-user = "$GREETER"
-EOF2
-echo "glyph: greetd config now:"; sed 's/^/    /' "$CONF"
-systemctl enable greetd.service
+ls /usr/share/wayland-sessions
+systemctl enable sddm.service 2>/dev/null || true
+ls -l /etc/systemd/system/display-manager.service || true
 systemctl set-default graphical.target
 
 # 4. Calamares (the installer): Debian's settings, Glyph's look (branding/glyph)
@@ -77,18 +64,15 @@ if [ -n "$CS" ]; then
   mkdir -p /etc/calamares/modules
   # the live user to remove from the installed system
   printf -- '---\nusername: glyph\n' > /etc/calamares/modules/removeuser.conf
-  # sign-in on the installed system: greetd starts Glyph (with Debian's greeter user)
+  # sign-in on the installed system: SDDM (Glyph's sign-in screen), Glyph as the session
   cat > /etc/calamares/modules/displaymanager.conf <<EOF2
 ---
 displaymanagers:
-  - greetd
+  - sddm
 defaultDesktopEnvironment:
     executable: "glyph-session"
     desktopFile: "glyph"
 basicSetup: false
-greetd:
-    greeter_user: "$GREETER"
-    greeter_group: "$GREETER"
 EOF2
   echo "glyph: Calamares settings ($CS):"; grep -v '^\s*#' "$CS" | grep -v '^\s*$' | sed 's/^/    /'
   echo "glyph: Calamares modules:"; ls /etc/calamares/modules | sed 's/^/    /'

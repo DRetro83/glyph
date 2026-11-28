@@ -1,6 +1,6 @@
 #!/bin/sh
-# Live system only, run by greetd just before it starts (glyph-live.conf):
-#  - the live user signs straight in to Glyph (greetd's initial_session)
+# Live system only, run just before the sign-in screen (SDDM) starts (glyph-live.conf):
+#  - the live user signs straight in to Glyph (SDDM's automatic sign-in)
 #  - "Install Glyph" in Start, and the live user may start the installer
 #    without a password
 # All of this is written into the running live system, not into the image,
@@ -26,7 +26,13 @@ polkit.addRule(function(action, subject) {
 EOF
 fi
 
-CONF=/etc/greetd/config.toml
-grep -q '^\[initial_session\]' "$CONF" && exit 0
-printf '\n# live system only: sign in by itself\n[initial_session]\ncommand = "glyph-session"\nuser = "%s"\n' "$U" >> "$CONF"
+# sign in to Glyph by itself
+mkdir -p /etc/sddm.conf.d
+cat > /etc/sddm.conf.d/zz-glyph-live.conf <<EOF
+# live system only: sign in to Glyph by itself
+[Autologin]
+User=$U
+Session=glyph.desktop
+Relogin=false
+EOF
 echo "glyph-live: $U signs in by itself"

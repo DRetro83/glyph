@@ -7,7 +7,7 @@ the installed system and sign in, until the Glyph desktop shows.
 Calamares is driven with the keyboard (QEMU monitor "sendkey"), the way a
 person would: Next through the pages, erase the disk, a user "tester",
 Install, Done. Then the disk is started without the ISO and the user signs in
-on greetd's text prompt. Every step leaves a screenshot in OUTDIR
+on Glyph's sign-in screen (SDDM). Every step leaves a screenshot in OUTDIR
 (install-NN-<step>.png); OUTDIR/installed.png is the installed desktop.
 Exit 0 = the installed system reached the Glyph desktop."""
 import os
@@ -213,9 +213,7 @@ def main():
     q = start_qemu(["-drive", f"file={disk},if=virtio,format=qcow2", "-boot", "c"], sock)
     time.sleep(90)
     shot(sock, "installed-boot")
-    # greetd's text prompt (tuigreet, or agreety): name, password
-    type_text(sock, USER)
-    key(sock, "ret", 3)
+    # Glyph's sign-in screen (SDDM): the only user is chosen, the password box has the focus
     type_text(sock, PASSWORD)
     key(sock, "ret", 5)
     shot(sock, "signed-in")

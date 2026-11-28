@@ -16,7 +16,7 @@ lb config noauto \
   --firmware-binary false \
   --debian-installer live \
   --debian-installer-gui true \
-  --bootappend-live "boot=live components quiet live-config.username=glyph live-config.user-fullname=Glyph live-config.hostname=glyph" \
+  --bootappend-live "boot=live components quiet splash live-config.username=glyph live-config.user-fullname=Glyph live-config.hostname=glyph" \
   --iso-application "Glyph" \
   --iso-publisher "Glyph; https://github.com/DRetro83/glyph" \
   --iso-volume "Glyph" \

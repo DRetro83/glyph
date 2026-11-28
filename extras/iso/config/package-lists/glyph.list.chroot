@@ -11,8 +11,8 @@ labwc
 ddcutil
 upower
 
-# sign-in: greetd starts the Glyph session (the live user signs in by itself)
-greetd
+# sign-in: SDDM with Glyph's sign-in screen (installed in hook 0900-glyph with
+# its recommends; the live user signs in by itself)
 
 # live system and Debian's installer
 live-boot
