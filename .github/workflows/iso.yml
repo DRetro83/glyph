@@ -35,7 +35,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          sudo docker run --rm --privileged -e GITHUB_TOKEN -v "$PWD:/src" -w /src debian:trixie \
+          sudo docker run --rm --privileged -e GITHUB_TOKEN="$GITHUB_TOKEN" -v "$PWD:/src" -w /src debian:trixie \
             bash extras/iso/build.sh /src/out > /tmp/iso-build.log 2>&1 || { tail -150 /tmp/iso-build.log; exit 1; }
           tail -30 /tmp/iso-build.log
           sudo chown -R "$(id -u):$(id -g)" out
